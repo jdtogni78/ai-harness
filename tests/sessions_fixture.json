@@ -1,0 +1,79 @@
+{
+  "data": [
+    {
+      "id": "cse_bridge_usage",
+      "title": "Run all tests",
+      "status": "active",
+      "worker_status": "idle",
+      "environment_kind": "bridge",
+      "external_metadata": {
+        "post_turn_summary": {
+          "status_category": "failed",
+          "status_detail": "You've hit your org's monthly usage limit"
+        }
+      }
+    },
+    {
+      "id": "cse_cloud_session",
+      "title": "Review and refactor unused controllers",
+      "status": "active",
+      "worker_status": "idle",
+      "environment_kind": "anthropic_cloud",
+      "external_metadata": {
+        "post_turn_summary": {
+          "status_category": "failed",
+          "status_detail": "You've hit your session limit · resets 7:50pm UTC"
+        }
+      }
+    },
+    {
+      "id": "cse_path_error",
+      "title": "Collect discussion suggestions",
+      "status": "active",
+      "worker_status": "running",
+      "environment_kind": "bridge",
+      "external_metadata": {
+        "post_turn_summary": {
+          "status_category": "failed",
+          "status_detail": "Path \"/Users/user/dev/job-search/.claude/x\" not found"
+        }
+      }
+    },
+    {
+      "id": "cse_running_but_limit_text",
+      "title": "Busy session",
+      "status": "active",
+      "worker_status": "running",
+      "environment_kind": "bridge",
+      "external_metadata": {
+        "post_turn_summary": {
+          "status_category": "failed",
+          "status_detail": "usage limit"
+        }
+      }
+    },
+    {
+      "id": "cse_archived_limit",
+      "title": "Old closed session",
+      "status": "archived",
+      "worker_status": "idle",
+      "environment_kind": "bridge",
+      "external_metadata": {
+        "post_turn_summary": {
+          "status_category": "failed",
+          "status_detail": "You've hit your org's monthly usage limit"
+        }
+      }
+    },
+    {
+      "id": "cse_healthy",
+      "title": "Healthy idle session",
+      "status": "active",
+      "worker_status": "idle",
+      "environment_kind": "bridge",
+      "external_metadata": {
+        "post_turn_summary": {}
+      }
+    }
+  ]
+}

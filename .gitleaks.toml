@@ -1,0 +1,18 @@
+# gitleaks config for the public ai-harness repo.
+# Run: gitleaks detect --source . --config .gitleaks.toml
+# Use this as the basis for a pre-commit hook and/or a CI "Secret Scan" gate so
+# the public repo can't silently re-leak after publishing.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Intentional, non-secret placeholders kept in the public repo"
+regexes = [
+  # The pool scripts ship a placeholder local-dev DB password, not a real secret.
+  '''localdevpassword''',
+]
+paths = [
+  # Test fixtures contain synthetic session data, not real credentials.
+  '''tests/sessions_fixture\.json''',
+]

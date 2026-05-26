@@ -1,0 +1,17 @@
+# Pre-commit hooks for ai-harness.
+#
+# Enable locally:
+#   brew install pre-commit
+#   pre-commit install
+#
+# The gitleaks hook scans the staged diff on every `git commit` so secrets
+# never reach a commit object in the public repo. CI re-runs gitleaks against
+# the full history (see .github/workflows/secret-scan.yml) as a backstop.
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    # Pinned to a real, recent stable v8.x tag. Bump deliberately; the CI
+    # workflow pins the same version so local and CI agree on the ruleset.
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user2.claude-remote-control</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>-m</string>
+        <string>remote_control</string>
+        <string>supervisor</string>
+    </array>
+
+    <!-- This machine: the MacBook (nickname "note"). config.py defaults bake in
+         /Users/user paths, so every machine-specific path is overridden here.
+         No REMOTE_CONTROL_HOST: the nickname auto-derives from the hostname
+         (*macbook* -> "note"), matched by the @note entries in
+         active-dirs.txt. /usr/bin/python3 is the always-present system Python;
+         the package is stdlib-only so no venv/site-packages is required. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONPATH</key>
+        <string>/Users/user2/dev/ai-harness</string>
+        <key>REMOTE_CONTROL_DEV</key>
+        <string>/Users/user2/dev</string>
+        <key>REMOTE_CONTROL_CLAUDE_BIN</key>
+        <string>/Users/user2/.local/bin/claude</string>
+        <key>REMOTE_CONTROL_ACTIVE_FILE</key>
+        <string>/Users/user2/dev/ai-harness/active-dirs.txt</string>
+        <key>REMOTE_CONTROL_LOGDIR</key>
+        <string>/Users/user2/dev/ai-harness/logs</string>
+    </dict>
+
+    <!-- Start at login and keep the supervisor itself alive: if it crashes,
+         launchd relaunches it (throttled) and it re-adopts the servers. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <!-- NO AbandonProcessGroup and NO StartInterval, on purpose: keeping the
+         servers in the supervisor's process group lets launchd SIGTERM the
+         whole tree at logout/reboot, and the supervisor's TERM trap forwards it
+         so each server can deregister from the cloud (see README). -->
+
+    <key>StandardOutPath</key>
+    <string>/Users/user2/dev/ai-harness/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/user2/dev/ai-harness/logs/launchd.err.log</string>
+</dict>
+</plist>

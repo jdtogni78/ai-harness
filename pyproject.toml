@@ -1,0 +1,9 @@
+# The package is stdlib-only (no runtime deps) and runs on the system
+# /usr/bin/python3, so the canonical test runner is stdlib unittest:
+#
+#   python3 -m unittest discover -s tests -t .
+#
+# This section is only consumed if pytest happens to be installed.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

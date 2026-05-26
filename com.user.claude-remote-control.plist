@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user.claude-remote-control</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>-m</string>
+        <string>remote_control</string>
+        <string>supervisor</string>
+    </array>
+
+    <!-- The package lives in the repo; `python3 -m` needs it on PYTHONPATH
+         (launchd starts in / with a bare environment, so the cwd default
+         won't find it). /usr/bin/python3 is the always-present system Python;
+         the package is stdlib-only so no venv/site-packages is required. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONPATH</key>
+        <string>/Users/user/dev/ai-harness</string>
+        <!-- This machine: the Mac Mini (nickname "mini"). No REMOTE_CONTROL_HOST:
+             the nickname auto-derives from this box's hostname
+             (macmini.local -> "mini"), matched by the `@mini` entries in
+             active-dirs.txt. Set it explicitly here only if you want to pin a
+             nickname independent of the hostname. -->
+    </dict>
+
+    <!-- Start at login and keep the supervisor itself alive: if it crashes,
+         launchd relaunches it (throttled) and it re-adopts the servers. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <!-- NO AbandonProcessGroup and NO StartInterval, on purpose:
+         - the supervisor is long-lived and runs its own monitor loop
+           (respawn within TICK_SECS), so the old 5-min StartInterval poll
+           is unnecessary;
+         - keeping the servers in the supervisor's process group lets launchd
+           SIGTERM the whole tree at logout/reboot, and the supervisor's TERM
+           trap forwards it so each server can deregister from the cloud
+           instead of being SIGKILLed (this is what reduces post-reboot ghost
+           sessions; see README for the caveat). -->
+
+    <key>StandardOutPath</key>
+    <string>/Users/user/dev/ai-harness/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/user/dev/ai-harness/logs/launchd.err.log</string>
+</dict>
+</plist>

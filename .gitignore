@@ -1,0 +1,6 @@
+logs/
+.claude/worktrees/
+.claude/settings.local.json
+__pycache__/
+*.pyc
+scripts/pool/config.local.yaml

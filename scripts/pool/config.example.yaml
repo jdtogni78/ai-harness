@@ -1,0 +1,86 @@
+# Pool config template. Copy to config.local.yaml (gitignored) and edit, or
+# point $AI_HARNESS_POOL_CONFIG at a copy outside the repo (e.g. in your
+# personal-config repo).
+#
+# The example below describes a Laravel+Docker app stack — the adapter under
+# scripts/pool/adapters/laravel-docker-* expects this shape. A different stack
+# would need its own adapter pair + the matching config keys.
+
+# Which adapter under scripts/pool/adapters/ to dispatch to. Filenames are
+# `<adapter>-pool.sh` and `<adapter>-testpool.sh`. Only `laravel-docker` ships
+# today; add your own under adapters/ to support a different stack.
+adapter: laravel-docker
+
+# Logical name for this pool (used in messages; not a directory).
+name: example-app
+
+# Where lease tables, locks, the warm-cache datadir, and the pool-owned test
+# MariaDB datadir live. Outside the repo, survives worktree churn.
+state_dir: ~/.example-pool
+
+db:
+  # DB-name prefix. `prefix` + `_dev` is the shared dev DB; `prefix` + `_testN`
+  # is each test slot's isolated DB on the pool-owned MariaDB.
+  prefix: exampleapp
+  # MariaDB root password (used by both pool.sh and testpool.sh). Keep this
+  # file out of any repo that isn't private — SOPS-encrypt if it must travel.
+  password: localdevpassword
+  # Host port published by the pool-owned test MariaDB (testpool.sh only).
+  test_host_port: 3315
+  # Host port the SHARED dev DB publishes (pool.sh checks this is up).
+  dev_host_port: 3306
+  # Container names: dev DB (for `snapshot dev`) + pool-owned test DB.
+  dev_container: db-dev
+  test_container: db-testpool
+  test_image: mariadb:lts
+
+app:
+  # Stable "main" checkout, used as the warm-cache source and as the host for
+  # warm-started free slots. Worktrees claim and run from their own dirs.
+  main_dir: /path/to/your/app
+  # Sub-directory inside the worktree where composer.lock / vendor / public
+  # live (the Laravel-app project root). Often equals the repo name.
+  subdir: example-app
+  # Container name prefix: `<prefix>-<slot>`. e.g. exampleapp-pool0.
+  container_prefix: exampleapp
+  # Launcher script in each worktree's $main_dir-equivalent. Receives the slot
+  # name + docker-compose flags.
+  launch_script: launch_docker.sh
+  # Committed baseline backup path (relative to a worktree's claim cwd).
+  test_baseline_subpath: example-app/database/test/test-baseline.sql.gz
+  # Synthetic baseline seeder class (used when no committed dump is present).
+  test_baseline_seeder: 'Database\Seeders\TestBaselineSeeder'
+  # docker-compose service names to bring up per slot (passed verbatim to
+  # `launch_script up -d --no-deps --build <services>`).
+  compose_services: [exampleapp, mailhog, quickchart]
+  # Per-slot sidecar containers (named `<prefix>-<slot>`) that release/gc must
+  # tear down. Include any sidecar whose container is NOT `<container_prefix>-<slot>`.
+  sidecar_container_prefixes: [mail, quickchart]
+
+# arm64-native Selenium+Chromium image for the testpool.sh `tour` (Dusk) command.
+selenium_image: seleniarm/standalone-chromium:latest
+
+# Slot layout. `slots` and `offsets` are positional pairs; offset N maps to
+# host port 3000+N. Keep dev/test offsets disjoint and clear of dev=0/test=1.
+pools:
+  dev:
+    slots: [pool0, pool1, pool2, pool3, pool4, pool5]
+    offsets: [20, 21, 22, 23, 24, 25]
+  test:
+    slots: [test0, test1, test2, test3, test4, test5, test6, test7, test8, test9]
+    offsets: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+
+# Tables whose SCHEMA is kept in the test baseline but whose ROWS are stripped
+# (log / ephemeral / session tables — keeps the dump light). Tune for your app.
+test_light_skip_data:
+  - telescope_entries
+  - telescope_entries_tags
+  - telescope_monitoring
+  - jobs
+  - job_batches
+  - failed_jobs
+  - sessions
+  - cache
+  - cache_locks
+  - password_reset_tokens
+  - personal_access_tokens

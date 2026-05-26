@@ -1,0 +1,31 @@
+# Repo -> short nickname map for `python3 -m remote_control titles`.
+#
+# Each line is `repo=NICK`. The nickname is used as a `[NICK] ` prefix on the
+# titles of Claude Code sessions belonging to that repo, so same-repo chats
+# cluster together in the app's session list (the code-sessions API has no
+# real groups/folders; title is the only writable handle).
+#
+# `repo` matches case-insensitively against the repo basename (from a session's
+# git source URL, or from its local bridge worktree under ~/dev/<repo>/).
+# `#` comments and blank lines are ignored. SESSION_TITLE_NICKNAMES env or the
+# --map flag override/extend these. Unmapped repos get an auto-derived acronym
+# (e.g. multi-word -> initials, single-word -> first 3 letters).
+#
+# PREFIX TEMPLATE: the bracketed prefix is rendered from `format` (the reserved
+# key below; SESSION_TITLE_FORMAT env overrides it). Placeholders, each sourced
+# differently per session:
+#   {nick}    repo nickname from the map below
+#   {repo}    full repo basename
+#   {host}    host nickname (e.g. host1) -- LOCAL bridge sessions only
+#   {branch}  the worktree's git branch -- LOCAL bridge sessions only (1 git call)
+#   {id}      full session id (cse_01ABC...)
+#   {shortid} compact id (cse_ stripped, first 8 chars)
+#   {engine}  agent engine (claude)
+# An empty token (e.g. {host} on a cloud session) collapses with one adjacent
+# separator, so `{nick}.{host}` is `YA.host1` locally and `YA` in the cloud.
+#
+# Manage with: /rename-sessions
+
+format={nick}.{host}
+
+# (No nickname mappings by default. Add your own below, e.g. `your-app=YA`.)
