@@ -95,6 +95,40 @@ Update the README to mention the new --stdin flag, then run the unit tests.
 EOF
 ```
 
+## Replying to a coordination message (REQUIRED)
+
+If the user turn you just received is itself a coordination message from
+another agent — i.e. it says things like *"from the &lt;nick&gt; session"*,
+*"please reply here when done"*, *"ack receipt"*, or otherwise asks you to
+report a status back to a specific `cse_*` id — **you MUST reply using this
+skill, not by just ending your turn**.
+
+The reason: the natural model reply lands only in *your* session's
+transcript. The sending agent is in a different session and is **not**
+subscribed to yours; from their side, your natural reply is invisible. The
+only way they see a response is if you turn around and submit a user-turn
+event into their session via this skill.
+
+Procedure for the receiving agent:
+
+1. **Find the sender's `cse_*` id.** It may be quoted in the body, or you
+   may have to ask the user to confirm/paste it. Do not guess across
+   multiple candidates.
+2. **Wait for your in-flight work to settle** before replying, so the reply
+   reflects a final state, not an intermediate one.
+3. **Compose the reply as a status report** — what you did, what verified,
+   any blockers. Be concrete: file paths, pid changes, log excerpts.
+4. **Confirm with the user** (per the "Confirm before sending" section
+   above) — even when replying to another agent, this is still a
+   side-effecting send into a live thread.
+5. **Dry-run, then submit.** Same `--dry-run` then `--stdin` flow as a
+   first-time send.
+
+A coordination thread that uses this skill **on both sides** behaves like a
+real conversation between sessions. One that uses it on only one side
+silently strands the initiating agent waiting for a reply they will never
+see.
+
 ## When NOT to use this skill
 
 - **A paused-on-usage-limit session.** The usage-limit monitor already detects
