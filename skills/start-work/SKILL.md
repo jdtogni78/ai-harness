@@ -107,7 +107,15 @@ an API error / usage limit. No cooperation needed from the working agent.
    prefix; the usage-limit monitor re-applies prefixes every
    `SESSION_TITLE_APPLY_SECS` (default 600s), so drift self-heals — no need to
    re-run `titles set` yourself.
-6. **Do the work** in this worktree. If the session is interrupted, the claim's
+6. **Optionally spin a worker session.** If the user asked for "a worker
+   session", "a parallel session", or otherwise wants the work to happen in a
+   *separate* picker-visible session (this chat staying as a coordinator), use
+   [[new-session-skill]] to spawn one against the current worktree's cwd. **Do
+   NOT spin one by default** — most start-work flows do the work right here in
+   this chat. The spawned server is one-shot (capacity 1,
+   `oneoff-<host>-<8hex>` name, supervisor-invisible) so it self-cleans when
+   that single session ends.
+7. **Do the work** in this worktree. If the session is interrupted, the claim's
    transcript will go stale after 1h and the ticket becomes reclaimable by
    `resume-work`; when you finish, `close-work` releases the claim and closes
    the ticket.
