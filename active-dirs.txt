@@ -5,8 +5,9 @@
 #   - basenames added here spawn a server within one tick,
 #   - basenames removed (or commented out) get SIGTERM'd within one tick.
 #
-# `dev` is the special name for the ~/dev root itself (mm-dev).
-# Every other entry is a basename under ~/dev (e.g. `your-app` -> mm-your-app).
+# `dev` is the special name for the ~/dev root itself; the spawned server is
+# named <host>-dev, where <host> is the supervisor's host nickname.
+# Every other entry is a basename under ~/dev (e.g. `your-app` -> <host>-your-app).
 #
 # HOST SCOPING (this file is shared across machines via git): append `@<nick>`
 # to spawn an entry only on the host whose nickname is <nick>. A bare basename

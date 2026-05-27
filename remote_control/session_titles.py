@@ -16,12 +16,12 @@ Repo derivation per session (first hit wins):
      -> ``<repo>``. The transcript dir survives bridge-env deletion (which wipes
      (2)), so this catches sessions whose worktree was reaped but whose history
      is still on disk on the host that ran them.
-  4. a ``logs/mm-<repo>.log`` tail mentioning ``session_<id>?from=cli``
+  4. a ``logs/<host>-<repo>.log`` tail mentioning ``session_<id>?from=cli``
      -> ``<repo>``. Catches desktop-app sessions launched directly in a checkout
      (no bridge worktree, transcript folder is the plain ``-Users-<u>-dev[-<repo>]``
      with ``<uuid>.jsonl`` files rather than ``<cse>.jsonl``), so (2) and (3)
      both miss them. The cse-id is the only thing claude's TUI prints on
-     connect, and the supervisor pipes that stdout into ``mm-<repo>.log``.
+     connect, and the supervisor pipes that stdout into ``<host>-<repo>.log``.
 
 The bracketed prefix is built from a **format template** (``SESSION_TITLE_FORMAT``
 env, or a ``format=`` line in ``session-nicknames.txt``; default ``{nick}.{host}``)
@@ -29,7 +29,7 @@ whose ``{token}`` placeholders resolve from different sources per session:
 
   ``{nick}``    repo nickname (AO, CRC; from the nickname map)
   ``{repo}``    full repo basename (AppOne)
-  ``{host}``    host nickname (``mini``/``note``) -- LOCAL bridge sessions only
+  ``{host}``    host nickname -- LOCAL bridge sessions only
   ``{branch}``  the worktree's git branch -- LOCAL bridge sessions only (1 git call)
   ``{id}``      full session id (``cse_01ABC...``)
   ``{shortid}`` compact id handle (``cse_`` stripped, first 8 chars)
@@ -87,7 +87,7 @@ PROJECTS_DIR = "~/.claude/projects"
 _PROJECT_DIR_SUFFIX = "--claude-worktrees-bridge-cse-"
 
 # The OSC-8 hyperlink the ``claude`` TUI prints to its stdout (captured into
-# ``logs/mm-<repo>.log`` by the remote-control supervisor) when a desktop-app
+# ``logs/<host>-<repo>.log`` by the remote-control supervisor) when a desktop-app
 # session connects. The path component is ``session_<id>``, *without* the
 # ``cse_`` prefix the API uses, so the extractor re-adds it. This is the only
 # on-disk artifact tying a desktop-app session id to its host+repo when the
@@ -95,7 +95,7 @@ _PROJECT_DIR_SUFFIX = "--claude-worktrees-bridge-cse-"
 # ``--claude-worktrees-bridge-cse-`` transcript dir).
 _SESSION_LINK_RE = re.compile(r"session_([A-Za-z0-9]+)\?from=cli")
 
-# Tail bytes read from each ``mm-<repo>.log`` for the cse-id extractor. The logs
+# Tail bytes read from each ``<host>-<repo>.log`` for the cse-id extractor. The logs
 # grow unbounded (no rotation), and only the recent tail reflects *currently*
 # connected sessions -- stale ids from sessions that have since moved to another
 # host (or been archived) drop out naturally as the tail window slides past them.
@@ -255,10 +255,10 @@ def existing_prefix_host(title: str) -> Optional[str]:
     ``no prefix here`` -> ``None``.
 
     A self-heal pass uses this to leave already-claimed titles alone: when a
-    session shows ``[AO.mini]`` and *this* host is ``note``, we don't want
-    note's pass to overwrite mini's claim and start a ping-pong with mini's
-    own pass. The host token is always the *last* segment because the default
-    template (and the supported tokens) put ``{nick}`` first."""
+    session shows ``[AO.<host-a>]`` and *this* host is ``<host-b>``, we don't
+    want host-b's pass to overwrite host-a's claim and start a ping-pong with
+    host-a's own pass. The host token is always the *last* segment because the
+    default template (and the supported tokens) put ``{nick}`` first."""
     m = _PREFIX_RE.match(title or "")
     if not m:
         return None
@@ -425,10 +425,11 @@ def plan_renames(
         # Don't overwrite another host's claim: if the title already carries a
         # ``[NICK.HOST]`` prefix whose HOST is some other host, leave it alone.
         # Otherwise two hosts' self-heal passes would ping-pong the suffix
-        # whenever the same session is visible to both (e.g. mini sees its own
-        # bridge -> writes ``.mini``; note sees the same sid in its mm-log tail
-        # -> would overwrite to ``.note``). A non-claim title (``[AH]`` or no
-        # prefix) is still re-prefixed, since adding a fresh claim is fine.
+        # whenever the same session is visible to both (e.g. host-a sees its
+        # own bridge -> writes ``.<host-a>``; host-b sees the same sid in its
+        # log tail -> would overwrite to ``.<host-b>``). A non-claim title
+        # (``[AH]`` or no prefix) is still re-prefixed, since adding a fresh
+        # claim is fine.
         claimed_by = existing_prefix_host(old)
         if claimed_by and claimed_by != host:
             plan.append(Rename(sid, repo, None, old, old))
@@ -654,12 +655,12 @@ def build_projects_index(projects_root: Path, dev_root: str) -> Dict[str, str]:
     return index
 
 
-def build_mm_log_index(logdir: Path) -> Dict[str, str]:
-    """Map session id -> repo by scanning ``<logdir>/mm-<repo>.log`` tails for
-    the OSC-8 hyperlink the ``claude`` TUI prints when a desktop-app session
-    connects via the remote-control server. Each ``mm-<repo>`` server only ever
-    serves sessions whose cwd is under that repo, so the repo is just the file's
-    ``mm-...log`` basename -- no per-line parsing needed.
+def build_mm_log_index(logdir: Path, host: str) -> Dict[str, str]:
+    """Map session id -> repo by scanning ``<logdir>/<host>-<repo>.log`` tails
+    for the OSC-8 hyperlink the ``claude`` TUI prints when a desktop-app session
+    connects via the remote-control server. Each ``<host>-<repo>`` server only
+    ever serves sessions whose cwd is under that repo, so the repo is just the
+    file's ``<host>-...log`` basename -- no per-line parsing needed.
 
     Closes the gap left by worktree+projects indexes: a session launched
     directly in a repo checkout (no bridge worktree, transcript dir is the
@@ -667,14 +668,15 @@ def build_mm_log_index(logdir: Path) -> Dict[str, str]:
     cse-`` suffix and ``<uuid>.jsonl`` files rather than ``<cse>.jsonl``) leaves
     nothing on disk linking its local uuid to its API ``cse_<id>``. The
     remote-control server's stdout *does* print that ``cse_<id>`` once on
-    connect, and the supervisor pipes that stdout to ``mm-<repo>.log``."""
+    connect, and the supervisor pipes that stdout to ``<host>-<repo>.log``."""
     index: Dict[str, str] = {}
+    prefix = f"{host}-"
     try:
-        files = list(Path(logdir).glob("mm-*.log"))
+        files = list(Path(logdir).glob(f"{prefix}*.log"))
     except OSError:
         return index
     for f in files:
-        repo = f.name[len("mm-"):-len(".log")]
+        repo = f.name[len(prefix):-len(".log")]
         if not repo:
             continue
         try:
@@ -694,6 +696,7 @@ def merged_repo_index(
     dev_root: str,
     projects_root: Optional[str] = None,
     logdir: Optional[str] = None,
+    host: Optional[str] = None,
 ) -> Dict[str, str]:
     """Union of three host-local sources, in precedence order:
 
@@ -703,19 +706,21 @@ def merged_repo_index(
          reliably name a repo even after the worktree env is reaped).
       3. ``build_mm_log_index`` -- cse-ids harvested from remote-control server
          logs (catches desktop-app sessions launched directly in a checkout,
-         which leave no bridge artifacts).
+         which leave no bridge artifacts). Requires *host* (the current host's
+         nickname) to glob the right ``<host>-*.log`` files; when not provided,
+         the log scan is skipped.
 
     Worktree wins because a stale project dir may name a worktree that has
-    since been moved to a different repo (rare but possible); the mm-log
-    source is last because it is the loosest signal (a session that has
-    migrated hosts may still appear in the *old* host's log tail until the
-    window slides past)."""
+    since been moved to a different repo (rare but possible); the log source
+    is last because it is the loosest signal (a session that has migrated
+    hosts may still appear in the *old* host's log tail until the window
+    slides past)."""
     idx = build_worktree_index(Path(dev_root))
     if projects_root:
         for sid, repo in build_projects_index(Path(projects_root), dev_root).items():
             idx.setdefault(sid, repo)
-    if logdir:
-        for sid, repo in build_mm_log_index(Path(logdir)).items():
+    if logdir and host:
+        for sid, repo in build_mm_log_index(Path(logdir), host).items():
             idx.setdefault(sid, repo)
     return idx
 
@@ -758,9 +763,11 @@ def apply_prefixes(
     nmap = build_nickname_map(file_text,
                               map_value or os.environ.get("SESSION_TITLE_NICKNAMES", ""))
     template = title_format(file_text, os.environ.get("SESSION_TITLE_FORMAT", ""))
+    host_nick = host or host_nickname()
     index = merged_repo_index(dev, str(Path(projects).expanduser()),
-                              logdir=(str(cfg.logdir) if cfg is not None else None))
-    plan = plan_renames(sessions, index, nmap, host or host_nickname(),
+                              logdir=(str(cfg.logdir) if cfg is not None else None),
+                              host=host_nick)
+    plan = plan_renames(sessions, index, nmap, host_nick,
                         template, fs_branch_resolver(dev))
     if only:
         want = only.lower()
@@ -793,7 +800,7 @@ USAGE = (
     "    projects). Repo is derived from a session's transcript-dir name when\n"
     "    its bridge worktree has been deleted but the transcript folder remains.\n"
     "  --logdir DIR : remote-control logs dir (default ai-harness/logs). Used\n"
-    "    to harvest cse-ids from mm-<repo>.log for desktop-app sessions that\n"
+    "    to harvest cse-ids from <host>-<repo>.log for desktop-app sessions that\n"
     "    have no bridge worktree (e.g. launched directly in ~/dev).\n"
     "  --map / SESSION_TITLE_NICKNAMES env extend the repo->nickname map\n"
     "  SESSION_TITLE_FORMAT env (or a `format=` line in the nicknames file)\n"
@@ -859,7 +866,7 @@ def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
         log("set requires a <description>")
         return 2
     index = merged_repo_index(opts["dev"], str(Path(opts["projects"]).expanduser()),
-                              logdir=opts.get("logdir"))
+                              logdir=opts.get("logdir"), host=host_nickname())
     if opts["id"]:
         sid = opts["id"]
         repo = index.get(sid)
@@ -934,9 +941,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     if opts["map"]:
         nmap.update(parse_nickname_map(opts["map"].replace(",", "\n")))
     template = title_format(file_text, os.environ.get("SESSION_TITLE_FORMAT", ""))
+    host_nick = host_nickname()
     index = merged_repo_index(opts["dev"], str(Path(opts["projects"]).expanduser()),
-                              logdir=opts.get("logdir"))
-    plan = plan_renames(sessions, index, nmap, host_nickname(),
+                              logdir=opts.get("logdir"), host=host_nick)
+    plan = plan_renames(sessions, index, nmap, host_nick,
                         template, fs_branch_resolver(opts["dev"]))
     if opts["only"]:
         want = opts["only"].lower()

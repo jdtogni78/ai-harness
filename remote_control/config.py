@@ -30,9 +30,12 @@ def _truthy(value: str) -> bool:
 
 def host_nickname(env: Optional[Mapping[str, str]] = None) -> str:
     """This machine's short nickname: explicit ``REMOTE_CONTROL_HOST`` if set,
-    else derived from the hostname (``*macmini*`` -> ``mini``, ``*macbook*`` ->
-    ``note``; see discovery.NICKNAME_RULES). Shared by every config that is
-    host-aware and by the session-title host suffix."""
+    else derived from the hostname (``*macmini*`` -> ``mini``; see
+    discovery.NICKNAME_RULES). Shared by every config that is host-aware, by
+    the session-title host suffix, and by the supervisor's server-name prefix
+    (``<host>-<basename>``). Set ``REMOTE_CONTROL_HOST`` in your plist to
+    assign a per-machine personal nickname (the ``NICKNAME_RULES`` table is
+    public, so personal nicknames belong in the override, not the defaults)."""
     env = os.environ if env is None else env
     explicit = env.get("REMOTE_CONTROL_HOST", "").strip()
     return normalize_host(explicit) if explicit else nickname_from_hostname(socket.gethostname())

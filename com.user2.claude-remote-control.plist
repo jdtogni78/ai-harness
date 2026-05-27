@@ -13,11 +13,12 @@
         <string>supervisor</string>
     </array>
 
-    <!-- This machine: the MacBook (nickname "note"). config.py defaults bake in
-         /Users/user paths, so every machine-specific path is overridden here.
-         No REMOTE_CONTROL_HOST: the nickname auto-derives from the hostname
-         (*macbook* -> "note"), matched by the @note entries in
-         active-dirs.txt. /usr/bin/python3 is the always-present system Python;
+    <!-- This machine: the MacBook. config.py defaults bake in /Users/user
+         paths, so every machine-specific path is overridden here. Set
+         REMOTE_CONTROL_HOST below to give this host its personal nickname
+         (matched by @<nick> entries in active-dirs.txt); otherwise the
+         nickname auto-derives from the hostname (the first dotted label
+         lowercased). /usr/bin/python3 is the always-present system Python;
          the package is stdlib-only so no venv/site-packages is required. -->
     <key>EnvironmentVariables</key>
     <dict>

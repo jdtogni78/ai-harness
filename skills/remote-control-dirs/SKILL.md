@@ -18,8 +18,10 @@ spawns one `claude remote-control` server per dir listed in
 **`active-dirs.txt`** (one basename per line). It reloads the file every
 `TICK_SECS` (~30s) — so edits take effect within a tick, no restart needed.
 
-- `dev` is the special entry for the `~/dev` root itself (server name `mm-dev`).
-- Every other entry is a basename under `~/dev` (e.g. `my-app` → `mm-my-app`).
+- `dev` is the special entry for the `~/dev` root itself (server name
+  `<host>-dev`, where `<host>` is the supervisor's host nickname).
+- Every other entry is a basename under `~/dev` (e.g. `my-app` →
+  `<host>-my-app`).
 - Lines starting with `#` and blank lines are ignored.
 - **Fail-closed:** if the file is missing, the supervisor allows nothing.
 - **Removing an entry sends SIGTERM** to its server within ~30s — even if it
@@ -43,8 +45,10 @@ dir is missing; running but not allowlisted = will be deactivated next tick.
 # Allowlisted (parsed)
 grep -vE '^[[:space:]]*(#|$)' "$ACTIVE_FILE" | awk '{$1=$1;print}'
 
-# Currently running (uses ps because macOS pgrep -a is a no-op)
-ps -axo command | awk '/\/claude[ ]+remote-control[ ]+--name[ ]+mm-/ {
+# Currently running (uses ps because macOS pgrep -a is a no-op). The --name
+# token is "<host>-<basename>"; we don't filter by host here because there's
+# only ever one host's supervisor on this machine.
+ps -axo command | awk '/\/claude[ ]+remote-control[ ]+--name[ ]+/ {
   for (i=1;i<=NF;i++) if ($i=="--name") { print $(i+1); break } }' | sort -u
 
 # Subdirs on disk
@@ -65,7 +69,7 @@ grep -qxE "^[[:space:]]*${name}[[:space:]]*$" "$ACTIVE_FILE" \
   || printf '%s\n' "$name" >> "$ACTIVE_FILE"
 ```
 
-Then `tail -20 "$LOGDIR/manager.log"` after ~30s to confirm `start: mm-<name>`.
+Then `tail -20 "$LOGDIR/manager.log"` after ~30s to confirm `start: <host>-<name>`.
 
 ## Disable a dir
 
@@ -75,8 +79,9 @@ will kill that session.
 
 ```bash
 name=<name>
-# Check if busy before destructive action:
-tail -c 200000 "$LOGDIR/mm-${name}.log" 2>/dev/null \
+# Check if busy before destructive action. The log file is
+# "<host>-<name>.log" -- glob so we don't need to know the host nickname.
+tail -c 200000 "$LOGDIR/"*-"${name}.log" 2>/dev/null \
   | grep -aoE 'Capacity: [0-9]+/[0-9]+' | tail -1
 
 # Remove (uses a tmpfile so the supervisor never sees a half-written file):
@@ -87,7 +92,7 @@ tmp=$(mktemp) && awk -v n="$name" '
 ```
 
 Then `tail -20 "$LOGDIR/manager.log"` after ~30s to confirm
-`deactivate: mm-<name> not in allowlist`.
+`deactivate: <host>-<name> not in allowlist`.
 
 ## Reload now (rarely needed)
 
@@ -120,16 +125,16 @@ python3 -m remote_control sessions archive cse_a cse_b…
 ```
 
 Bare `launchctl kickstart -k …` still works but **orphans the running cse_s**:
-their `mm-*` servers get TERMed and never reconnect; the next supervisor cycle
-opens fresh `cse_`s. Use the script above unless you genuinely want to discard
-the in-flight sessions.
+their `<host>-*` servers get TERMed and never reconnect; the next supervisor
+cycle opens fresh `cse_`s. Use the script above unless you genuinely want to
+discard the in-flight sessions.
 
 ## Don't
 
 - Don't edit `remote-control-supervisor.sh` for routine enable/disable — that's
   what this list is for.
-- Don't `pkill` an mm-* server to "disable" it; the supervisor will respawn it
-  on the next tick. Edit the allowlist instead.
+- Don't `pkill` a `<host>-*` server to "disable" it; the supervisor will
+  respawn it on the next tick. Edit the allowlist instead.
 - Don't `> active-dirs.txt` (truncate) unless you mean "deactivate everything";
   the supervisor fails-closed and will TERM all servers.
 - Don't bare-`launchctl kickstart -k` the supervisor when sessions are live —

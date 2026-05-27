@@ -4,10 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Hosts
 
-Agents run across two machines, each with a short nickname: **note** (the
-MacBook) and **mini** (the Mac Mini). Only **note** (the MacBook) has access to
-production — **mini** (the Mac Mini) does not. Run any production task (deploys,
-prod secret management, the SOPS/age prod runbook) from **note**.
+Agents run across two machines: the MacBook and the Mac Mini (nicknamed
+**mini**). Only the MacBook has access to production — **mini** does not.
+Run any production task (deploys, prod secret management, the SOPS/age prod
+runbook) from the MacBook. The MacBook's personal nickname is set per-host
+via ``REMOTE_CONTROL_HOST`` in its plist; this file deliberately doesn't
+hard-code it (see issue #12).
 
 ## Project tracking
 
@@ -36,7 +38,7 @@ Repo-specific decisions stay in that repo's own `docs/ENGINEERING_DECISIONS.md`.
 
 ### Multi-agent ticket coordination
 
-Several agents (parallel Claude/Codex sessions, often across note + mini)
+Several agents (parallel Claude/Codex sessions, often across both hosts)
 share this one board, so they coordinate via a **claim** convention to avoid
 double-working a ticket and to recover one whose agent disconnected:
 

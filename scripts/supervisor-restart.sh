@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # Safely restart the launchd-managed remote-control supervisor on THIS host,
-# preserving the work that lives in the cse_ sessions its mm-* servers own.
+# preserving the work that lives in the cse_ sessions its ``<host>-*`` servers own.
 #
-# Why: bare `launchctl kickstart -k` TERMs every mm-* server, which kills the
-# cse_ bridge sessions they own. The next supervisor incarnation spawns fresh
-# mm-* servers with NEW cse_ ids, so the old cse_s become disconnected forever
-# unless we fork their on-disk transcripts to local siblings first. Composes:
+# Why: bare `launchctl kickstart -k` TERMs every ``<host>-*`` server, which kills
+# the cse_ bridge sessions they own. The next supervisor incarnation spawns fresh
+# ``<host>-*`` servers with NEW cse_ ids, so the old cse_s become disconnected
+# forever unless we fork their on-disk transcripts to local siblings first.
+# Composes:
 #
 #   1. snapshot the active this-host cse_ ids (via `sessions --location this-host`)
 #   2. launchctl kickstart -k <label>
-#   3. wait for the supervisor to spawn fresh servers (poll mm-*.log mtimes)
+#   3. wait for the supervisor to spawn fresh servers (poll the manager.log)
 #   4. fork-all the snapshotted ids (now-disconnected, transcripts still on disk)
 #   5. (optional --archive) archive each source after its fork succeeds
 #   6. (optional --open-app) surface Claude.app at the cwd so the user can pick
@@ -106,11 +107,14 @@ log "kickstart: gui/$(id -u)/$LABEL"
 launchctl kickstart -k "gui/$(id -u)/$LABEL"
 
 # --- 3. wait for fresh servers ------------------------------------------------
-# The supervisor logs a "start: mm-X" line to logs/manager.log when it spawns
-# a server. We poll for at least one such line dated AFTER the kickstart.
+# The supervisor logs a "start: <host>-X" line to logs/manager.log when it
+# spawns a server. We poll for at least one such line dated AFTER the
+# kickstart. The host prefix is parametrized (see remote_control.discovery.
+# server_name), so we just match "start: " -- it's only emitted for server
+# spawns, no other supervisor log line uses that token.
 KICK_EPOCH=$(date +%s)
 LOGDIR="$REPO_ROOT/logs"
-log "waiting up to ${WAIT_SECS}s for the supervisor to spawn fresh mm-* servers"
+log "waiting up to ${WAIT_SECS}s for the supervisor to spawn fresh servers"
 deadline=$(( KICK_EPOCH + WAIT_SECS ))
 while :; do
   now=$(date +%s)
@@ -118,10 +122,10 @@ while :; do
     log "WARN: timed out waiting for fresh servers; proceeding with fork-all anyway"
     break
   fi
-  # New "start: mm-..." lines in manager.log dated > KICK_EPOCH?
+  # New "start: ..." lines in manager.log dated > KICK_EPOCH?
   manager_log_mtime=$(stat -f %m "$LOGDIR/manager.log" 2>/dev/null || echo 0)
   if [ "$manager_log_mtime" -gt "$KICK_EPOCH" ] \
-     && tail -50 "$LOGDIR/manager.log" 2>/dev/null | grep -q "start: mm-"; then
+     && tail -50 "$LOGDIR/manager.log" 2>/dev/null | grep -q "start: "; then
     log "supervisor is spawning fresh servers"
     sleep "$GRACE_SECS"
     break

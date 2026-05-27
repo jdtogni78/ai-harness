@@ -545,7 +545,7 @@ class ProjectsIndexTest(unittest.TestCase):
             (logdir / "manager.log").write_text(
                 "not an mm- file: session_03GHIjkl?from=cli\n"
             )
-            idx = build_mm_log_index(logdir)
+            idx = build_mm_log_index(logdir, "mm")
             self.assertEqual(
                 idx, {"cse_01ABCxyz": "dev", "cse_02DEFxyz": "AppOne"})
 
@@ -565,13 +565,13 @@ class ProjectsIndexTest(unittest.TestCase):
             padding = b"x" * (st.MM_LOG_TAIL_BYTES + 1024)
             (logdir / "mm-dev.log").write_bytes(
                 stale.encode() + padding + recent.encode())
-            idx = build_mm_log_index(logdir)
+            idx = build_mm_log_index(logdir, "mm")
             self.assertEqual(idx, {"cse_FRESHnew": "dev"})
 
     def test_build_mm_log_index_missing_dir_returns_empty(self):
         from pathlib import Path
         from remote_control.session_titles import build_mm_log_index
-        self.assertEqual(build_mm_log_index(Path("/nonexistent-logdir")), {})
+        self.assertEqual(build_mm_log_index(Path("/nonexistent-logdir"), "mm"), {})
 
     def test_merged_repo_index_mm_log_fills_gaps_lowest_precedence(self):
         import tempfile
@@ -586,7 +586,7 @@ class ProjectsIndexTest(unittest.TestCase):
             orig_wt = st.build_worktree_index
             st.build_worktree_index = lambda dev: {"cse_01X": "AppOne"}
             try:
-                idx = merged_repo_index("/Users/me/dev", None, logdir=log_tmp)
+                idx = merged_repo_index("/Users/me/dev", None, logdir=log_tmp, host="mm")
             finally:
                 st.build_worktree_index = orig_wt
             # Worktree's repo for cse_01X wins over mm-log's "dev"; cse_03Z is

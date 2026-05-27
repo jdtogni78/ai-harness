@@ -19,7 +19,7 @@ python3 -m remote_control <supervisor|usage-monitor|manager|manager-ui|perm-gate
 | `active-dirs.txt` | Allowlist of dir basenames the supervisor will spawn servers for. Re-read every tick. See [Activation list](#activation-list). |
 | `com.*.claude-remote-control.plist` | LaunchAgent for the claude supervisor → `python3 -m remote_control supervisor` (runs at login, `KeepAlive`). |
 | `com.*.claude-usage-limit-monitor.plist` | LaunchAgent for the usage-limit monitor → `python3 -m remote_control usage-monitor` (runs at login, `KeepAlive`). |
-| `logs/` | Runtime logs (gitignored). `manager.log` = claude supervisor; `mm-*.log` = per-claude-server output; `usage-limit-monitor.log` + `paused-sessions.json` = monitor activity + state. |
+| `logs/` | Runtime logs (gitignored). `manager.log` = claude supervisor; `<host>-*.log` = per-claude-server output (one per allowlisted dir, prefixed with the host nickname); `usage-limit-monitor.log` + `paused-sessions.json` = monitor activity + state. |
 
 ## Configure your apps
 
@@ -73,7 +73,8 @@ services don't read the pool config at all.
   launchd relaunches it (throttled 10s) and it re-adopts the running servers.
 - The supervisor loops every `TICK_SECS` (default 30s): discovers dirs, and for
   each ensures a server is running, respawning within ~one tick if not.
-- **Naming / spawn mode:** `mm-<dir>` (original casing). `~/dev` root →
+- **Naming / spawn mode:** `<host>-<dir>` (original casing; `<host>` is the
+  supervisor's host nickname). `~/dev` root →
   `--spawn same-dir`; git-repo subdirs → `--spawn worktree`; non-git →
   `same-dir`. All run `--permission-mode acceptEdits
   --no-create-session-in-dir`, so spawned servers come up empty — sessions are

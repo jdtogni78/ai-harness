@@ -61,7 +61,7 @@ session on one host, `[MYAPP.note]` on another, `[MYAPP]` for a cloud session.
 |-------------|----------------------------------------|------------------------|
 | `{nick}`    | repo nickname (`MYAPP`)                | always                 |
 | `{repo}`    | full repo basename (`my-application`)  | always                 |
-| `{host}`    | host nickname (`mini`/`note`)          | local bridge sessions  |
+| `{host}`    | host nickname                          | local bridge sessions  |
 | `{branch}`  | the worktree's git branch              | local bridge sessions¹ |
 | `{id}`      | full session id (`cse_01ABC…`)         | always                 |
 | `{shortid}` | compact id (`cse_` stripped, 8 chars)  | always                 |

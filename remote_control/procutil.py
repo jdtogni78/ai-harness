@@ -14,16 +14,22 @@ from typing import Dict, List, Mapping, Optional
 from .config import SupervisorConfig
 from .discovery import Server
 
-# Anchor on "/claude  remote-control  --name  mm-..." (same anchor as the shell's
-# awk regex) so we don't match tooling that merely mentions an mm-* name in argv.
-_RUNNING_RE = re.compile(r"/claude\s+remote-control\s+--name\s+(mm-\S+)")
 # Used-session count N from the latest "Capacity: N/M" the server's TUI printed.
 _CAPACITY_RE = re.compile(rb"Capacity: (\d+)/\d+")
 _CAPACITY_TAIL_BYTES = 200000
 
 
-def running_servers() -> List[str]:
-    """Sorted-unique names of currently-running mm-* servers.
+def _running_re(host: str) -> "re.Pattern[str]":
+    """Anchor on ``/claude  remote-control  --name  <host>-...`` (same anchor as
+    the shell's awk regex) so we don't match tooling that merely mentions a
+    server name in argv. Host is regex-escaped."""
+    return re.compile(
+        r"/claude\s+remote-control\s+--name\s+(" + re.escape(host) + r"-\S+)"
+    )
+
+
+def running_servers(host: str) -> List[str]:
+    """Sorted-unique names of currently-running ``<host>-*`` servers.
 
     Parses ``ps -axo command`` (not ``pgrep -fl``, whose pattern would
     self-match any concurrent process whose argv contains the literal name).
@@ -33,9 +39,10 @@ def running_servers() -> List[str]:
                              capture_output=True, text=True)
     except OSError:
         return []
+    pattern = _running_re(host)
     names = set()
     for line in out.stdout.splitlines():
-        m = _RUNNING_RE.search(line)
+        m = pattern.search(line)
         if m:
             names.add(m.group(1))
     return sorted(names)
@@ -44,8 +51,8 @@ def running_servers() -> List[str]:
 def server_pid(name: str) -> Optional[int]:
     """First PID of the running server for *name*, or None.
 
-    The trailing " --spawn" keeps mm-app-two from matching mm-app-two-docker
-    (the same disambiguation the shell used).
+    The trailing " --spawn" keeps e.g. ``<host>-app-two`` from matching
+    ``<host>-app-two-docker`` (the same disambiguation the shell used).
     """
     try:
         out = subprocess.run(["pgrep", "-f", f"name {name} --spawn"],
@@ -142,8 +149,8 @@ def _augment_path(path: str, home: Optional[str]) -> str:
 def spawn_env(cfg: SupervisorConfig, base_env: Mapping[str, str]) -> Dict[str, str]:
     """Child env (pure): inherit *base_env* but (1) set the remote-control session
     name prefix to our host nickname, so the app groups this machine's servers
-    under the nickname (e.g. "note") instead of the raw hostname, and (2) add
-    the Homebrew/user bin dirs to PATH (see _PATH_PREPEND) so gh/jq/claude resolve
+    under the nickname instead of the raw hostname, and (2) add the
+    Homebrew/user bin dirs to PATH (see _PATH_PREPEND) so gh/jq/claude resolve
     despite launchd's bare PATH."""
     env = dict(base_env)
     env["CLAUDE_REMOTE_CONTROL_SESSION_NAME_PREFIX"] = cfg.host

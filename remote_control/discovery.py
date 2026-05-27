@@ -29,14 +29,19 @@ from typing import (
 # against the lowercased hostname, so machines of the same kind share one short
 # nickname regardless of their full hostname. An unmatched host falls back to
 # its first dotted label. Globs are case-insensitive (the hostname is lowered).
+#
+# Per-machine personal nicknames belong in the plist (``REMOTE_CONTROL_HOST``),
+# not here -- this table is checked into a public repo, so any rule that
+# stamped a personal name onto everyone else's machine would be a leak. The
+# ``*macmini*`` rule below is kept because ``mini`` derives naturally from the
+# product name (it's effectively a one-word synonym), not from any one user.
 NICKNAME_RULES: Tuple[Tuple[str, str], ...] = (
-    ("*macbook*", "note"),
     ("*macmini*", "mini"),
 )
 
 
 class Server(NamedTuple):
-    name: str          # e.g. "mm-AppOne"
+    name: str          # ``<host>-<basename>`` (prefix is the host nickname)
     directory: Path
     spawn_mode: str    # "same-dir" | "worktree"
 
@@ -47,19 +52,26 @@ HostScope = Optional[FrozenSet[str]]
 Allowlist = Dict[str, HostScope]
 
 
-def server_name(basename: str) -> str:
-    return f"mm-{basename}"
+def server_name(basename: str, host: str) -> str:
+    """Server name = ``<host-nickname>-<basename>``.
+
+    Parametrized by host so the same code on different machines yields
+    machine-distinguishable server names (e.g. ``<host-a>-AppOne`` vs
+    ``<host-b>-AppOne``) without a hardcoded prefix.
+    """
+    return f"{host}-{basename}"
 
 
 def nickname_from_hostname(hostname: str) -> str:
     """Default host nickname derived from a hostname.
 
-    A ``NICKNAME_RULES`` glob match wins (so ``Daniels-MacBook-Pro-2.local`` ->
-    ``note`` and ``macmini.local`` -> ``mini``); otherwise the first
-    dotted label is used (``Some-Server.lan`` -> ``some-server``). The result is
-    lowercased so matching is stable and case-insensitive. An explicit
-    ``REMOTE_CONTROL_HOST`` overrides this (see ``config``); this is just the
-    fallback when none is set.
+    A ``NICKNAME_RULES`` glob match wins (so ``macmini.local`` -> ``mini``);
+    otherwise the first dotted label is used (``Some-Server.lan`` ->
+    ``some-server``). The result is lowercased so matching is stable and
+    case-insensitive. An explicit ``REMOTE_CONTROL_HOST`` overrides this (see
+    ``config``); this is just the fallback when none is set, and is the right
+    way to assign a per-machine personal nickname (which has no business in
+    the committed ``NICKNAME_RULES`` table).
     """
     h = "".join(hostname.split()).lower()
     for pattern, nick in NICKNAME_RULES:
@@ -119,16 +131,17 @@ def discover(
     """Servers to run on *host* for every allowlisted dir present on disk.
 
     An entry is eligible only if its basename is allowlisted AND its host scope
-    permits *host*. The dev root (basename of *dev_root*, e.g. "dev" -> mm-dev)
-    is same-dir. Subdirs are worktree when *git_probe* reports a usable repo
-    (inside a work tree AND HEAD resolves -- a fresh ``git init`` with no commit
-    can't be branched off, so it falls back to same-dir), else same-dir.
+    permits *host*. The dev root (basename of *dev_root*, e.g. ``dev`` ->
+    ``<host>-dev``) is same-dir. Subdirs are worktree when *git_probe* reports
+    a usable repo (inside a work tree AND HEAD resolves -- a fresh ``git init``
+    with no commit can't be branched off, so it falls back to same-dir), else
+    same-dir.
     """
     dev_root = Path(dev_root)
     servers: List[Server] = []
     root_base = dev_root.name
     if root_base in allowlist and host_allows(allowlist[root_base], host):
-        servers.append(Server(server_name(root_base), dev_root, "same-dir"))
+        servers.append(Server(server_name(root_base, host), dev_root, "same-dir"))
     for d in subdirs:
         d = Path(d)
         base = d.name
@@ -137,5 +150,5 @@ def discover(
         if base == root_base:
             continue  # don't double-emit if a subdir collides with the root
         mode = "worktree" if git_probe(d) else "same-dir"
-        servers.append(Server(server_name(base), d, mode))
+        servers.append(Server(server_name(base, host), d, mode))
     return servers

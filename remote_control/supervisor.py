@@ -43,8 +43,8 @@ def should_recycle(last_busy: float, now: float, idle_recycle_secs: int) -> bool
 
 
 def to_deactivate(running: Iterable[str], wanted: Set[str]) -> List[str]:
-    """Running mm-* servers not wanted this tick (removed from allowlist / dir
-    gone) -> clean SIGTERM->KILL, no respawn."""
+    """Running ``<host>-*`` servers not wanted this tick (removed from
+    allowlist / dir gone) -> clean SIGTERM->KILL, no respawn."""
     return [name for name in running if name not in wanted]
 
 
@@ -147,7 +147,7 @@ class Supervisor:
             elif should_recycle(self.last_busy[srv.name], now, self.cfg.idle_recycle_secs):
                 self._recycle(srv, pid, now)
 
-        for name in to_deactivate(self.proc.running_servers(), wanted):
+        for name in to_deactivate(self.proc.running_servers(self.cfg.host), wanted):
             pid = self.proc.server_pid(name)
             if pid is None:
                 continue
@@ -156,14 +156,15 @@ class Supervisor:
 
     def shutdown_all(self) -> None:
         self.log("shutdown: forwarding SIGTERM to all servers")
-        # TERM every running mm-* server, regardless of allowlist membership: a
-        # server started under an older allowlist still deserves clean deregister.
-        for name in self.proc.running_servers():
+        # TERM every running ``<host>-*`` server, regardless of allowlist
+        # membership: a server started under an older allowlist still deserves
+        # clean deregister.
+        for name in self.proc.running_servers(self.cfg.host):
             pid = self.proc.server_pid(name)
             if pid is not None:
                 self.proc.term(pid)
         for _ in range(self.cfg.grace_secs):
-            if not self.proc.running_servers():
+            if not self.proc.running_servers(self.cfg.host):
                 break
             self._sleep(1)
         self.log("shutdown: done")

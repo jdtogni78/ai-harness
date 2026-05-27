@@ -9,7 +9,8 @@ from remote_control.discovery import (
     nickname_from_hostname,
 )
 
-ANY = "anyhost"  # host used when entries are unscoped; must not matter
+ANY = "mm"  # host used when entries are unscoped; chosen so server names are
+            # "mm-<basename>" (legacy spelling) for back-compat with these tests
 
 
 class AllowlistTest(unittest.TestCase):
@@ -61,13 +62,17 @@ class HostAllowsTest(unittest.TestCase):
 
 
 class NicknameTest(unittest.TestCase):
-    def test_macbook_rule(self):
-        self.assertEqual(nickname_from_hostname("User2s-MacBook-Pro-2.local"), "note")
-        self.assertEqual(nickname_from_hostname("work-macbook-air"), "note")
-
     def test_macmini_rule(self):
         self.assertEqual(nickname_from_hostname("macmini.local"), "mini")
         self.assertEqual(nickname_from_hostname("Claudios-MacMini.lan"), "mini")
+
+    def test_no_macbook_default_rule(self):
+        # Personal nicknames for the MacBook are set per-host via
+        # REMOTE_CONTROL_HOST (not via a public NICKNAME_RULES entry), so a
+        # macbook hostname with no override falls through to the first-label
+        # rule rather than getting a default name from this table.
+        self.assertEqual(nickname_from_hostname("User2s-MacBook-Pro-2.local"),
+                         "user2s-macbook-pro-2")
 
     def test_unmatched_falls_back_to_first_label_lowercased(self):
         self.assertEqual(nickname_from_hostname("Some-Server.lan"), "some-server")
@@ -127,7 +132,8 @@ class DiscoverTest(unittest.TestCase):
     def test_scoped_subdir_spawns_on_matching_host(self):
         allow = {"AppOne": frozenset({"user"})}
         names = {s.name for s in discover(self.dev, allow, self.subdirs, lambda d: False, "user")}
-        self.assertEqual(names, {"mm-AppOne"})
+        # Server name carries the host nickname prefix.
+        self.assertEqual(names, {"user-AppOne"})
 
     def test_scoped_subdir_skipped_on_other_host(self):
         allow = {"AppOne": frozenset({"user"})}
@@ -146,7 +152,8 @@ class DiscoverTest(unittest.TestCase):
         )
         self.assertEqual(
             discover(self.dev, {"dev": frozenset({"user"})}, [], lambda d: True, "user"),
-            [Server("mm-dev", self.dev, "same-dir")],
+            # Server name carries the host nickname prefix.
+            [Server("user-dev", self.dev, "same-dir")],
         )
 
 

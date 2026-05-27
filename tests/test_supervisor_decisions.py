@@ -45,8 +45,12 @@ class FakeProc:
     def server_pid(self, name):
         return self.pids.get(name)
 
-    def running_servers(self):
-        return sorted(self.pids)
+    def running_servers(self, host):
+        # The real procutil.running_servers filters by host prefix; the fake
+        # already keys self.pids by server name (which encodes the host), so
+        # filter the same way for fidelity.
+        prefix = f"{host}-"
+        return sorted(n for n in self.pids if n.startswith(prefix))
 
     def read_capacity(self, logpath):
         return self.caps.get(Path(logpath).stem, -1)
@@ -78,7 +82,7 @@ class FakeProc:
 
 
 class SupervisorTickTest(unittest.TestCase):
-    def _make(self, allow="AppOne\napp-two\n", idle_recycle=43200, host="user"):
+    def _make(self, allow="AppOne\napp-two\n", idle_recycle=43200, host="mm"):
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
         dev = root / "dev"
@@ -104,7 +108,7 @@ class SupervisorTickTest(unittest.TestCase):
         sup, proc, _ = self._make()
         sup.tick(now=0)
         self.assertEqual({s.name for s in proc.spawned}, {"mm-AppOne", "mm-app-two"})
-        self.assertEqual(set(proc.running_servers()), {"mm-AppOne", "mm-app-two"})
+        self.assertEqual(set(proc.running_servers("mm")), {"mm-AppOne", "mm-app-two"})
 
     def test_adopts_running_without_respawn(self):
         sup, proc, _ = self._make()
@@ -151,14 +155,15 @@ class SupervisorTickTest(unittest.TestCase):
         allow = "AppOne@user\napp-two\n"
         sup, proc, _ = self._make(allow=allow, host="user")
         sup.tick(now=0)
-        self.assertEqual({s.name for s in proc.spawned}, {"mm-AppOne", "mm-app-two"})
+        # Server names carry the host nickname prefix.
+        self.assertEqual({s.name for s in proc.spawned}, {"user-AppOne", "user-app-two"})
 
     def test_host_scoped_skipped_on_other_host(self):
         # AppOne is scoped to user; on "user2" only the bare app-two runs.
         allow = "AppOne@user\napp-two\n"
         sup, proc, _ = self._make(allow=allow, host="user2")
         sup.tick(now=0)
-        self.assertEqual({s.name for s in proc.spawned}, {"mm-app-two"})
+        self.assertEqual({s.name for s in proc.spawned}, {"user2-app-two"})
 
     def test_missing_active_file_spawns_nothing(self):
         sup, proc, logs = self._make()
