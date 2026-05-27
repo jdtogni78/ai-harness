@@ -25,13 +25,24 @@ delivered into any live session.
 ## Tool
 
 ```
-python3 -m remote_control sessions submit CSE_ID (--message TEXT | --stdin) [--dry-run]
+python3 -m remote_control sessions submit CSE_ID (--message TEXT | --stdin) \
+    [--reply-to CSE_ID | --no-reply-to] [--dry-run]
 ```
 
 - `--message TEXT` — single-arg message (good for short prompts).
 - `--stdin` — read the message from stdin (use for multi-line).
 - `--dry-run` — print the wrapped-event JSON body that *would* be POSTed and
   exit 0. No network call. Always do this first on a new session id.
+- `--reply-to CSE_ID` — explicit sender id. Overrides the env-var auto-detect.
+- `--no-reply-to` — skip the sender-id header entirely (e.g. when nudging
+  your own paused session, where no reply is expected).
+
+**Sender-id header (default on).** The CLI prepends a single line —
+`[from <sender-cse_id> — reply via send-to-session]` — to the outgoing message
+so the receiving agent knows which `cse_*` to reply back into. The sender id
+is read from the `CLAUDE_CODE_SESSION_ACCESS_TOKEN` JWT the desktop app
+injects into every spawned process. If that env var is missing, the CLI logs a
+warning and submits without the header — pass `--reply-to` to be explicit.
 
 Auth reuses the usage-limit monitor's keychain OAuth token; no extra setup.
 
@@ -111,8 +122,11 @@ event into their session via this skill.
 
 Procedure for the receiving agent:
 
-1. **Find the sender's `cse_*` id.** It may be quoted in the body, or you
-   may have to ask the user to confirm/paste it. Do not guess across
+1. **Find the sender's `cse_*` id.** When the send-to-session CLI was used
+   on the sending side, the body opens with a header line
+   `[from cse_XXX — reply via send-to-session]` — read the id from there.
+   If that header is absent, the sender may have quoted the id in prose, or
+   you may have to ask the user to confirm/paste it. Do not guess across
    multiple candidates.
 2. **Wait for your in-flight work to settle** before replying, so the reply
    reflects a final state, not an intermediate one.
@@ -122,7 +136,8 @@ Procedure for the receiving agent:
    above) — even when replying to another agent, this is still a
    side-effecting send into a live thread.
 5. **Dry-run, then submit.** Same `--dry-run` then `--stdin` flow as a
-   first-time send.
+   first-time send. The submit CLI will auto-embed your own session id as
+   the new `[from ...]` header so the round-trip is symmetric.
 
 A coordination thread that uses this skill **on both sides** behaves like a
 real conversation between sessions. One that uses it on only one side
