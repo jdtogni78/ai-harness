@@ -401,6 +401,30 @@ class PlanRenamesTest(unittest.TestCase):
         self.assertEqual(plan["cse_ours"].new_title, "[AO.note] our claim")
         self.assertEqual(plan["cse_hostless"].new_title, "[AO.note] hostless")
 
+    def test_own_host_claim_preserved_when_not_in_worktree_index(self):
+        """The bug-fix case: a session this host owns by title (``[AO.note]``)
+        but is NOT in our local worktree index (e.g. bridge worktree lives
+        outside the scanned roots) must keep its host suffix.
+
+        Before the fix, ``is_host_local`` returned False, ``host_local=False``
+        collapsed ``{host}`` to empty in the template, and ``apply_prefix``
+        rewrote ``[AO.note] x`` -> ``[AO] x`` -- the same self-overwrite the
+        cross-host guard explicitly prevents for foreign claims. After the
+        fix a matching self-claim is authoritative: it implies host-local even
+        when the on-disk indexer can't see the session."""
+        sessions = [
+            {"id": "cse_orphan", "title": "[AO.note] outside-index",
+             "config": {"sources": [{"url": "https://github.com/me/AppOne.git"}]}},
+        ]
+        # Empty worktree index: the session id is NOT a known local bridge
+        # here, so is_host_local returns False. repo_for_session still
+        # derives a repo from config.sources -- the rename can proceed.
+        plan = {r.id: r for r in plan_renames(
+            sessions, {}, self.nmap, host="note")}
+        self.assertFalse(plan["cse_orphan"].changed,
+                         f"own-host claim must survive: {plan['cse_orphan']}")
+        self.assertEqual(plan["cse_orphan"].new_title, "[AO.note] outside-index")
+
 
 class ExistingPrefixHostTest(unittest.TestCase):
     def test_extracts_host_from_nick_dot_host(self):

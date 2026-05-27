@@ -440,6 +440,15 @@ def plan_renames(
             plan.append(Rename(sid, repo, None, old, old))
             continue
         local = is_host_local(s, worktree_index)
+        # Self-claim is authoritative: if the title already carries OUR host
+        # token, treat the session as host-local even when the on-disk indexer
+        # doesn't see it (worktree dir lives outside the scanned roots, or the
+        # session connected through a path that bypasses the log scanner).
+        # Otherwise the next pass would re-render with host_local=False and
+        # strip our own claim, which is the exact ping-pong we're trying to
+        # avoid for foreign claims -- the symmetry has to hold both ways.
+        if claimed_by == host:
+            local = True
         branch = branch_for(sid, repo) if (local and want_branch) else ""
         vals = session_values(s, repo, nmap, host=host, host_local=local, branch=branch)
         token = render_prefix(template, vals)
