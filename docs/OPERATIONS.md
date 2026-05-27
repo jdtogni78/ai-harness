@@ -411,6 +411,15 @@ All three services are required:
   auto-titler strips the prefix and sessions stop grouping by repo. Confirm
   with `grep "titles: re-applied" logs/titles-monitor.log`.
 
+### Rollback (titles-monitor misbehavior)
+
+Bootout both monitors, then `git revert bca75fb 0483ddb` to restore the
+in-monitor title-pass — the order restores `titles_interval` on
+`UsageLimitConfig` first, then re-introduces the loop branch that reads
+it. Reinstall and bootstrap the usage-limit-monitor. The titles-monitor
+plist can stay installed but unbootstrapped (or remove it from `AGENTS`
+in `installer.py` if you want `install` to skip it on the next run).
+
 ## Tests
 
 Stdlib `unittest`, no third-party deps, runs on `/usr/bin/python3`:
