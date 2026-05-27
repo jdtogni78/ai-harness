@@ -22,6 +22,7 @@ from .discovery import nickname_from_hostname, normalize_host
 DEV = str(Path.home() / "dev")
 REPO = f"{DEV}/ai-harness"
 LOGDIR = f"{REPO}/logs"
+CLAUDE_BIN = str(Path.home() / ".local/bin/claude")
 
 
 def _truthy(value: str) -> bool:
@@ -63,8 +64,7 @@ class SupervisorConfig:
         host = host_nickname(env)
         return cls(
             dev=Path(env.get("REMOTE_CONTROL_DEV", DEV)),
-            claude_bin=Path(env.get("REMOTE_CONTROL_CLAUDE_BIN",
-                                    "/Users/user/.local/bin/claude")),
+            claude_bin=Path(env.get("REMOTE_CONTROL_CLAUDE_BIN", CLAUDE_BIN)),
             logdir=Path(env.get("REMOTE_CONTROL_LOGDIR", LOGDIR)),
             active_file=Path(env.get("REMOTE_CONTROL_ACTIVE_FILE",
                                      f"{REPO}/active-dirs.txt")),
@@ -253,8 +253,7 @@ class ManagerConfig:
         return cls(
             dev=Path(env.get("REMOTE_CONTROL_DEV", DEV)),
             logdir=Path(env.get("REMOTE_CONTROL_LOGDIR", LOGDIR)),
-            claude_bin=Path(env.get("REMOTE_CONTROL_CLAUDE_BIN",
-                                    "/Users/user/.local/bin/claude")),
+            claude_bin=Path(env.get("REMOTE_CONTROL_CLAUDE_BIN", CLAUDE_BIN)),
             allowlist_file=Path(env.get(
                 "MANAGER_ALLOWLIST_FILE",
                 env.get("REMOTE_CONTROL_ACTIVE_FILE", f"{REPO}/active-dirs.txt"))),

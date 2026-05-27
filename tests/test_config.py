@@ -9,15 +9,26 @@ from remote_control.discovery import nickname_from_hostname
 class SupervisorConfigTest(unittest.TestCase):
     def test_defaults(self):
         c = SupervisorConfig.from_env({})
-        # DEV is now derived from $HOME, so the default tracks whoever runs the
-        # tests (user on mini, user2 on note, ...). claude_bin is still
-        # hardcoded to mini's path — fix separately if it bites on note.
+        # Both DEV and CLAUDE_BIN are derived from $HOME so the same code works
+        # on every account. A hardcoded "/Users/user/..." default would crash-loop
+        # the supervisor on any other account (see incident 2026-05-26).
         self.assertEqual(c.dev, Path.home() / "dev")
-        self.assertEqual(c.claude_bin, Path("/Users/user/.local/bin/claude"))
+        self.assertEqual(c.claude_bin, Path.home() / ".local/bin/claude")
         self.assertEqual(c.tick_secs, 30)
         self.assertEqual(c.idle_recycle_secs, 43200)
         self.assertEqual(c.grace_secs, 10)
         self.assertEqual(c.manager_log, c.logdir / "manager.log")
+
+    def test_claude_bin_default_is_per_user(self):
+        # Regression: the default used to be the literal "/Users/user/..." and
+        # would crash any supervisor whose plist forgot REMOTE_CONTROL_CLAUDE_BIN.
+        c = SupervisorConfig.from_env({})
+        self.assertNotIn("/Users/user/", str(c.claude_bin))
+        self.assertTrue(str(c.claude_bin).startswith(str(Path.home())))
+
+    def test_claude_bin_env_override(self):
+        c = SupervisorConfig.from_env({"REMOTE_CONTROL_CLAUDE_BIN": "/opt/claude"})
+        self.assertEqual(c.claude_bin, Path("/opt/claude"))
 
     def test_env_overrides(self):
         c = SupervisorConfig.from_env({
