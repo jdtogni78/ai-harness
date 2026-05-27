@@ -3,11 +3,13 @@ import unittest
 from pathlib import Path
 
 from remote_control.installer import (
+    ACTIVE_FILE_TEMPLATE,
     AGENTS,
     agent_user,
     install_agent,
     launchctl_commands,
     plan_install,
+    seed_active_file,
 )
 
 
@@ -93,6 +95,35 @@ class InstallAgentTest(unittest.TestCase):
             self.assertIn(["launchctl", "bootstrap", "gui/501", str(la / "com.x.plist")], calls)
             self.assertIn(["launchctl", "enable", "gui/501/com.x"], calls)
             self.assertTrue(any("Installed com.x" in o for o in out))
+
+
+class SeedActiveFileTest(unittest.TestCase):
+    def test_creates_file_with_template_and_perms(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "nested" / "active-dirs.txt"
+            out = []
+            created = seed_active_file(target, out=out.append)
+            self.assertTrue(created)
+            self.assertTrue(target.exists())
+            self.assertEqual(target.read_text(), ACTIVE_FILE_TEMPLATE)
+            # File chmod 600 = octal 0o600 (rw-------) on platforms that support it.
+            self.assertEqual(target.stat().st_mode & 0o777, 0o600)
+            # Parent dir chmod 700.
+            self.assertEqual(target.parent.stat().st_mode & 0o777, 0o700)
+            # Logged something so the user knows.
+            self.assertTrue(any("Seeded" in m for m in out))
+
+    def test_idempotent_no_overwrite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "active-dirs.txt"
+            target.write_text("# already configured\nmy-app\n")
+            out = []
+            created = seed_active_file(target, out=out.append)
+            self.assertFalse(created)
+            # Content untouched.
+            self.assertEqual(target.read_text(), "# already configured\nmy-app\n")
+            # No "Seeded" log.
+            self.assertFalse(any("Seeded" in m for m in out))
 
 
 if __name__ == "__main__":

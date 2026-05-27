@@ -28,8 +28,10 @@
         <string>/Users/user2/dev</string>
         <key>REMOTE_CONTROL_CLAUDE_BIN</key>
         <string>/Users/user2/.local/bin/claude</string>
-        <key>REMOTE_CONTROL_ACTIVE_FILE</key>
-        <string>/Users/user2/dev/ai-harness/active-dirs.txt</string>
+        <!-- REMOTE_CONTROL_ACTIVE_FILE intentionally unset: config.py defaults
+             it to ~/.ai-harness/active-dirs.txt (per-user, per-host, chmod 600,
+             seeded by the installer). Override here only to point at a
+             non-standard path. -->
         <key>REMOTE_CONTROL_LOGDIR</key>
         <string>/Users/user2/dev/ai-harness/logs</string>
     </dict>

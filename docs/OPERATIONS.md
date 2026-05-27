@@ -16,7 +16,7 @@ python3 -m remote_control <supervisor|usage-monitor|manager|manager-ui|perm-gate
 
 | Path | Purpose |
 |---|---|
-| `active-dirs.txt` | Allowlist of dir basenames the supervisor will spawn servers for. Re-read every tick. See [Activation list](#activation-list). |
+| `~/.ai-harness/active-dirs.txt` | Allowlist of dir basenames the supervisor will spawn servers for (per-user, per-host, chmod 600 — names private app dirs, not in the repo). Re-read every tick. The installer seeds an empty template if missing. Override the path via `REMOTE_CONTROL_ACTIVE_FILE`. See [Activation list](#activation-list). |
 | `com.*.claude-remote-control.plist` | LaunchAgent for the claude supervisor → `python3 -m remote_control supervisor` (runs at login, `KeepAlive`). |
 | `com.*.claude-usage-limit-monitor.plist` | LaunchAgent for the usage-limit monitor → `python3 -m remote_control usage-monitor` (runs at login, `KeepAlive`). |
 | `logs/` | Runtime logs (gitignored). `manager.log` = claude supervisor; `<host>-*.log` = per-claude-server output (one per allowlisted dir, prefixed with the host nickname); `usage-limit-monitor.log` + `paused-sessions.json` = monitor activity + state. |
@@ -97,18 +97,24 @@ Tunables (env, overridable in the plist if needed): `TICK_SECS`,
 
 #### Activation list
 
-The supervisor only spawns servers for dirs listed in `active-dirs.txt` (one
-basename per line; `#` comments and blank lines ignored). `dev` (the basename
-of `$REMOTE_CONTROL_DEV`) is the special entry for the root itself.
+The supervisor only spawns servers for dirs listed in
+`~/.ai-harness/active-dirs.txt` (per-user, per-host, chmod 600; one basename
+per line; `#` comments and blank lines ignored). `dev` (the basename of
+`$REMOTE_CONTROL_DEV`) is the special entry for the root itself. Override the
+path via `REMOTE_CONTROL_ACTIVE_FILE`. The installer creates the file with an
+empty template if it doesn't exist, so a fresh checkout's first supervisor
+boot finds a valid (empty) allowlist.
 
+- **Not in the repo.** The file names private app dirs, so it lives under
+  `~/.ai-harness/`, not the public repo. Each host maintains its own.
 - **Reloads in <1 tick.** The file is re-read every `TICK_SECS` (~30s). Adds
   spawn within one tick; removes get SIGTERM'd within one tick. No
   `launchctl kickstart` needed.
-- **Host scoping.** `active-dirs.txt` is shared across machines (it's in this
-  git repo), so an entry can be pinned to a host: `your-app@host-a` spawns
-  only on the host whose nickname is `host-a`; `name@nick1,nick2` allows
-  several; a bare `name` (no `@`) spawns on every host that has the dir. Each
-  host's nickname is `REMOTE_CONTROL_HOST` (set in its plist's
+- **Host scoping.** The `@<nick>` suffix still parses, useful if you sync
+  this file via dotfiles across machines: `your-app@host-a` spawns only on
+  the host whose nickname is `host-a`; `name@nick1,nick2` allows several; a
+  bare `name` (no `@`) spawns on every host that has the dir. Each host's
+  nickname is `REMOTE_CONTROL_HOST` (set in its plist's
   `EnvironmentVariables`) or, if unset, derived from the hostname via
   `NICKNAME_RULES`, falling back to the first hostname label lowercased.
   Matching is case-insensitive; the active nickname is logged at supervisor
@@ -121,7 +127,7 @@ of `$REMOTE_CONTROL_DEV`) is the special entry for the root itself.
   `Capacity` — the design assumes you want the server gone. Edit-then-wait
   is the way to wind something down deliberately.
 - **Manage via the `/remote-control-dirs` skill** (list / enable / disable /
-  status), or just edit `active-dirs.txt` directly.
+  status), or just edit `~/.ai-harness/active-dirs.txt` directly.
 
 #### Known limitations (read this)
 

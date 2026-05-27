@@ -31,6 +31,58 @@ AGENTS = [
 
 REPO_DIR = Path(__file__).resolve().parent.parent
 
+# The supervisor's allowlist used to live in the repo at
+# `<repo>/active-dirs.txt` but was moved to a per-user, per-host location at
+# `~/.ai-harness/active-dirs.txt` (chmod 600) -- the file lists private app dir
+# names and shouldn't be in a public repo, and it differs per host anyway. The
+# installer seeds the file with the comment-only template below if absent, so a
+# fresh checkout's first supervisor boot finds a valid (empty) allowlist rather
+# than fail-closed-with-no-file.
+ACTIVE_FILE_TEMPLATE = """\
+# Allowlist for the ai-harness supervisor (per-user, per-host).
+#
+# One basename per line. Lines starting with `#` and blank lines are ignored.
+# The supervisor re-reads this file every TICK_SECS (~30s):
+#   - basenames added here spawn a server within one tick,
+#   - basenames removed (or commented out) get SIGTERM'd within one tick.
+#
+# `dev` is the special name for the ~/dev root itself; the spawned server is
+# named <host>-dev, where <host> is the supervisor's host nickname.
+# Every other entry is a basename under ~/dev (e.g. `your-app` -> <host>-your-app).
+#
+# HOST SCOPING: this file is per-host now, but the @<nick> suffix still parses
+# (useful if you sync this file via dotfiles across machines). Bare names spawn
+# on any host. `name@nick1,nick2` allows several. Nickname is REMOTE_CONTROL_HOST
+# (set in the plist) or, if unset, derived from the hostname.
+#
+# Manage with: /remote-control-dirs
+
+# (No entries by default. Add yours below.)
+"""
+
+
+def seed_active_file(path: Path, out=print) -> bool:
+    """Create the user-private allowlist file if it doesn't exist yet.
+
+    Returns True if the file was just created (so the caller can log it).
+    Idempotent: a no-op if the file already exists. Perms: dir 700, file 600
+    (the file names private app dirs)."""
+    p = Path(path)
+    if p.exists():
+        return False
+    p.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        p.parent.chmod(0o700)
+    except OSError:
+        pass
+    p.write_text(ACTIVE_FILE_TEMPLATE)
+    try:
+        p.chmod(0o600)
+    except OSError:
+        pass
+    out(f"Seeded {p} (chmod 600); edit it to enable dirs.")
+    return True
+
 
 def agent_user(label_or_plist: str) -> str:
     """The ``<user>`` token of a ``com.<user>.<service>`` label/plist name
@@ -101,6 +153,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     uid = os.getuid()
     user = getpass.getuser()
     la_dir = Path.home() / "Library" / "LaunchAgents"
+    # Seed the host-local allowlist BEFORE we (re)bootstrap any agent, so the
+    # supervisor's first tick doesn't trip the fail-closed "active-file missing"
+    # branch on a clean machine. Import is local to avoid a config<->installer
+    # cycle at module load.
+    from .config import ACTIVE_FILE
+    seed_active_file(Path(ACTIVE_FILE))
     selected = plan_install(AGENTS, filter_arg, current_user=user)
     if not selected:
         if filter_arg is None:

@@ -23,6 +23,11 @@ DEV = str(Path.home() / "dev")
 REPO = f"{DEV}/ai-harness"
 LOGDIR = f"{REPO}/logs"
 CLAUDE_BIN = str(Path.home() / ".local/bin/claude")
+# Per-user, per-host allowlist (the supervisor's only knob for which dirs
+# get servers). NOT in the repo: the file names private app dirs, so it
+# lives under ~/.ai-harness/ (chmod 600). The installer seeds an empty
+# template if missing. REMOTE_CONTROL_ACTIVE_FILE overrides this default.
+ACTIVE_FILE = str(Path.home() / ".ai-harness" / "active-dirs.txt")
 
 
 def _truthy(value: str) -> bool:
@@ -66,8 +71,7 @@ class SupervisorConfig:
             dev=Path(env.get("REMOTE_CONTROL_DEV", DEV)),
             claude_bin=Path(env.get("REMOTE_CONTROL_CLAUDE_BIN", CLAUDE_BIN)),
             logdir=Path(env.get("REMOTE_CONTROL_LOGDIR", LOGDIR)),
-            active_file=Path(env.get("REMOTE_CONTROL_ACTIVE_FILE",
-                                     f"{REPO}/active-dirs.txt")),
+            active_file=Path(env.get("REMOTE_CONTROL_ACTIVE_FILE", ACTIVE_FILE)),
             tick_secs=int(env.get("TICK_SECS", "30")),                    # loop period
             idle_recycle_secs=int(env.get("IDLE_RECYCLE_SECS", "43200")),  # 12h
             grace_secs=int(env.get("GRACE_SECS", "10")),                 # TERM->KILL wait
@@ -256,7 +260,7 @@ class ManagerConfig:
             claude_bin=Path(env.get("REMOTE_CONTROL_CLAUDE_BIN", CLAUDE_BIN)),
             allowlist_file=Path(env.get(
                 "MANAGER_ALLOWLIST_FILE",
-                env.get("REMOTE_CONTROL_ACTIVE_FILE", f"{REPO}/active-dirs.txt"))),
+                env.get("REMOTE_CONTROL_ACTIVE_FILE", ACTIVE_FILE))),
             host=host,
             interval_secs=int(env.get("MANAGER_INTERVAL_SECS", "120")),
             answer_grace_secs=int(env.get("MANAGER_ANSWER_GRACE_SECS", "600")),   # 10m

@@ -30,7 +30,7 @@ flowchart TB
     launchd --> sup
     launchd --> mon
     sup -->|spawn / SIGTERM| servers
-    allow["active-dirs.txt<br/>(host-scoped allowlist, in git)"] -->|re-read ~30s| sup
+    allow["~/.ai-harness/active-dirs.txt<br/>(per-host allowlist, NOT in repo)"] -->|re-read ~30s| sup
 
     api["code-sessions API<br/>/v1/code/sessions"]
     kc["macOS keychain<br/>(OAuth token)"]
@@ -104,7 +104,7 @@ A LaunchAgent runs the supervisor at login and `KeepAlive`s it. Each tick
 (default 30s) it:
 
 1. **discovers** candidate dirs under the dev root,
-2. filters them through the **host-scoped allowlist** (`active-dirs.txt`),
+2. filters them through the **host-scoped allowlist** (`~/.ai-harness/active-dirs.txt`, per-host, not in the repo),
 3. **ensures** exactly one `claude remote-control` server per allowed dir —
    adopting an already-running one by PID rather than killing and respawning,
 4. **idle-recycles** a server that has reported zero capacity continuously for

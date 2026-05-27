@@ -7,16 +7,18 @@ description: >-
   remote control", "stop spawning so many servers", "add <repo> to remote
   control", "remove <repo> from remote control", "show remote-control status",
   or wants to edit the activation list. The list lives at
-  `/Users/user/dev/ai-harness/active-dirs.txt` and the
-  supervisor re-reads it every ~30s.
+  `~/.ai-harness/active-dirs.txt` (per-user, per-host, chmod 600 — NOT in the
+  repo) and the supervisor re-reads it every ~30s.
 ---
 
 # Manage the remote-control activation list
 
-The launchd-managed supervisor in `/Users/user/dev/ai-harness/`
-spawns one `claude remote-control` server per dir listed in
-**`active-dirs.txt`** (one basename per line). It reloads the file every
-`TICK_SECS` (~30s) — so edits take effect within a tick, no restart needed.
+The launchd-managed supervisor (in `~/dev/ai-harness/`) spawns one
+`claude remote-control` server per dir listed in
+**`~/.ai-harness/active-dirs.txt`** (per-user, per-host; one basename per
+line). It reloads the file every `TICK_SECS` (~30s) — so edits take effect
+within a tick, no restart needed. The installer seeds an empty template if
+the file doesn't exist.
 
 - `dev` is the special entry for the `~/dev` root itself (server name
   `<host>-dev`, where `<host>` is the supervisor's host nickname).
@@ -30,9 +32,9 @@ spawns one `claude remote-control` server per dir listed in
 ## Variables
 
 ```
-ACTIVE_FILE=/Users/user/dev/ai-harness/active-dirs.txt
-DEV=/Users/user/dev
-LOGDIR=/Users/user/dev/ai-harness/logs
+ACTIVE_FILE="$HOME/.ai-harness/active-dirs.txt"
+DEV="$HOME/dev"
+LOGDIR="$HOME/dev/ai-harness/logs"
 ```
 
 ## Status (the common ask: "what's active?")

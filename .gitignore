@@ -4,3 +4,7 @@ logs/
 __pycache__/
 *.pyc
 scripts/pool/config.local.yaml
+# Defensive: the supervisor's allowlist lives at ~/.ai-harness/active-dirs.txt
+# (per-user, per-host, names private app dirs). If a misconfigured `cp` or
+# `git add -A` ever pulls it back into the repo, this rule blocks it.
+/active-dirs.txt
