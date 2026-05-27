@@ -1,11 +1,15 @@
+import base64
+import json
 import unittest
 
 from remote_control.session_list import (
     build_rows,
     classify_location,
+    format_reply_header,
     format_rows,
     is_active,
     is_stale,
+    own_session_id_from_env,
     parse_duration,
     summarize,
 )
@@ -212,6 +216,52 @@ class StaleAndLocationFilterTest(unittest.TestCase):
                           stale_only=True, stale_age_secs=60,
                           stale_require_disconnected=True, now=_NOW)
         self.assertNotIn("cse_connected_idle", {r.id for r in rows})
+
+
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def _fake_jwt(payload: dict) -> str:
+    header = _b64url(b'{"typ":"JWT"}')
+    body = _b64url(json.dumps(payload).encode("utf-8"))
+    sig = _b64url(b"sig")
+    return f"{header}.{body}.{sig}"
+
+
+class OwnSessionIdFromEnvTest(unittest.TestCase):
+    def test_extracts_cse_id_from_jwt_token(self):
+        jwt = _fake_jwt({"session_id": "cse_01ABC"})
+        env = {"CLAUDE_CODE_SESSION_ACCESS_TOKEN": f"sk-ant-si-{jwt}"}
+        self.assertEqual(own_session_id_from_env(env), "cse_01ABC")
+
+    def test_missing_env_var_returns_none(self):
+        self.assertIsNone(own_session_id_from_env({}))
+
+    def test_empty_env_var_returns_none(self):
+        self.assertIsNone(own_session_id_from_env({"CLAUDE_CODE_SESSION_ACCESS_TOKEN": ""}))
+
+    def test_malformed_token_returns_none(self):
+        env = {"CLAUDE_CODE_SESSION_ACCESS_TOKEN": "sk-ant-si-not-a-jwt"}
+        self.assertIsNone(own_session_id_from_env(env))
+
+    def test_non_cse_session_id_is_ignored(self):
+        # parse_cmd_session_id only accepts ids that start with "cse_".
+        jwt = _fake_jwt({"session_id": "local-uuid-abc"})
+        env = {"CLAUDE_CODE_SESSION_ACCESS_TOKEN": f"sk-ant-si-{jwt}"}
+        self.assertIsNone(own_session_id_from_env(env))
+
+
+class FormatReplyHeaderTest(unittest.TestCase):
+    def test_prepends_single_line_header(self):
+        out = format_reply_header("cse_01XYZ", "continue")
+        self.assertTrue(out.startswith("[from cse_01XYZ — reply via send-to-session]"))
+        self.assertIn("\n\ncontinue", out)
+
+    def test_preserves_original_body_verbatim(self):
+        body = "line one\nline two\n"
+        out = format_reply_header("cse_01XYZ", body)
+        self.assertTrue(out.endswith(body))
 
 
 if __name__ == "__main__":

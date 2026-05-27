@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Dict, List, NamedTuple, Optional
 
 from .config import DEV, UsageLimitConfig
-from .session_titles import build_worktree_index, repo_for_session
+from .session_titles import build_worktree_index, parse_cmd_session_id, repo_for_session
 from .usage_limit import monitor
 
 ARCHIVED_STATUS = "archived"
@@ -203,6 +203,26 @@ def summarize(rows: List[Row]) -> str:
             f"by host: {tally(lambda r: r.location)}")
 
 
+def own_session_id_from_env(env: Dict[str, str]) -> Optional[str]:
+    """The ``cse_*`` id of the session this process runs inside, decoded from
+    the ``CLAUDE_CODE_SESSION_ACCESS_TOKEN`` env var the desktop app exposes
+    on every spawned process (the JWT's ``session_id`` claim). ``None`` if
+    the env var is absent or unparseable -- in which case the caller hasn't
+    been launched inside a Claude Code session, e.g. a manual shell run."""
+    token = env.get("CLAUDE_CODE_SESSION_ACCESS_TOKEN") or ""
+    return parse_cmd_session_id(token) if token else None
+
+
+REPLY_HEADER_FMT = "[from {sid} — reply via send-to-session]\n\n"
+
+
+def format_reply_header(sender_sid: str, message: str) -> str:
+    """Prepend a one-line sender-id header so the receiving agent knows which
+    ``cse_*`` to reply back into. The em dash + bracket form is hard to confuse
+    with normal prose and easy to match with a regex on the receiver side."""
+    return REPLY_HEADER_FMT.format(sid=sender_sid) + message
+
+
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
@@ -211,7 +231,8 @@ USAGE = (
     "[--all] [--repo REPO] [--json | --ids-only] [--dev DIR]\n"
     "         [--stale [--older-than DUR] [--disconnected]] [--location LOC]\n"
     "       python3 -m remote_control sessions archive CSE_ID [CSE_ID...] [--dry-run]\n"
-    "       python3 -m remote_control sessions submit CSE_ID (--message TEXT | --stdin) [--dry-run]\n"
+    "       python3 -m remote_control sessions submit CSE_ID (--message TEXT | --stdin)\n"
+    "                                                  [--reply-to CSE_ID | --no-reply-to] [--dry-run]\n"
     "  list (default): active (non-archived) sessions, with repo + host/sandbox\n"
     "  --all          : include archived sessions too\n"
     "  --repo         : only sessions for this repo basename (case-insensitive)\n"
@@ -225,7 +246,11 @@ USAGE = (
     "  archive: POST /sessions/{id}/archive for each id; one-line status per id;\n"
     "           exit 0 only if every archive returned 200 (--dry-run prints only)\n"
     "  submit : POST a user-turn message into CSE_ID; --stdin reads the message\n"
-    "           from stdin (use for multi-line); --dry-run prints the payload"
+    "           from stdin (use for multi-line); --dry-run prints the payload.\n"
+    "           Prepends a `[from <sender-cse_id> — reply via send-to-session]`\n"
+    "           header so the receiving agent knows where to reply; the sender id\n"
+    "           is auto-detected from CLAUDE_CODE_SESSION_ACCESS_TOKEN. Override\n"
+    "           with --reply-to CSE_ID, or skip the header entirely with --no-reply-to."
 )
 
 
@@ -314,11 +339,19 @@ def _run_submit(argv: List[str], log) -> int:
     The body is the same wrapped-event shape the usage-limit monitor uses to
     nudge a paused session (see :func:`usage_limit.detect.resume_event_body`).
     Side-effecting on a live session, so it requires one of ``--message`` /
-    ``--stdin`` (no defaults) and rejects an empty message."""
+    ``--stdin`` (no defaults) and rejects an empty message.
+
+    By default the message is prefixed with a ``[from <sender-cse_id> — reply
+    via send-to-session]`` line so the receiver can reply back; the sender id
+    is auto-detected from ``CLAUDE_CODE_SESSION_ACCESS_TOKEN``. ``--reply-to
+    CSE_ID`` overrides; ``--no-reply-to`` skips the header (e.g. for nudging
+    your own paused session)."""
     sid: Optional[str] = None
     message: Optional[str] = None
     read_stdin = False
     dry = False
+    reply_to: Optional[str] = None
+    no_reply_to = False
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -335,6 +368,14 @@ def _run_submit(argv: List[str], log) -> int:
                 print("--message requires an argument\n" + USAGE, file=sys.stderr)
                 return 2
             message = argv[i]
+        elif a == "--reply-to":
+            i += 1
+            if i >= len(argv):
+                print("--reply-to requires a CSE_ID\n" + USAGE, file=sys.stderr)
+                return 2
+            reply_to = argv[i]
+        elif a == "--no-reply-to":
+            no_reply_to = True
         elif a.startswith("-"):
             print(f"unknown arg: {a}\n{USAGE}", file=sys.stderr)
             return 2
@@ -350,6 +391,9 @@ def _run_submit(argv: List[str], log) -> int:
     if read_stdin and message is not None:
         print("--message and --stdin are mutually exclusive\n" + USAGE, file=sys.stderr)
         return 2
+    if reply_to and no_reply_to:
+        print("--reply-to and --no-reply-to are mutually exclusive\n" + USAGE, file=sys.stderr)
+        return 2
     if read_stdin:
         message = sys.stdin.read()
     if message is None:
@@ -358,6 +402,16 @@ def _run_submit(argv: List[str], log) -> int:
     if not message.strip():
         print("submit: message is empty", file=sys.stderr)
         return 2
+
+    if not no_reply_to:
+        sender = reply_to or own_session_id_from_env(os.environ)
+        if sender:
+            message = format_reply_header(sender, message)
+            log(f"embedded reply-to header: from {sender}")
+        elif not reply_to:
+            log("no sender cse_id detected (CLAUDE_CODE_SESSION_ACCESS_TOKEN unset); "
+                "receiver won't know where to reply — pass --reply-to CSE_ID or "
+                "--no-reply-to to silence this")
 
     cfg = UsageLimitConfig.from_env()
     if dry:
