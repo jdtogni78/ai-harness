@@ -113,6 +113,23 @@ def archive_session(cfg: UsageLimitConfig, token: str, sid: str, log) -> Tuple[i
     return code, body
 
 
+def submit_user_message(cfg: UsageLimitConfig, token: str, sid: str,
+                        message: str, log) -> Tuple[int, object]:
+    """Submit a user-turn message into a session via ``POST /sessions/{id}/events``.
+
+    Same path the usage-limit monitor uses to deliver its resume nudge -- exposed
+    here as a stand-alone primitive so the ``sessions submit`` CLI (and any other
+    caller) can drop a turn into an arbitrary live session.
+
+    Returns ``(http_code, body)``; non-200 is logged for diagnostics."""
+    code, body = api_request(
+        cfg, "POST", f"/sessions/{sid}/events", token,
+        resume_event_body(message))
+    if code != 200:
+        log(f"submit {sid} failed http={code} body={str(body)[:200]}")
+    return code, body
+
+
 def still_limit_paused(cfg: UsageLimitConfig, sid: str, token: str) -> Tuple[Optional[bool], str]:
     code, data = api_request(cfg, "GET", f"/sessions/{sid}", token)
     if code != 200 or not isinstance(data, dict):

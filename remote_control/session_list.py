@@ -211,6 +211,7 @@ USAGE = (
     "[--all] [--repo REPO] [--json | --ids-only] [--dev DIR]\n"
     "         [--stale [--older-than DUR] [--disconnected]] [--location LOC]\n"
     "       python3 -m remote_control sessions archive CSE_ID [CSE_ID...] [--dry-run]\n"
+    "       python3 -m remote_control sessions submit CSE_ID (--message TEXT | --stdin) [--dry-run]\n"
     "  list (default): active (non-archived) sessions, with repo + host/sandbox\n"
     "  --all          : include archived sessions too\n"
     "  --repo         : only sessions for this repo basename (case-insensitive)\n"
@@ -222,7 +223,9 @@ USAGE = (
     "  --location     : narrow to this-host / other-host / cloud\n"
     "  --dev          : dev root for bridge-worktree repo lookup (default ~/dev)\n"
     "  archive: POST /sessions/{id}/archive for each id; one-line status per id;\n"
-    "           exit 0 only if every archive returned 200 (--dry-run prints only)"
+    "           exit 0 only if every archive returned 200 (--dry-run prints only)\n"
+    "  submit : POST a user-turn message into CSE_ID; --stdin reads the message\n"
+    "           from stdin (use for multi-line); --dry-run prints the payload"
 )
 
 
@@ -305,11 +308,82 @@ def _run_archive(argv: List[str], log) -> int:
     return 0 if all_ok else 1
 
 
+def _run_submit(argv: List[str], log) -> int:
+    """``sessions submit <id> --message TEXT | --stdin`` — POST a user turn.
+
+    The body is the same wrapped-event shape the usage-limit monitor uses to
+    nudge a paused session (see :func:`usage_limit.detect.resume_event_body`).
+    Side-effecting on a live session, so it requires one of ``--message`` /
+    ``--stdin`` (no defaults) and rejects an empty message."""
+    sid: Optional[str] = None
+    message: Optional[str] = None
+    read_stdin = False
+    dry = False
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("-h", "--help"):
+            print(USAGE)
+            return 0
+        if a == "--dry-run":
+            dry = True
+        elif a == "--stdin":
+            read_stdin = True
+        elif a == "--message":
+            i += 1
+            if i >= len(argv):
+                print("--message requires an argument\n" + USAGE, file=sys.stderr)
+                return 2
+            message = argv[i]
+        elif a.startswith("-"):
+            print(f"unknown arg: {a}\n{USAGE}", file=sys.stderr)
+            return 2
+        elif sid is None:
+            sid = a
+        else:
+            print(f"unexpected positional: {a}\n{USAGE}", file=sys.stderr)
+            return 2
+        i += 1
+    if not sid:
+        print(f"submit requires a CSE_ID\n{USAGE}", file=sys.stderr)
+        return 2
+    if read_stdin and message is not None:
+        print("--message and --stdin are mutually exclusive\n" + USAGE, file=sys.stderr)
+        return 2
+    if read_stdin:
+        message = sys.stdin.read()
+    if message is None:
+        print("submit requires --message TEXT or --stdin\n" + USAGE, file=sys.stderr)
+        return 2
+    if not message.strip():
+        print("submit: message is empty", file=sys.stderr)
+        return 2
+
+    cfg = UsageLimitConfig.from_env()
+    if dry:
+        from .usage_limit.detect import resume_event_body
+        print(f"would POST {cfg.api_base}/sessions/{sid}/events")
+        print(json.dumps(resume_event_body(message), indent=2))
+        return 0
+    token = monitor.get_token(cfg, log)
+    if not token:
+        log("could not read OAuth token from keychain")
+        return 1
+    code, body = monitor.submit_user_message(cfg, token, sid, message, log)
+    if code == 200:
+        print(f"submitted {sid} ({len(message)} chars)")
+        return 0
+    print(f"FAILED {sid} (http={code}) body={str(body)[:200]}", file=sys.stderr)
+    return 1
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     log = lambda m: print(m, file=sys.stderr)  # noqa: E731 (API client diagnostics)
     if argv and argv[0] == "archive":
         return _run_archive(argv[1:], log)
+    if argv and argv[0] == "submit":
+        return _run_submit(argv[1:], log)
     try:
         opts = _parse_args(argv)
     except (ValueError, IndexError) as e:
