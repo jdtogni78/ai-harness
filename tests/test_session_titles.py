@@ -247,6 +247,51 @@ class RunSetRepoFallbackTest(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(cap["title"], "no repo here")
 
+    def test_force_host_adds_suffix_even_when_indexer_blind(self):
+        """`set --id <sid> --force-host` adds the `.host` suffix to a session
+        whose bridge worktree the local indexer can't see. The escape hatch
+        for sessions running on this host with a worktree outside the scanned
+        dev roots -- without it, ``host_local = sid in index`` is False and
+        the prefix template collapses ``{host}`` to empty (-> ``[AO]`` with no
+        host segment). Paired with the plan_renames self-claim guard, this
+        keeps the monitor's title-pass from stripping the suffix on the next
+        tick."""
+        cloud = {"id": "cse_orphan", "config": {"sources": [
+            {"url": "https://github.com/me/AppOne.git"}]}}
+        prev_host = os.environ.get("REMOTE_CONTROL_HOST")
+        os.environ["REMOTE_CONTROL_HOST"] = "note"
+        try:
+            rc, cap = self._run(
+                {"id": "cse_orphan", "desc": "self-claim", "force_host": True},
+                [cloud])
+        finally:
+            if prev_host is None:
+                os.environ.pop("REMOTE_CONTROL_HOST", None)
+            else:
+                os.environ["REMOTE_CONTROL_HOST"] = prev_host
+        self.assertEqual(rc, 0)
+        self.assertEqual(cap["title"], "[AO.note] self-claim")
+
+    def test_id_without_force_host_omits_suffix_when_indexer_blind(self):
+        """Baseline for the test above: same setup minus ``--force-host``
+        produces ``[AO]`` (no host segment) because is_host_local is False.
+        Documents the pre-existing behavior the flag opts out of."""
+        cloud = {"id": "cse_orphan", "config": {"sources": [
+            {"url": "https://github.com/me/AppOne.git"}]}}
+        prev_host = os.environ.get("REMOTE_CONTROL_HOST")
+        os.environ["REMOTE_CONTROL_HOST"] = "note"
+        try:
+            rc, cap = self._run(
+                {"id": "cse_orphan", "desc": "no claim"},
+                [cloud])
+        finally:
+            if prev_host is None:
+                os.environ.pop("REMOTE_CONTROL_HOST", None)
+            else:
+                os.environ["REMOTE_CONTROL_HOST"] = prev_host
+        self.assertEqual(rc, 0)
+        self.assertEqual(cap["title"], "[AO] no claim")
+
     def test_self_local_bridge_gets_host_suffix(self):
         """`set --self` is run from inside a session's own worktree on this host,
         so it's host-local -> the prefix carries the `.host` suffix ([AO.mini])."""

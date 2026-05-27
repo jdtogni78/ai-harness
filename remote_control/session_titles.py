@@ -810,6 +810,12 @@ USAGE = (
     "  set           : set ONE session's title to '[NICK] <description>'\n"
     "                  --self (default): derive id + repo from the current\n"
     "                  bridge worktree; --id targets another session\n"
+    "                  --force-host: assert this host owns the session for\n"
+    "                  the prefix template (so '{nick}.{host}' produces\n"
+    "                  '[AO.<host>]'), even when the on-disk indexer doesn't\n"
+    "                  see it as a local bridge -- the escape hatch for\n"
+    "                  sessions whose worktree lives outside the scanned\n"
+    "                  dev roots\n"
     "  --projects-dir DIR : Claude Code transcript root (default ~/.claude/\n"
     "    projects). Repo is derived from a session's transcript-dir name when\n"
     "    its bridge worktree has been deleted but the transcript folder remains.\n"
@@ -826,7 +832,8 @@ USAGE = (
 def _parse_args(argv: List[str]) -> dict:
     opts = {"cmd": "list", "dev": DEV, "file": NICKNAMES_FILE,
             "map": "", "only": None, "self": False, "id": None, "desc": "",
-            "projects": PROJECTS_DIR, "logdir": LOGDIR, "all": False}
+            "projects": PROJECTS_DIR, "logdir": LOGDIR, "all": False,
+            "force_host": False}
     desc: List[str] = []
     i = 0
     while i < len(argv):
@@ -851,6 +858,8 @@ def _parse_args(argv: List[str]) -> dict:
             opts["self"] = True
         elif a == "--id":
             i += 1; opts["id"] = argv[i]
+        elif a == "--force-host":
+            opts["force_host"] = True
         elif a in ("-h", "--help"):
             opts["cmd"] = "help"
         elif not a.startswith("-"):
@@ -899,6 +908,17 @@ def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
         repo = repo_for_session(s, index) if s else None
         if not host_local:  # don't downgrade a confirmed --self
             host_local = is_host_local(s, index) if s else False
+    # `--force-host`: assert this host owns the session even when the on-disk
+    # indexer can't prove it (worktree dir outside the scanned dev roots, or
+    # a session connected via a path that bypasses the per-server log
+    # scanner). Without this, ``set --id <sid>`` on an indexer-blind session
+    # emits `[NICK]` (no host suffix) -- and even if you then re-PUT
+    # ``[NICK.host]`` by hand, the monitor's title-pass would have stripped
+    # it back to `[NICK]` before the fix landed in plan_renames. With the
+    # plan_renames fix AND this flag, a single CLI call claims the session
+    # for this host AND survives subsequent passes.
+    if opts.get("force_host"):
+        host_local = True
     file_text = _load_nickname_text(opts["file"])
     nmap = build_nickname_map(file_text,
                               os.environ.get("SESSION_TITLE_NICKNAMES", opts["map"]))
