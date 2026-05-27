@@ -102,9 +102,6 @@ class UsageLimitConfig:
     resume_verify_secs: int
     dry_run: bool
     skip_session_ids: FrozenSet[str]
-    # How often the monitor re-applies [NICK] session-title prefixes (self-heal,
-    # since the platform's auto-titling overwrites them mid-session). 0 = off.
-    titles_interval: int
 
     @property
     def state_file(self) -> Path:
@@ -141,7 +138,6 @@ class UsageLimitConfig:
             # Default ON: detect + log only, no POST. Set 0/false to actually resume.
             dry_run=_truthy(env.get("USAGE_LIMIT_DRY_RUN", "1")),
             skip_session_ids=skip,
-            titles_interval=int(env.get("SESSION_TITLE_APPLY_SECS", "600")),
         )
 
 

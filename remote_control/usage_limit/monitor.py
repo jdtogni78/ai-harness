@@ -481,9 +481,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         # Title-prefix re-apply moved out to its own daemon -- see
         # ``python3 -m remote_control titles watch`` and the
         # com.<user>.claude-titles-monitor LaunchAgent. This loop now only
-        # handles the usage-limit detect/resume cycle. The titles_interval
-        # field on UsageLimitConfig is kept for back-compat but ignored here
-        # (the new daemon reads SESSION_TITLE_APPLY_SECS directly).
+        # handles the usage-limit detect/resume cycle. The new daemon reads
+        # SESSION_TITLE_APPLY_SECS directly; nothing here owns that knob.
         last_detect = 0.0
         last_resume = 0.0
         while _running:
