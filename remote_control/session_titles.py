@@ -804,8 +804,14 @@ USAGE = (
     "[--projects-dir DIR] [--nicknames-file PATH] [--map repo=NICK,...] "
     "[--only REPO] [--all]\n"
     "       python3 -m remote_control titles set [--self|--id CSE_ID] \"<description>\"\n"
+    "       python3 -m remote_control titles watch [--interval SECS]\n"
     "  list  (default): show the planned [NICK] title prefixes (no writes)\n"
     "  apply         : PUT the changed titles\n"
+    "  watch         : run as a daemon; re-apply prefixes every --interval\n"
+    "                  (or SESSION_TITLE_APPLY_SECS env, default 600s). Logs\n"
+    "                  to logs/titles-monitor.log; single-instance lockfile.\n"
+    "                  This is the long-running counterweight to the app's\n"
+    "                  auto-titler that strips our [NICK] prefix mid-session.\n"
     "  --all         : include archived sessions (default: active only)\n"
     "  set           : set ONE session's title to '[NICK] <description>'\n"
     "                  --self (default): derive id + repo from the current\n"
@@ -833,13 +839,15 @@ def _parse_args(argv: List[str]) -> dict:
     opts = {"cmd": "list", "dev": DEV, "file": NICKNAMES_FILE,
             "map": "", "only": None, "self": False, "id": None, "desc": "",
             "projects": PROJECTS_DIR, "logdir": LOGDIR, "all": False,
-            "force_host": False}
+            "force_host": False, "interval": 0}
     desc: List[str] = []
     i = 0
     while i < len(argv):
         a = argv[i]
-        if a in ("list", "apply", "set"):
+        if a in ("list", "apply", "set", "watch"):
             opts["cmd"] = a
+        elif a == "--interval":
+            i += 1; opts["interval"] = int(argv[i])
         elif a == "--dev":
             i += 1; opts["dev"] = argv[i]
         elif a == "--projects-dir":
@@ -944,6 +952,86 @@ def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
     return 1
 
 
+def _titles_watcher_lock_file(cfg: UsageLimitConfig) -> Path:
+    """Lockfile path for the ``titles watch`` daemon. Distinct from the
+    usage-limit monitor's lockfile so the two services run side by side."""
+    return cfg.logdir / "titles-monitor.lock"
+
+
+def _titles_watcher_log_file(cfg: UsageLimitConfig) -> Path:
+    """Log file for the ``titles watch`` daemon."""
+    return cfg.logdir / "titles-monitor.log"
+
+
+def _run_watch(cfg: UsageLimitConfig, log, interval: int,
+               *, sleep=__import__("time").sleep,
+               clock=__import__("time").time) -> int:
+    """The ``titles watch`` daemon loop. Periodically re-applies the
+    ``[NICK.host]`` prefix to every active session that needs it -- the
+    counterweight to the platform's auto-titler, which strips our prefix
+    mid-session. Single-instance via lockfile. Clean SIGTERM shutdown.
+
+    Mirrors ``usage_limit.monitor.main``'s daemon pattern (lockfile +
+    signal handler + 1s tick) so the two services have the same operational
+    feel. Separate from usage-limit detection because (a) different
+    cadences (titles ~ 10min vs detect ~ 60s), (b) different failure modes
+    (title-pass touches every session; detect is read-only mostly), and
+    (c) operators want to disable / restart them independently."""
+    import signal  # local import: this function is only called as a daemon
+    state = {"running": True}
+
+    def handler(signum, _frame):
+        log(f"received signal {signum}; shutting down")
+        state["running"] = False
+
+    signal.signal(signal.SIGTERM, handler)
+    signal.signal(signal.SIGINT, handler)
+
+    lock = _titles_watcher_lock_file(cfg)
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    # Single-instance check: refuse to start if another live pid holds the lock.
+    if lock.exists():
+        try:
+            pid = int(lock.read_text().strip())
+            os.kill(pid, 0)
+        except (ValueError, ProcessLookupError, PermissionError):
+            pass
+        else:
+            log(f"another instance running pid={pid}; exiting")
+            return 0
+    lock.write_text(str(os.getpid()))
+
+    log(f"titles watcher up pid={os.getpid()} interval={interval}s")
+    try:
+        last = 0.0
+        while state["running"]:
+            now = clock()
+            if now - last >= interval:
+                last = now
+                token = monitor.get_token(cfg, log)
+                if token:
+                    try:
+                        ok, fail = apply_prefixes(cfg, token, log)
+                        if ok or fail:
+                            log(f"titles: re-applied {ok} prefix(es), {fail} failed")
+                    except Exception as e:  # noqa: BLE001 (daemon must stay up)
+                        log(f"titles: apply pass failed: {e}")
+            # 1s tick bounds SIGTERM latency: time.sleep returns after the
+            # handler rather than aborting, so a long sleep would delay the
+            # shutdown by up to its full duration.
+            for _ in range(int(interval)):
+                if not state["running"]:
+                    break
+                sleep(1)
+    finally:
+        try:
+            lock.unlink()
+        except FileNotFoundError:
+            pass
+    log("titles watcher exiting")
+    return 0
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     try:
@@ -955,8 +1043,19 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(USAGE)
         return 0
 
-    log = lambda m: print(m, file=sys.stderr)  # noqa: E731  (API client diagnostics)
     cfg = UsageLimitConfig.from_env()
+    if opts["cmd"] == "watch":
+        # Daemon mode: log to file (rotates with the rest of the runtime logs),
+        # not stderr. Interval precedence: --interval > SESSION_TITLE_APPLY_SECS
+        # env > 600s default.
+        from .logging_util import make_logger
+        cfg.logdir.mkdir(parents=True, exist_ok=True)
+        log = make_logger(_titles_watcher_log_file(cfg), utc=True)
+        interval = (opts["interval"] or
+                    int(os.environ.get("SESSION_TITLE_APPLY_SECS", "600")))
+        return _run_watch(cfg, log, interval)
+
+    log = lambda m: print(m, file=sys.stderr)  # noqa: E731  (API client diagnostics)
     token = monitor.get_token(cfg, log)
     if not token:
         log("could not read OAuth token from keychain")

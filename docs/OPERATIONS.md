@@ -19,6 +19,7 @@ python3 -m remote_control <supervisor|usage-monitor|manager|manager-ui|perm-gate
 | `~/.ai-harness/active-dirs.txt` | Allowlist of dir basenames the supervisor will spawn servers for (per-user, per-host, chmod 600 — names private app dirs, not in the repo). Re-read every tick. The installer seeds an empty template if missing. Override the path via `REMOTE_CONTROL_ACTIVE_FILE`. See [Activation list](#activation-list). |
 | `com.*.claude-remote-control.plist` | LaunchAgent for the claude supervisor → `python3 -m remote_control supervisor` (runs at login, `KeepAlive`). |
 | `com.*.claude-usage-limit-monitor.plist` | LaunchAgent for the usage-limit monitor → `python3 -m remote_control usage-monitor` (runs at login, `KeepAlive`). |
+| `com.*.claude-titles-monitor.plist` | LaunchAgent for the title-prefix watcher → `python3 -m remote_control titles watch` (runs at login, `KeepAlive`). Split out from the usage-limit monitor so the two services have independent cadences and lifecycles. |
 | `logs/` | Runtime logs (gitignored). `manager.log` = claude supervisor; `<host>-*.log` = per-claude-server output (one per allowlisted dir, prefixed with the host nickname); `usage-limit-monitor.log` + `paused-sessions.json` = monitor activity + state. |
 
 ## Configure your apps
@@ -214,6 +215,37 @@ why the earlier JSONL approach was abandoned.
   message is an open question (see the design doc). Detection/backoff/selection
   logic is covered by `tests/test_usage_detect.py` + `tests/test_usage_backoff.py`.
 
+### Title-prefix watcher
+
+A third LaunchAgent (`com.<user>.claude-titles-monitor`) that re-applies the
+`[NICK.host]` title prefix to every active session on a fixed cadence, to
+counterweight the platform's auto-titler that strips our prefix mid-session.
+Split out from the usage-limit monitor so the two services have independent
+cadences, failure modes, and restart triggers.
+
+- **Loop:** every `SESSION_TITLE_APPLY_SECS` (default `600`s) calls
+  `apply_prefixes` -- the same code path as a `titles apply` one-shot. Token
+  is re-read from the keychain each tick (so launchd respawns / token
+  rotations propagate without restarting the daemon). An exception in
+  `apply_prefixes` is logged and swallowed -- the daemon never breaks the
+  loop on a transient API hiccup.
+- **What it preserves:** `[NICK.host]` prefixes (e.g. `[AH.<host>]`) on
+  sessions that the platform's auto-titler would otherwise rewrite. Pairs
+  with the `plan_renames` self-claim guard that keeps a matching host token
+  from being stripped even when the on-disk indexer can't see the session
+  (see `tests/test_session_titles.py::test_own_host_claim_preserved_when_not_in_worktree_index`).
+- **Single-instance:** lockfile at `logs/titles-monitor.lock` (distinct from
+  the usage-limit lockfile -- the two services run side by side).
+- **Logs:** `logs/titles-monitor.log` (UTC timestamps). Each non-empty pass
+  logs `titles: re-applied N prefix(es), M failed`.
+- **Tunables (env):** `SESSION_TITLE_APPLY_SECS`, `SESSION_TITLE_NICKNAMES`
+  (extends the repo->nickname map), `SESSION_TITLE_FORMAT` (the prefix
+  template; default `{nick}.{host}`), `REMOTE_CONTROL_LOGDIR`,
+  `REMOTE_CONTROL_HOST` (host nickname for the `.host` segment).
+- **One-shot equivalent:** `python3 -m remote_control titles watch
+  --interval 0` (foreground, runs once and exits)  -- though `titles apply`
+  is the actual one-shot CLI; `watch` is daemon-shaped.
+
 ### Autonomous session manager + dashboard
 
 `manager` reads every session's state and classifies each into one actionable
@@ -361,21 +393,23 @@ Plists are per-user (`com.<user>.<service>.plist`) and `install` (no args) only
 picks the current user's plists, so a new machine needs both files **and** an
 `AGENTS` entry — otherwise `install` silently skips them.
 
-1. Add `com.<user>.claude-remote-control.plist` and
-   `com.<user>.claude-usage-limit-monitor.plist` at the repo root (copy from an
-   existing pair and rewrite the user-specific paths in `PYTHONPATH`,
+1. Add `com.<user>.claude-remote-control.plist`,
+   `com.<user>.claude-usage-limit-monitor.plist`, and
+   `com.<user>.claude-titles-monitor.plist` at the repo root (copy from an
+   existing triple and rewrite the user-specific paths in `PYTHONPATH`,
    `REMOTE_CONTROL_*`, `StandardOutPath`, `StandardErrorPath`).
-2. Append both filenames to `AGENTS` in `remote_control/installer.py` —
+2. Append all three filenames to `AGENTS` in `remote_control/installer.py` —
    `plan_install` iterates that list and ignores anything not in it, even when
    passed explicitly.
 3. `python3 -m remote_control install` on that host.
 
-Both services are required: the supervisor runs the per-dir
-`claude remote-control` servers; the **usage-limit-monitor** is what re-applies
-the `[NICK.host]` session-title prefix every `SESSION_TITLE_APPLY_SECS`
-(default 600s) — without it, the app's auto-titler strips the prefix and
-sessions stop grouping by repo. Confirm with
-`grep "titles: re-applied" logs/usage-limit-monitor.log`.
+All three services are required:
+- the **supervisor** runs the per-dir `claude remote-control` servers;
+- the **usage-limit-monitor** detects + auto-resumes paused sessions;
+- the **titles-monitor** re-applies the `[NICK.host]` session-title prefix
+  every `SESSION_TITLE_APPLY_SECS` (default 600s) — without it, the app's
+  auto-titler strips the prefix and sessions stop grouping by repo. Confirm
+  with `grep "titles: re-applied" logs/titles-monitor.log`.
 
 ## Tests
 

@@ -45,11 +45,13 @@ class PlanInstallTest(unittest.TestCase):
     def test_default_filters_by_current_user(self):
         labels = {lbl for _, lbl in plan_install(AGENTS, current_user="user2")}
         self.assertEqual(labels, {"com.user2.claude-remote-control",
-                                  "com.user2.claude-usage-limit-monitor"})
+                                  "com.user2.claude-usage-limit-monitor",
+                                  "com.user2.claude-titles-monitor"})
         labels = {lbl for _, lbl in plan_install(AGENTS, current_user="user")}
         self.assertEqual(labels, {
             "com.user.claude-remote-control",
             "com.user.claude-usage-limit-monitor",
+            "com.user.claude-titles-monitor",
         })
 
     def test_unknown_user_selects_nothing(self):

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user2.claude-titles-monitor</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>-m</string>
+        <string>remote_control</string>
+        <string>titles</string>
+        <string>watch</string>
+    </array>
+
+    <!-- Title-prefix re-apply daemon: re-applies the [NICK.host] prefix every
+         SESSION_TITLE_APPLY_SECS (default 600s) so the platform's auto-titler
+         can't strip it mid-session. Split out from the usage-limit monitor so
+         the two services have independent cadences, failure modes, and
+         restart triggers. PYTHONPATH + REMOTE_CONTROL_LOGDIR are this
+         machine's overrides (launchd's bare env / cwd won't find the package
+         or the repo logs dir). -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONPATH</key>
+        <string>/Users/user2/dev/ai-harness</string>
+        <key>REMOTE_CONTROL_LOGDIR</key>
+        <string>/Users/user2/dev/ai-harness/logs</string>
+    </dict>
+
+    <!-- Start at login, KeepAlive. Same clean-shutdown shape as the other
+         services: no AbandonProcessGroup; SIGTERM-trap inside the daemon
+         releases its lockfile on logout/reboot. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/user2/dev/ai-harness/logs/titles-monitor.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/user2/dev/ai-harness/logs/titles-monitor.err.log</string>
+</dict>
+</plist>

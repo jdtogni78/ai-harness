@@ -478,26 +478,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         if codex_cfg.enabled and not codex_cfg.state_file.exists():
             write_state(codex_cfg, {"sessions": {}})
 
+        # Title-prefix re-apply moved out to its own daemon -- see
+        # ``python3 -m remote_control titles watch`` and the
+        # com.<user>.claude-titles-monitor LaunchAgent. This loop now only
+        # handles the usage-limit detect/resume cycle. The titles_interval
+        # field on UsageLimitConfig is kept for back-compat but ignored here
+        # (the new daemon reads SESSION_TITLE_APPLY_SECS directly).
         last_detect = 0.0
         last_resume = 0.0
-        last_titles = 0.0
         while _running:
             now = time.time()
-            if cfg.titles_interval and now - last_titles >= cfg.titles_interval:
-                last_titles = now
-                # Self-heal [NICK] title prefixes the platform's auto-titling
-                # strips mid-session. Best-effort: never let it break the loop.
-                # Lazy import avoids a circular dependency (session_titles imports
-                # this module).
-                from .. import session_titles
-                token = get_token(cfg, log)
-                if token:
-                    try:
-                        ok, fail = session_titles.apply_prefixes(cfg, token, log)
-                        if ok or fail:
-                            log(f"titles: re-applied {ok} prefix(es), {fail} failed")
-                    except Exception as e:  # noqa: BLE001 (daemon must stay up)
-                        log(f"titles: apply pass failed: {e}")
             if now - last_detect >= cfg.detect_interval:
                 last_detect = now
                 token = get_token(cfg, log)

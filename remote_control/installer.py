@@ -25,8 +25,10 @@ from typing import List, Optional, Tuple
 AGENTS = [
     "com.user.claude-remote-control.plist",
     "com.user.claude-usage-limit-monitor.plist",
+    "com.user.claude-titles-monitor.plist",
     "com.user2.claude-remote-control.plist",
     "com.user2.claude-usage-limit-monitor.plist",
+    "com.user2.claude-titles-monitor.plist",
 ]
 
 REPO_DIR = Path(__file__).resolve().parent.parent

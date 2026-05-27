@@ -846,5 +846,129 @@ class BuildWorktreeIndexLiveMergeTest(unittest.TestCase):
             self.assertEqual(idx.get("cse_root"), "ai-harness")
 
 
+class TitlesWatchDaemonTest(unittest.TestCase):
+    """The ``titles watch`` daemon loop: separated from the usage-limit
+    monitor so the two services have independent cadences, lockfiles, and
+    restart triggers. Each tick re-reads the OAuth token (so a launchd
+    respawn or token rotation propagates without restarting the daemon)
+    and best-effort calls ``apply_prefixes``; an exception in there must
+    not break the loop."""
+
+    def _cfg(self, tmp):
+        import os
+        prev = os.environ.get("REMOTE_CONTROL_LOGDIR")
+        os.environ["REMOTE_CONTROL_LOGDIR"] = tmp
+        try:
+            from remote_control.config import UsageLimitConfig
+            return UsageLimitConfig.from_env()
+        finally:
+            if prev is None:
+                os.environ.pop("REMOTE_CONTROL_LOGDIR", None)
+            else:
+                os.environ["REMOTE_CONTROL_LOGDIR"] = prev
+
+    def test_calls_apply_prefixes_on_each_tick(self):
+        """Big clock values (matching production wall-clock) so the
+        ``now - last >= interval`` check fires on the first outer tick.
+        Use a small interval so the inner sleep-loop is short enough that
+        we get multiple outer iterations before the stop fires."""
+        from remote_control import session_titles as st
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = self._cfg(tmp)
+            calls = []
+            orig_apply, orig_token = st.apply_prefixes, st.monitor.get_token
+            st.apply_prefixes = lambda c, t, log: calls.append(t) or (0, 0)
+            st.monitor.get_token = lambda c, log: "tok"
+            # interval=1 → inner loop sleeps just once between outer iterations.
+            # Clocks 1000, 1001, 1002 → both pass the >= 1 threshold.
+            ticks = iter([1000.0, 1001.0, 1002.0])
+            def clock():
+                try:
+                    return next(ticks)
+                except StopIteration:
+                    raise KeyboardInterrupt  # bound the loop
+            try:
+                st._run_watch(cfg, lambda m: None, interval=1,
+                              sleep=lambda _s: None, clock=clock)
+            except KeyboardInterrupt:
+                pass
+            finally:
+                st.apply_prefixes, st.monitor.get_token = orig_apply, orig_token
+            # 3 clock reads → 3 outer iterations → 3 apply_prefixes calls
+            # (all token reads pass the threshold).
+            self.assertGreaterEqual(len(calls), 2,
+                                    f"expected >=2 apply_prefixes calls, got {len(calls)}")
+
+    def test_lockfile_blocks_second_instance(self):
+        from remote_control import session_titles as st
+        import os, tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = self._cfg(tmp)
+            lock = st._titles_watcher_lock_file(cfg)
+            lock.parent.mkdir(parents=True, exist_ok=True)
+            lock.write_text(str(os.getpid()))  # OUR pid -> "live"
+            logs = []
+            rc = st._run_watch(cfg, logs.append, interval=999,
+                               sleep=lambda _: None, clock=lambda: 0.0)
+            self.assertEqual(rc, 0)
+            self.assertTrue(any("another instance running" in m for m in logs),
+                            f"expected refusal log; got {logs}")
+            # Lockfile preserved for the live owner.
+            self.assertTrue(lock.exists())
+            lock.unlink()  # cleanup
+
+    def test_apply_exception_does_not_break_loop(self):
+        """A failure inside apply_prefixes must be logged and swallowed so
+        the daemon survives transient API hiccups."""
+        from remote_control import session_titles as st
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = self._cfg(tmp)
+            orig_apply, orig_token = st.apply_prefixes, st.monitor.get_token
+            calls = [0]
+            def boom(c, t, log):
+                calls[0] += 1
+                raise RuntimeError("simulated api 500")
+            st.apply_prefixes = boom
+            st.monitor.get_token = lambda c, log: "tok"
+            logs = []
+            ticks = iter([1000.0, 1001.0, 1002.0])
+            def clock():
+                try:
+                    return next(ticks)
+                except StopIteration:
+                    raise KeyboardInterrupt
+            try:
+                st._run_watch(cfg, logs.append, interval=1,
+                              sleep=lambda _: None, clock=clock)
+            except KeyboardInterrupt:
+                pass
+            finally:
+                st.apply_prefixes, st.monitor.get_token = orig_apply, orig_token
+            # Multiple calls means the loop kept ticking after the first raise.
+            self.assertGreaterEqual(calls[0], 2,
+                                    f"loop should survive exceptions; got {calls[0]} calls")
+            self.assertTrue(any("apply pass failed" in m for m in logs),
+                            f"expected failure log; got {logs}")
+
+
+class TitlesWatchArgParseTest(unittest.TestCase):
+    def test_watch_subcommand_recognized(self):
+        from remote_control.session_titles import _parse_args
+        opts = _parse_args(["watch"])
+        self.assertEqual(opts["cmd"], "watch")
+        self.assertEqual(opts["interval"], 0)   # default; resolved at runtime
+
+    def test_interval_flag_parsed(self):
+        from remote_control.session_titles import _parse_args
+        opts = _parse_args(["watch", "--interval", "120"])
+        self.assertEqual(opts["cmd"], "watch")
+        self.assertEqual(opts["interval"], 120)
+
+
 if __name__ == "__main__":
     unittest.main()

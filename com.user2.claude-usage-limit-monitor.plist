@@ -14,9 +14,9 @@
     </array>
 
     <!-- v2 monitor: USAGE_LIMIT_DRY_RUN 0 = live (POST resume), 1 = dry-run
-         (detect + log only). Also runs the session-title re-prefix pass every
-         SESSION_TITLE_APPLY_SECS (default 600s) — the app's auto-titler strips
-         the [NICK.host] prefix mid-session, this puts it back. PYTHONPATH +
+         (detect + log only). The session-title re-prefix pass used to live
+         here too; it moved to its own daemon -- see the
+         com.<user>.claude-titles-monitor LaunchAgent. PYTHONPATH +
          REMOTE_CONTROL_LOGDIR are this machine's overrides (launchd's bare env
          / cwd won't find the package or the repo logs dir). -->
     <key>EnvironmentVariables</key>
