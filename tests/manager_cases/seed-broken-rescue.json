@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "id": "seed-broken-rescue",
+  "sig": "RESCUE:cse_seed_broken:",
+  "captured_at": "2026-05-26T00:00:00+00:00",
+  "captured_by": "seed",
+  "tags": ["C-broken", "RESCUE", "boring"],
+  "notes": "Baseline C: the connection is gone (agent disconnected, transcript ends mid-task with no /close-work) and the work didn't land. Manager should fork + resume + archive the corpse. Catches a guideline that confuses 'disconnected' with 'done' (archiving unfinished work) or that nudges the dead session instead of forking a live successor.",
+  "input": {
+    "action": {
+      "session_id": "cse_seed_broken", "repo": "ai-harness", "kind": "RESCUE",
+      "reason": "connection gone for 70m; last event mid-tool-call (no /close-work)",
+      "run_dir": "/dev/ai-harness", "question": "", "command": [],
+      "api": "", "managed": true, "required": null, "fresh": false,
+      "title": "[AH] port shell scripts to Python"
+    },
+    "transcript_tail": [
+      {"role": "assistant", "text": "Now porting scripts/usage_limit/monitor.sh — partway through extracting the polling loop."},
+      {"role": "user", "text": "ok keep going"}
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {"rec_manager": "", "rec_session": "", "analysis": ""},
+  "expected": {
+    "rec_manager": "fork + resume the broken session into a new one (work was mid-task, did not land); then archive the original",
+    "rec_session": "none"
+  }
+}

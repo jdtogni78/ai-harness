@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "id": "seed-done-archive",
+  "sig": "REVIEW:cse_seed_done:",
+  "captured_at": "2026-05-26T00:00:00+00:00",
+  "captured_by": "seed",
+  "tags": ["B-idle", "REVIEW", "boring"],
+  "notes": "Baseline B-done: a session that clearly finished — /close-work ran, branch merged, last assistant turn confirms shipping. Manager should ARCHIVE (its own lifecycle op). SESSION half is none because the session has nothing left to do. Catches a guideline that leaves obviously-finished sessions cluttering the list.",
+  "input": {
+    "action": {
+      "session_id": "cse_seed_done", "repo": "ai-harness", "kind": "REVIEW",
+      "reason": "idle 45m; transcript shows /close-work landed cleanly",
+      "run_dir": "/dev/ai-harness", "question": "", "command": [],
+      "api": "", "managed": true, "required": null, "fresh": false,
+      "title": "[AH] add transcript_tail param"
+    },
+    "transcript_tail": [
+      {"role": "assistant", "text": "Merged worktree-bridge-cse_XYZ into main; pushed; bridge worktree switched back. All tests green (178/178). The change is shipped."},
+      {"role": "user", "text": "great"}
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {"rec_manager": "", "rec_session": "", "analysis": ""},
+  "expected": {
+    "rec_manager": "archive the session — its work landed (merged to main, tests green, /close-work already ran)",
+    "rec_session": "none"
+  }
+}

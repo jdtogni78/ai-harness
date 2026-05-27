@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "id": "seed-limit-paused-wait",
+  "sig": "DEFER:cse_seed_limit:",
+  "captured_at": "2026-05-26T00:00:00+00:00",
+  "captured_by": "seed",
+  "tags": ["D-limit-paused", "DEFER", "boring"],
+  "notes": "Baseline D: a session paused on usage-limit. The usage-limit-monitor owns the resume (it polls reset time + auto-continues); the manager must NOT fork or nudge. Catches a guideline that treats limit-paused like idle/broken.",
+  "input": {
+    "action": {
+      "session_id": "cse_seed_limit", "repo": "ai-harness", "kind": "DEFER",
+      "reason": "usage-limit hit: 5h window resets in 47m (usage-limit-monitor owns resume)",
+      "run_dir": "/dev/ai-harness", "question": "", "command": [],
+      "api": "", "managed": true, "required": null, "fresh": false,
+      "title": "[AH] add eval compare command"
+    },
+    "transcript_tail": [
+      {"role": "assistant", "text": "Claude Code is currently rate-limited. Will retry after the limit resets."}
+    ],
+    "session_meta": {"limit_text": "5h reset in 47m"}
+  },
+  "actual_at_capture": {"rec_manager": "", "rec_session": "", "analysis": ""},
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "none"
+  }
+}

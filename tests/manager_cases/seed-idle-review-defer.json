@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "id": "seed-idle-review-defer",
+  "sig": "REVIEW:cse_seed_idle:",
+  "captured_at": "2026-05-26T00:00:00+00:00",
+  "captured_by": "seed",
+  "tags": ["B-idle", "REVIEW", "boring"],
+  "notes": "Baseline B (idle/done?): a session that has gone idle 30m WITHOUT obvious done-signals (no /close-work, tests not yet run, branch not merged) is most likely still working through a long step. The right move is to LEAVE IT ALONE — neither the manager nor the operator should act. Catches a guideline tweak that becomes too eager to archive or nudge.",
+  "input": {
+    "action": {
+      "session_id": "cse_seed_idle", "repo": "ai-harness", "kind": "REVIEW",
+      "reason": "no events for 30m; transcript shows mid-task tool calls",
+      "run_dir": "/dev/ai-harness", "question": "", "command": [],
+      "api": "", "managed": true, "required": null, "fresh": false,
+      "title": "[AH] refactor scan_actions"
+    },
+    "transcript_tail": [
+      {"role": "assistant", "text": "Running the integration suite now — this typically takes a few minutes."},
+      {"role": "user", "text": "ok"}
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {"rec_manager": "", "rec_session": "", "analysis": ""},
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "none"
+  }
+}

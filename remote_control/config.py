@@ -232,6 +232,14 @@ class ManagerConfig:
         # offline ``--replay`` testing. Under the repo (logdir's parent), not logs.
         return self.logdir.parent / "scenarios"
 
+    @property
+    def test_cases_dir(self) -> Path:
+        # Committed corpus of (input, expected) snapshots for the guideline
+        # eval harness (ai-harness#37): written by manager-ui's "Save as test
+        # case" button, replayed by ``python -m remote_control eval ...``.
+        # Lives under tests/ (in the repo) so cases are reviewable in PRs.
+        return self.logdir.parent / "tests" / "manager_cases"
+
     @classmethod
     def from_env(cls, env: Optional[Mapping[str, str]] = None) -> "ManagerConfig":
         env = os.environ if env is None else env

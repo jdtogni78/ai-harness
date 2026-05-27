@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "id": "seed-running-skip",
+  "sig": "SKIP:cse_seed_running:",
+  "captured_at": "2026-05-26T00:00:00+00:00",
+  "captured_by": "seed",
+  "tags": ["E-running", "SKIP", "boring"],
+  "notes": "Baseline E (running): a session that's actively making progress (events within the last few minutes) is not actionable. The manager must not interfere. Catches a guideline tweak that confuses 'busy' with 'stuck'.",
+  "input": {
+    "action": {
+      "session_id": "cse_seed_running", "repo": "ai-harness", "kind": "SKIP",
+      "reason": "running; last event 90s ago",
+      "run_dir": "/dev/ai-harness", "question": "", "command": [],
+      "api": "", "managed": true, "required": null, "fresh": false,
+      "title": "[AH] add eval runner"
+    },
+    "transcript_tail": [
+      {"role": "user", "text": "now add the LLM judge piece"},
+      {"role": "assistant", "text": "Writing remote_control/eval.py with the judge wrapper. Will run the seed corpus next."}
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {"rec_manager": "", "rec_session": "", "analysis": ""},
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "none"
+  }
+}

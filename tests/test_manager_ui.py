@@ -11,8 +11,9 @@ from unittest import mock
 
 from remote_control.config import ManagerConfig
 from remote_control import manager
-from remote_control.manager import Action, ANSWER, REVIEW, SKIP
+from remote_control.manager import Action, ANSWER, REVIEW, SKIP, action_sig
 from remote_control import manager_ui as ui
+from remote_control import eval_cases as ec
 
 
 def _cfg(tmp: str) -> ManagerConfig:
@@ -80,6 +81,103 @@ class FeedbackGuidelinesTest(unittest.TestCase):
     def test_api_guidelines_suggest_no_feedback(self):
         code, body = ui.api_guidelines_suggest(self.cfg, runner=lambda *a, **k: _proc(stdout="x"))
         self.assertFalse(body["ok"])
+
+
+class SaveTestCaseTest(unittest.TestCase):
+    """``/api/test_case`` -- snapshot the live situation as a frozen
+    ``(input, expected)`` corpus entry. Drives the Phase-2 capture button."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.cfg = _cfg(self._tmp.name)
+        self.action = Action("cse_1", "ff", REVIEW, "idle 30m",
+                             run_dir=os.path.join(self._tmp.name, "ff"),
+                             managed=True)
+        os.makedirs(self.action.run_dir, exist_ok=True)
+        # Pre-seed the decisions log so the endpoint sees a cached analysis.
+        sig = action_sig(self.action)
+        manager.append_decision(self.cfg, {
+            "ts": "2026-05-26T10:00:00+00:00", "sig": sig,
+            "session_id": self.action.session_id, "repo": "ff", "case": REVIEW,
+            "reason": "idle 30m", "managed": True,
+            "rec_manager": "archive once done", "rec_session": "run /close-work",
+            "recommendation": "MANAGER: archive once done\nSESSION: run /close-work",
+            "analysis": "looks done", "analyzed": True, "note": "analyzed"})
+
+    def _save(self, **overrides):
+        payload = {"session_id": "cse_1", "expected_manager": "archive once done",
+                   "expected_session": "run /close-work", "tags": ["E-running"],
+                   "notes": "hand-seeded"}
+        payload.update(overrides)
+        return ui.api_save_test_case(
+            self.cfg, payload,
+            get_token=lambda *a, **k: "tok",
+            scan=lambda *a, **k: [self.action])
+
+    def test_save_writes_self_contained_snapshot(self):
+        code, body = self._save()
+        self.assertEqual(code, 200)
+        self.assertTrue(body["ok"], body)
+        path = self.cfg.test_cases_dir / f"{body['case_id']}.json"
+        self.assertTrue(path.exists())
+        case = json.loads(path.read_text())
+        # Schema + identity.
+        self.assertEqual(case["schema"], ec.CASE_SCHEMA_VERSION)
+        self.assertEqual(case["sig"], action_sig(self.action))
+        self.assertEqual(case["captured_by"], "manager-ui")
+        self.assertEqual(case["tags"], ["E-running"])
+        self.assertEqual(case["notes"], "hand-seeded")
+        # Frozen action + cached analysis bundled.
+        self.assertEqual(case["input"]["action"]["session_id"], "cse_1")
+        self.assertEqual(case["actual_at_capture"]["rec_manager"], "archive once done")
+        self.assertEqual(case["actual_at_capture"]["rec_session"], "run /close-work")
+        # Expected echoed back from the payload.
+        self.assertEqual(case["expected"]["rec_session"], "run /close-work")
+
+    def test_save_needs_session_id(self):
+        self.assertEqual(ui.api_save_test_case(self.cfg, {})[0], 400)
+        self.assertEqual(ui.api_save_test_case(self.cfg, {"expected_session": "x"})[0], 400)
+
+    def test_save_rejects_non_list_tags(self):
+        code, _ = self._save(tags="oops-a-string")
+        self.assertEqual(code, 400)
+
+    def test_save_fails_when_session_not_in_scan(self):
+        # Operator clicked Save after the session moved on -- surface, don't
+        # silently capture an empty case.
+        code, body = ui.api_save_test_case(
+            self.cfg, {"session_id": "cse_missing", "expected_session": "x"},
+            get_token=lambda *a, **k: "tok", scan=lambda *a, **k: [])
+        self.assertEqual(code, 200)
+        self.assertFalse(body["ok"])
+        self.assertIn("not found", body["error"])
+
+    def test_save_fails_when_no_cached_analysis(self):
+        # A fresh row (never analyzed) has nothing worth capturing as
+        # actual_at_capture; the operator should Analyze first.
+        cfg = _cfg(self._tmp.name + "-fresh")
+        fresh = Action("cse_new", "ff", REVIEW, "idle", run_dir=str(cfg.dev))
+        code, body = ui.api_save_test_case(
+            cfg, {"session_id": "cse_new", "expected_session": "defer"},
+            get_token=lambda *args, **kw: "tok",
+            scan=lambda *args, **kw: [fresh])
+        self.assertFalse(body["ok"])
+        self.assertIn("Analyze first", body["error"])
+
+    def test_save_falls_back_when_token_missing(self):
+        code, body = ui.api_save_test_case(
+            self.cfg, {"session_id": "cse_1", "expected_session": "x"},
+            get_token=lambda *a, **k: "", scan=lambda *a, **k: [self.action])
+        self.assertFalse(body["ok"])
+        self.assertIn("token", body["error"].lower())
+
+    def test_save_is_upsert_overwrites_same_situation(self):
+        self._save(expected_session="v1")
+        self._save(expected_session="v2")
+        files = list(self.cfg.test_cases_dir.glob("*.json"))
+        self.assertEqual(len(files), 1)
+        self.assertEqual(json.loads(files[0].read_text())["expected"]["rec_session"], "v2")
 
 
 class SendTest(unittest.TestCase):

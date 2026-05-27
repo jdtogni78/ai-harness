@@ -220,6 +220,74 @@ def api_feedback(cfg: ManagerConfig, payload: dict) -> Tuple[int, dict]:
     return 200, {"sig": sig, "feedback": add_feedback(cfg.feedback_file, sig, text)}
 
 
+def api_save_test_case(cfg: ManagerConfig, payload: dict, *, get_token=None,
+                       scan=None, now=None) -> Tuple[int, dict]:
+    """Freeze the current situation for ``session_id`` as a self-contained
+    ``(input, expected)`` snapshot under ``tests/manager_cases/``, for the
+    guideline eval harness (ai-harness#37). Upsert: re-saving the same
+    situation overwrites the file so expectations can be refined.
+
+    Payload: ``{session_id, expected_manager, expected_session, tags?,
+    notes?}``. The actual rec is read from the cached analysis (so Analyze
+    first); the transcript tail is read from disk *now* and embedded so the
+    case survives session archival. Returns ``{ok, case_id, sig, path}``."""
+    from . import manager
+    from .config import UsageLimitConfig
+    from .usage_limit import monitor as _monitor
+    from . import eval_cases as _ec
+
+    sid = (payload or {}).get("session_id")
+    exp_mgr = ((payload or {}).get("expected_manager") or "").strip()
+    exp_ses = ((payload or {}).get("expected_session") or "").strip()
+    tags = (payload or {}).get("tags") or []
+    notes = ((payload or {}).get("notes") or "").strip()
+    if not sid:
+        return 400, {"error": "need {session_id}"}
+    if not isinstance(tags, list):
+        return 400, {"error": "tags must be a list of strings"}
+
+    get_token = get_token or _monitor.get_token
+    scan = scan or manager.scan_actions
+    ucfg = UsageLimitConfig.from_env()
+    log: List[str] = []
+    token = get_token(ucfg, log.append)
+    if not token:
+        return 200, {"ok": False, "error": "could not read OAuth token from keychain"}
+
+    when = now or datetime.now(timezone.utc)
+    # consider_all=True so even SKIP/DEFER rows can be captured -- the
+    # boring-path corpus needs them, and the operator chose this session
+    # deliberately by clicking its row.
+    actions = scan(cfg, ucfg, token, now=when, consider_all=True, log=log.append)
+    a = next((x for x in actions if x.session_id == sid), None)
+    if a is None:
+        return 200, {"ok": False, "error": "session not found in current scan"}
+
+    cached = manager.latest_decision_by_sig(cfg).get(manager.action_sig(a)) or {}
+    if not cached.get("analyzed"):
+        return 200, {"ok": False,
+                     "error": "no cached analysis to capture -- click Analyze first"}
+
+    tx = manager.session_transcript(cfg, sid)
+    tail = manager.last_messages(tx, n=2)
+
+    case = _ec.build_case(
+        action=a,
+        transcript_tail=tail,
+        actual={"rec_manager": cached.get("rec_manager", ""),
+                "rec_session": cached.get("rec_session", ""),
+                "analysis": cached.get("analysis", "")},
+        expected={"rec_manager": exp_mgr, "rec_session": exp_ses},
+        tags=[str(t) for t in tags],
+        notes=notes,
+        captured_by="manager-ui",
+        now=when,
+    )
+    path = _ec.save_case(cfg.test_cases_dir, case)
+    return 200, {"ok": True, "case_id": case["id"], "sig": case["sig"],
+                 "path": str(path)}
+
+
 def api_guidelines_get(cfg: ManagerConfig) -> Tuple[int, dict]:
     return 200, {"text": load_guidelines(cfg), "path": str(cfg.guidelines_file)}
 
@@ -390,11 +458,18 @@ PAGE = r"""<!doctype html>
  .qrow{margin:3px 0} .recent>div{padding:3px 0;border-top:1px solid var(--bg)}
  .fbhist{margin-bottom:8px} .fbhist>div{padding:3px 0;border-top:1px solid var(--bg)}
  textarea.fbnew{min-height:90px} .row-btns{display:flex;gap:6px;margin-top:6px}
- #gpanel{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:10;
+ #gpanel,#tcpanel{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:10;
    align-items:center;justify-content:center} #gbox{background:#fff;border-radius:10px;
    width:min(900px,92vw);height:80vh;display:flex;flex-direction:column;padding:14px}
  #gbox textarea{flex:1;font-family:ui-monospace,Menlo,monospace;font-size:12px;margin:8px 0}
  .gbar{display:flex;gap:8px;align-items:center}
+ #tcbox{background:#fff;border-radius:10px;width:min(720px,92vw);max-height:90vh;
+   display:flex;flex-direction:column;padding:14px;overflow:auto}
+ #tcbox label{display:block;font-weight:600;font-size:12px;margin:10px 0 3px}
+ #tcbox textarea,#tcbox select{width:100%;font:12px/1.4 ui-monospace,Menlo,monospace;
+   border:1px solid var(--bd);border-radius:6px;padding:6px}
+ #tcbox textarea{resize:vertical}
+ #tcbox .tcrow{display:flex;gap:8px;align-items:center}
 </style></head><body>
 <header><h1>Manager review</h1><span id="counts" class="muted"></span>
  <span id="at" class="muted"></span><span class="sp"></span>
@@ -416,6 +491,33 @@ PAGE = r"""<!doctype html>
   <textarea id="gtext" spellcheck="false"></textarea>
   <div class="muted">Injected into every analysis. "Suggest from feedback" drafts a revision
    from your saved feedback — review it here, then Save to accept.</div>
+</div></div>
+
+<div id="tcpanel"><div id="tcbox">
+  <div class="gbar"><b>Save as test case</b>
+    <span class="muted">· <span id="tcSid"></span> · <span id="tcCase"></span></span>
+    <span class="sp"></span>
+    <button id="tcSave" class="pri">Save</button><button id="tcClose">Cancel</button></div>
+  <div class="muted">Freezes this analysis as a regression test case under
+   <code>tests/manager_cases/</code>. Edit the expected rec if the current one is wrong —
+   what you save here is the policy the guideline eval scores against.</div>
+  <label>Case-kind tags <span class="muted">(Cmd/Ctrl-click for multiple)</span></label>
+  <select id="tcTags" multiple size="6">
+    <option value="A-waiting-q">A · waiting on question (ANSWER)</option>
+    <option value="B-idle">B · idle / looks done (REVIEW)</option>
+    <option value="C-broken">C · broken / disconnected (RESCUE)</option>
+    <option value="D-limit-paused">D · usage-limit paused</option>
+    <option value="E-running">E · running (SKIP / DEFER)</option>
+    <option value="boring">boring (happy-path baseline)</option>
+    <option value="hard">hard (edge case)</option>
+    <option value="managed">managed (in allowlist)</option>
+  </select>
+  <label>Expected MANAGER <span class="muted">— what the manager should DO itself (or "none")</span></label>
+  <textarea id="tcExpMgr" rows="2" spellcheck="false"></textarea>
+  <label>Expected SESSION <span class="muted">— what to send into the live session (or "none")</span></label>
+  <textarea id="tcExpSes" rows="2" spellcheck="false"></textarea>
+  <label>Notes <span class="muted">(optional, free-text)</span></label>
+  <textarea id="tcNotes" rows="2"></textarea>
 </div></div>
 
 <script>
@@ -545,6 +647,8 @@ function detailHtml(r){
     +`${r.rec_manager?"":"disabled"} title="execute the MANAGER rec via a headless claude -p">▷ run manager rec</button>`
     +`<button class="act" data-sid="${esc(r.session_id)}" onclick="sendFb(this)" `
     +`title="post your feedback into the live session">→ send feedback</button>`
+    +`<button class="act" data-sid="${esc(r.session_id)}" onclick="openTC(this)" `
+    +`${r.has_analysis?"":"disabled"} title="freeze this analysis as a regression test case (eval harness)">★ test case</button>`
     +`</div>
     <div class="field"><h3>Reason · question</h3>${qcell(r)}</div>
     <div class="field"><h3>Recommendation</h3>${recCell(r)}</div>
@@ -699,6 +803,46 @@ document.getElementById("gsave").onclick=async()=>{
   b.disabled=false; b.textContent=r.ok?"Saved ✓":"failed";
   setTimeout(()=>{b.textContent="Save"; if(r.ok) gp.style.display="none";},900);
 };
+// ---- "Save as test case" modal (the eval-harness capture path) ------------
+const tcp=document.getElementById("tcpanel");
+function openTC(btn){
+  const sid=btn.dataset.sid, r=ROWS[sid]||{};
+  if(!r.has_analysis){ alert("Analyze first — there's no actual rec to capture yet."); return; }
+  document.getElementById("tcSid").textContent=sid;
+  document.getElementById("tcCase").textContent=r.case||"";
+  // Default expected = current rec ("one-click accept" path); operator can edit.
+  document.getElementById("tcExpMgr").value=r.rec_manager||"";
+  document.getElementById("tcExpSes").value=r.rec_session||"";
+  document.getElementById("tcNotes").value="";
+  // Pre-select the case-kind tag matching this row (A/B/C/D/E), best-effort.
+  const kindToTag={ANSWER:"A-waiting-q",REVIEW:"B-idle",RESCUE:"C-broken",
+                   SKIP:"E-running",DEFER:"E-running"};
+  const want=kindToTag[r.case]||"";
+  const sel=document.getElementById("tcTags");
+  for(const o of sel.options) o.selected=(o.value===want);
+  tcp.dataset.sid=sid;
+  tcp.style.display="flex";
+  document.getElementById("tcExpMgr").focus();
+}
+document.getElementById("tcClose").onclick=()=>tcp.style.display="none";
+tcp.onclick=e=>{ if(e.target===tcp) tcp.style.display="none"; };
+document.getElementById("tcSave").onclick=async()=>{
+  const b=document.getElementById("tcSave"), t=b.textContent;
+  const sid=tcp.dataset.sid;
+  const tags=[...document.getElementById("tcTags").selectedOptions].map(o=>o.value);
+  const payload={session_id:sid,
+    expected_manager:document.getElementById("tcExpMgr").value,
+    expected_session:document.getElementById("tcExpSes").value,
+    tags, notes:document.getElementById("tcNotes").value};
+  b.disabled=true; b.textContent="saving…";
+  try{
+    const d=await (await fetch("/api/test_case",{method:"POST",
+      headers:{"content-type":"application/json"},body:JSON.stringify(payload)})).json();
+    if(d.ok){ b.textContent="saved ✓";
+      setTimeout(()=>{b.textContent=t; b.disabled=false; tcp.style.display="none";},900); }
+    else{ alert(d.error||"save failed"); b.textContent=t; b.disabled=false; }
+  }catch(e){ alert("save failed: "+e); b.textContent=t; b.disabled=false; }
+};
 document.getElementById("refresh").onclick=load;
 document.getElementById("analyzeAll").onclick=analyzeAll;
 document.getElementById("all").onchange=load;
@@ -749,6 +893,8 @@ def make_handler(cfg: ManagerConfig):
                 self._json(*api_analyze(cfg, self._body()))
             elif path == "/api/feedback":
                 self._json(*api_feedback(cfg, self._body()))
+            elif path == "/api/test_case":
+                self._json(*api_save_test_case(cfg, self._body()))
             elif path == "/api/send":
                 self._json(*api_send(cfg, self._body()))
             elif path == "/api/execute":

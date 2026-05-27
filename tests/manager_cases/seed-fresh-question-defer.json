@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "id": "seed-fresh-question-defer",
+  "sig": "ANSWER:cse_seed_fresh_q:a1b2c3d4e5f60718",
+  "captured_at": "2026-05-26T00:00:00+00:00",
+  "captured_by": "seed",
+  "tags": ["A-waiting-q", "ANSWER", "boring"],
+  "notes": "Baseline A (waiting on Q, FRESH=true): the question landed within the grace window, so the human operator gets first crack. Manager must defer. Catches a guideline that auto-answers too fast.",
+  "input": {
+    "action": {
+      "session_id": "cse_seed_fresh_q", "repo": "ai-harness", "kind": "ANSWER",
+      "reason": "waiting on AskUserQuestion (3m ago, within 10m grace)",
+      "run_dir": "/dev/ai-harness",
+      "question": "Should I rename the helper to _render_tail or _format_tail?",
+      "command": [], "api": "", "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion", "tool_use_id": "toolu_seed_fresh",
+        "description": "Pick a name",
+        "questions": [{
+          "question": "Should I rename the helper to _render_tail or _format_tail?",
+          "header": "Helper name", "multiSelect": false,
+          "options": [
+            {"label": "_render_tail", "description": "matches existing _render_* naming"},
+            {"label": "_format_tail", "description": "matches Python's format() vocabulary"}
+          ]
+        }]
+      },
+      "fresh": true, "title": "[AH] manager-eval phase 2"
+    },
+    "transcript_tail": [
+      {"role": "assistant", "text": "Should I rename the helper to _render_tail or _format_tail?"}
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {"rec_manager": "", "rec_session": "", "analysis": ""},
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "none"
+  }
+}
