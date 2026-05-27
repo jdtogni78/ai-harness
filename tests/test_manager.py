@@ -695,6 +695,50 @@ class AdviseTest(unittest.TestCase):
         self.assertIn("MANAGER:", p)
         self.assertIn("SESSION:", p)
 
+    def test_prompt_advise_omits_transcript_section_by_default(self):
+        # Live manager path: no transcript_tail -> no RECENT TURNS section, so
+        # current behavior is preserved.
+        p = investigator_prompt_advise(Action("cse_1", "ff", REVIEW, "idle", run_dir="/d"))
+        self.assertNotIn("RECENT TURNS", p)
+
+    def test_prompt_advise_includes_transcript_tail_when_provided(self):
+        # Eval path: a frozen tail is inlined so the prompt is self-contained.
+        tail = [{"role": "assistant", "text": "what should I do about X?"},
+                {"role": "user", "text": "try Y"}]
+        p = investigator_prompt_advise(Action("cse_1", "ff", REVIEW, "idle", run_dir="/d"),
+                                       transcript_tail=tail)
+        self.assertIn("RECENT TURNS", p)
+        self.assertIn("[assistant] what should I do about X?", p)
+        self.assertIn("[user] try Y", p)
+        # Empty turns are skipped so we don't leak blank role tags.
+        p2 = investigator_prompt_advise(
+            Action("cse_1", "ff", REVIEW, "idle", run_dir="/d"),
+            transcript_tail=[{"role": "assistant", "text": "  "},
+                             {"role": "user", "text": "real"}])
+        self.assertNotIn("[assistant]", p2)
+        self.assertIn("[user] real", p2)
+
+    def test_analyze_action_forwards_transcript_tail_to_prompt(self):
+        # The optional tail flows from analyze_action -> investigator_prompt_advise
+        # -> the spawned subprocess command, so the eval runner can replay
+        # without depending on the on-disk transcript.
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "r"))
+            cfg = _cfg(REMOTE_CONTROL_DEV=d)
+            a = Action("cse_1", "r", REVIEW, "idle", run_dir=os.path.join(d, "r"))
+            seen = {}
+
+            def runner(cmd, **k):
+                seen["prompt"] = cmd[-1]
+                return _proc(stdout="ANALYSIS: a.\nMANAGER: none\nSESSION: r")
+
+            analyze_action(a, cfg=cfg, guidelines="", log=lambda m: None,
+                           runner=runner,
+                           transcript_tail=[{"role": "assistant",
+                                             "text": "FROZEN-TAIL-MARKER"}])
+            self.assertIn("RECENT TURNS", seen["prompt"])
+            self.assertIn("FROZEN-TAIL-MARKER", seen["prompt"])
+
     def test_analyze_action_falls_back_to_dev_when_no_repo(self):
         with tempfile.TemporaryDirectory() as d:
             cfg = _cfg(REMOTE_CONTROL_DEV=d)

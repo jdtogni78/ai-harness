@@ -284,11 +284,32 @@ def feedback_for_prompt(cfg: ManagerConfig, a: Action, *, max_other: int = 3) ->
     return "\n".join(lines)
 
 
+def _render_transcript_tail(turns: List[Dict[str, str]]) -> str:
+    """Render ``[{role, text}]`` turns (the shape ``last_messages()`` returns) as
+    plain prompt-ready text. One blank line between turns; role-tagged so the
+    model can tell them apart."""
+    lines = []
+    for t in turns:
+        role = (t.get("role") or "?").strip()
+        text = (t.get("text") or "").strip()
+        if not text:
+            continue
+        lines.append(f"[{role}] {text}")
+    return "\n\n".join(lines)
+
+
 def investigator_prompt_advise(a: Action, *, guidelines: str = "",
-                               feedback: str = "") -> str:
+                               feedback: str = "",
+                               transcript_tail: Optional[List[Dict[str, str]]] = None
+                               ) -> str:
     """Prompt for the investigator to REVIEW one stuck thread and report what the
     operator should do: a one-line recommendation + ~5 sentences of analysis. The
-    current guidelines and any prior operator feedback are injected as policy."""
+    current guidelines and any prior operator feedback are injected as policy.
+    An optional ``transcript_tail`` (``[{role, text}]`` -- same shape as
+    ``last_messages()``) is inlined as a RECENT TURNS section so the prompt is
+    self-contained for offline / eval replay; when None (the live manager path),
+    no transcript is injected and the spawned investigator reads the session
+    itself as before."""
     where = f"repo {a.repo!r}" if a.repo else "this repository"
     if a.kind == ANSWER:
         ctx = ("It has PAUSED on a question and is waiting on a reply:\n"
@@ -313,10 +334,13 @@ def investigator_prompt_advise(a: Action, *, guidelines: str = "",
     f = (f"\nPRIOR OPERATOR FEEDBACK on past recommendations -- treat as "
          f"authoritative corrections and follow them:\n{feedback.strip()}\n"
          if feedback and feedback.strip() else "")
+    t = (f"\nRECENT TURNS (the session's last messages; oldest first, newest last):\n"
+         f"---\n{_render_transcript_tail(transcript_tail)}\n---\n"
+         if transcript_tail else "")
     return (
         f"You are a manager agent reviewing an autonomous coding session "
         f"({a.session_id}) in {where} (code at {a.run_dir or '?'}). "
-        f"It looks STUCK: {a.reason}.\n{ctx}\n{g}{f}\n"
+        f"It looks STUCK: {a.reason}.\n{ctx}\n{g}{f}{t}\n"
         "Investigate the repository/situation as needed (read-only), then report "
         "what should happen, split by WHO acts. Reply EXACTLY in this format, "
         "nothing else:\n"
@@ -405,16 +429,24 @@ def action_sig(a: Action) -> str:
 
 
 def analyze_action(a: Action, *, cfg: ManagerConfig, guidelines: str = "",
-                   log, runner=subprocess.run) -> dict:
+                   log, runner=subprocess.run,
+                   transcript_tail: Optional[List[Dict[str, str]]] = None) -> dict:
     """Run the investigator (`claude -p`) on one stuck thread WITH the guidelines
     and parse its recommendation + ~5-sentence analysis. Read-only; never submits.
-    Returns ``{ok, recommendation, analysis, note, raw}``."""
+    Returns ``{ok, recommendation, analysis, note, raw}``.
+
+    When ``transcript_tail`` is supplied (``[{role, text}]`` -- same shape as
+    ``last_messages()``) it is inlined into the prompt as a RECENT TURNS
+    section, so the eval harness can replay a frozen case without depending on
+    the on-disk transcript still being there. The live manager passes None and
+    behavior is unchanged."""
     # Fall back to the dev root when the session can't be mapped to a repo checkout
     # (cloud / other-host / unrecognized source) so the investigator still runs and
     # can reason from the session metadata, rather than silently producing nothing.
     run_dir = a.run_dir or (str(cfg.dev / a.repo) if a.repo else str(cfg.dev))
     prompt = investigator_prompt_advise(a, guidelines=guidelines,
-                                        feedback=feedback_for_prompt(cfg, a))
+                                        feedback=feedback_for_prompt(cfg, a),
+                                        transcript_tail=transcript_tail)
     cmd = investigator_command(cfg.claude_bin, prompt, cfg.model,
                                cfg.investigator_permission_mode)
     out = run_investigator(cmd, run_dir, cfg.investigator_timeout_secs,
