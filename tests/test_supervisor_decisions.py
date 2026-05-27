@@ -1,11 +1,15 @@
+import io
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from remote_control.config import SupervisorConfig
+from remote_control import supervisor as supervisor_mod
 from remote_control.supervisor import (
     Supervisor,
     is_busy,
+    main as supervisor_main,
     should_recycle,
     to_deactivate,
 )
@@ -171,6 +175,50 @@ class SupervisorTickTest(unittest.TestCase):
         sup.tick(now=0)
         self.assertEqual(proc.spawned, [])
         self.assertTrue(any("active-file missing" in m for m in logs))
+
+
+class SupervisorMainArgvTest(unittest.TestCase):
+    """Regression for: `python -m remote_control supervisor --help` used to
+    silently launch a real supervisor because main() ignored argv. That left a
+    rogue supervisor running for 9+ hours fighting the launchd-managed one,
+    burning cloud registrations (see incident 2026-05-26)."""
+
+    def _main(self, argv):
+        out, err = io.StringIO(), io.StringIO()
+        # Patch Supervisor so we can assert it never runs when argv is rejected.
+        with mock.patch.object(supervisor_mod, "Supervisor") as fake_sup:
+            fake_sup.return_value.run.return_value = 0
+            rc = supervisor_main(argv, stdout=out, stderr=err)
+        return rc, out.getvalue(), err.getvalue(), fake_sup
+
+    def test_help_flag_prints_usage_without_running(self):
+        for flag in ("--help", "-h", "help"):
+            with self.subTest(flag=flag):
+                rc, out, err, fake_sup = self._main([flag])
+                self.assertEqual(rc, 0)
+                self.assertIn("usage", out.lower())
+                self.assertEqual(err, "")
+                fake_sup.assert_not_called()
+
+    def test_unknown_arg_errors_without_running(self):
+        rc, out, err, fake_sup = self._main(["--bogus"])
+        self.assertEqual(rc, 2)
+        self.assertIn("unexpected argument", err)
+        self.assertIn("--bogus", err)
+        fake_sup.assert_not_called()
+
+    def test_help_with_extra_args_is_not_help(self):
+        # `--help --bogus` shouldn't be silently treated as help — it's an error.
+        rc, _out, err, fake_sup = self._main(["--help", "--bogus"])
+        self.assertEqual(rc, 2)
+        self.assertIn("unexpected argument", err)
+        fake_sup.assert_not_called()
+
+    def test_no_args_runs_supervisor(self):
+        rc, _out, _err, fake_sup = self._main([])
+        self.assertEqual(rc, 0)
+        fake_sup.assert_called_once()
+        fake_sup.return_value.run.assert_called_once()
 
 
 if __name__ == "__main__":

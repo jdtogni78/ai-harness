@@ -20,8 +20,14 @@ from __future__ import annotations
 
 import os
 import signal
+import sys
 import time
 from typing import Callable, Dict, Iterable, List, Optional, Set
+
+SUPERVISOR_USAGE = (
+    "usage: python3 -m remote_control supervisor\n"
+    "       (no arguments; config is from environment variables -- see config.py)"
+)
 
 from . import procutil
 from .config import SupervisorConfig
@@ -195,5 +201,19 @@ class Supervisor:
         return 0
 
 
-def main(argv: Optional[List[str]] = None) -> int:
-    return Supervisor(SupervisorConfig.from_env()).run()
+def main(argv: Optional[List[str]] = None, *,
+         stdout=sys.stdout, stderr=sys.stderr) -> int:
+    # supervisor takes no positional args -- config is via env vars. Historically
+    # this signature silently ignored argv, so `python -m remote_control supervisor
+    # --help` launched a real supervisor and left it running for hours fighting
+    # the launchd one (see incident 2026-05-26 -- supervisor kill-spree). Parse
+    # argv explicitly now.
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv in ([], None):
+        return Supervisor(SupervisorConfig.from_env()).run()
+    if argv[0] in ("-h", "--help", "help") and len(argv) == 1:
+        print(SUPERVISOR_USAGE, file=stdout)
+        return 0
+    print(f"supervisor: unexpected argument: {argv[0]!r}\n{SUPERVISOR_USAGE}",
+          file=stderr)
+    return 2
