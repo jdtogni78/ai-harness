@@ -35,13 +35,17 @@ whose ``{token}`` placeholders resolve from different sources per session:
   ``{shortid}`` compact id handle (``cse_`` stripped, first 8 chars)
   ``{engine}``  agent engine (``claude``)
 
-A LOCAL bridge session (derived via (2)) physically runs on this host, so its
-host/branch tokens are filled (``[AO.mini]``). Cloud / CLI sessions (derived via
-(1)) live on no one host, so those tokens are empty and the default renders
-host-less (``[AO]``). An empty token collapses together with one adjacent
-separator, so ``{nick}.{host}`` is ``AO.mini`` locally and ``AO`` in the cloud.
-Keeping the host token cloud-empty also stops two hosts' self-heal passes from
-fighting over a shared cloud session (both render the same host-less prefix).
+A session whose id appears in this host's local worktree index (sources (2)-(4))
+physically runs on this host, so its host/branch tokens are filled (``[AO.mini]``)
+-- this holds even when the session also has a ``config.sources[].url`` (a sandbox
+session forked to a local bridge dir here still runs HERE). A session with ONLY a
+``config.sources[].url`` and no local bridge artifacts is cloud-only -- those
+tokens stay empty and the default renders host-less (``[AO]``). An empty token
+collapses together with one adjacent separator, so ``{nick}.{host}`` is ``AO.mini``
+when host is set and ``AO`` when it's not. Two hosts that happen to BOTH have a
+local bridge for the same shared sid are kept from ping-ponging the suffix by
+``existing_prefix_host`` in plan_renames (whichever host writes first wins, and
+the other's pass leaves the claim alone on the next cycle).
 
 The pure helpers (no network, no clock, no filesystem) live above ``main`` so the
 nickname map, template rendering, repo derivation, and rename planning unit-test
@@ -282,13 +286,14 @@ def is_active_session(session: dict) -> bool:
 
 
 def is_host_local(session: dict, worktree_index: Dict[str, str]) -> bool:
-    """True if *session* physically runs on THIS host: a bridge session
-    (no authoritative git source URL) whose id is in this host's worktree index.
-    A session with a ``config.sources[].url`` is a cloud / CLI session that lives
-    on no particular host, so it is never host-local (-> no ``.host`` suffix)."""
-    for src in (session.get("config") or {}).get("sources") or []:
-        if src.get("url"):
-            return False
+    """True if *session* physically runs on THIS host: its id is in the local
+    worktree index (a bridge worktree dir, or a live desktop-app pid+cwd entry).
+    A ``config.sources[].url`` (cloud/sandbox provenance) does NOT disqualify a
+    session that ALSO has a local bridge dir here -- a forked-to-local sandbox
+    session, or one launched here with a GitHub source attached, physically runs
+    on this host and should carry the ``.host`` suffix. Two hosts both seeing
+    the same sid (e.g. forked on both) are kept from ping-ponging the suffix by
+    the existing_prefix_host guard in plan_renames."""
     return session.get("id") in worktree_index
 
 

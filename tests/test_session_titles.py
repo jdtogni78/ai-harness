@@ -125,9 +125,15 @@ class HostLocalTest(unittest.TestCase):
         s = {"id": "cse_b", "config": {}}
         self.assertTrue(is_host_local(s, {"cse_b": "ai-harness"}))
 
-    def test_cloud_session_with_source_url_is_not_local(self):
+    def test_source_url_does_not_disqualify_local_bridge(self):
+        # A sandbox session forked to a local bridge dir still runs HERE; the
+        # local index entry wins over the config.sources[].url cloud signal.
         s = {"id": "cse_b", "config": {"sources": [{"url": "x"}]}}
-        self.assertFalse(is_host_local(s, {"cse_b": "ai-harness"}))  # index ignored
+        self.assertTrue(is_host_local(s, {"cse_b": "ai-harness"}))
+
+    def test_source_url_without_local_bridge_is_not_local(self):
+        s = {"id": "cse_b", "config": {"sources": [{"url": "x"}]}}
+        self.assertFalse(is_host_local(s, {}))
 
     def test_unknown_session_is_not_local(self):
         self.assertFalse(is_host_local({"id": "cse_z", "config": {}}, {}))
@@ -381,18 +387,19 @@ class PlanRenamesTest(unittest.TestCase):
              "config": {"sources": [{"url": "https://github.com/me/AppOne.git"}]}},
         ]
         # note has AO in its local index (bridge worktree present locally) so the
-        # `is_host_local` -> ``.note`` rendering would otherwise fire.
+        # `is_host_local` -> ``.note`` rendering fires for sids without a foreign
+        # host claim. The mini-claimed sid is still left alone.
         index = {"cse_other": "AppOne",
                  "cse_ours": "AppOne",
                  "cse_hostless": "AppOne"}
         plan = {r.id: r for r in plan_renames(sessions, index, self.nmap, host="note")}
         self.assertFalse(plan["cse_other"].changed, plan["cse_other"])
         self.assertEqual(plan["cse_other"].new_title, "[AO.mini] keep mini")
-        # Our own claim renders host-less here because the session has a source
-        # URL (so is_host_local=False); the key assertion is just that we DID
-        # produce a re-rendered title rather than skipping.
-        self.assertEqual(plan["cse_ours"].new_title, "[AO] our claim")
-        self.assertEqual(plan["cse_hostless"].new_title, "[AO] hostless")
+        # Our own claim and the host-less title both re-render with note's
+        # suffix: a local bridge dir means the session physically runs here,
+        # even though config.sources has a github URL attached.
+        self.assertEqual(plan["cse_ours"].new_title, "[AO.note] our claim")
+        self.assertEqual(plan["cse_hostless"].new_title, "[AO.note] hostless")
 
 
 class ExistingPrefixHostTest(unittest.TestCase):
