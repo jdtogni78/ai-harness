@@ -37,6 +37,7 @@ belong here.
 | [GD-0004](#gd-0004--remote-control-supervisor-driven-by-an-allowlist) | 2026-05 | Accepted | A supervisor spawns `claude remote-control` servers from a host-scoped allowlist |
 | [GD-0005](#gd-0005--session-title-is-the-only-grouping-handle) | 2026-05 | Accepted | Session `title` is the only writable grouping handle; nickname-prefix it |
 | [GD-0006](#gd-0006--shared-app-one-env-pools-code-in-ai-harness-state-per-host) | 2026-05 | Accepted | Shared AppOne env pools: code vendored in ai-harness, runtime state per-host |
+| [GD-0007](#gd-0007--single-operator-one-ssh-identity-reused-everywhere) | 2026-05 | Accepted | Single-operator setup: one SSH identity reused across hosts/GitHub/DB |
 | [GD-0008](#gd-0008--secrets-stay-out-of-git-as-the-default-posture-not-yet-uniform) | 2026-05 | Accepted | Secrets-out-of-git is the intended default posture (uniform adoption is in progress) |
 
 ---
@@ -154,6 +155,22 @@ belong here.
   host/user needs those parameterized.
 - **Source:** `ai-harness/scripts/pool/README.md`; `lease-env` / `test-env` skills;
   AppOne `CLAUDE.md` (Testing → testpool).
+
+## GD-0007 — Single-operator: one SSH identity reused everywhere
+
+- **Date:** 2026-05 · **Status:** Accepted
+- **Context:** Single operator across several machines + internal hosts; no
+  team to provision per-user keys for.
+- **Decision:** Reuse **one `~/.ssh` bundle** everywhere — internal LAN hosts
+  (e.g. a NAS that holds DB dumps and the age/secrets bundle, a prod deploy
+  target), GitHub, and the DB hosts. New machine = copy `~/.ssh` from a
+  working one (+ `/etc/hosts` entries for any LAN hostnames), not fresh
+  keygen. Note: some appliances (e.g. Synology) drop the SFTP subsystem, so
+  pull with `scp -O` rather than `sftp`.
+- **Consequences:** Compromise of the bundle is broad-blast-radius (accepted
+  for a single-operator LAN setup). Prod is never edited directly — edit
+  locally, deploy.
+- **Source:** per-repo `SETUP.md` / `CLAUDE.md` (Commands → deploy/prod).
 
 ## GD-0008 — Secrets stay out of git as the default posture (not yet uniform)
 
