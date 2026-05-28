@@ -15,4 +15,8 @@ regexes = [
 paths = [
   # Test fixtures contain synthetic session data, not real credentials.
   '''tests/sessions_fixture\.json''',
+  # The perm-gate redaction tests deliberately contain fake-secret strings
+  # (curl auth headers, private-key blocks, AWS/GitHub-token shapes) so the
+  # redactor can be asserted against them. None are real credentials.
+  '''tests/perm_gate_lab/.*''',
 ]
