@@ -15,22 +15,30 @@ from remote_control.new_session import (
 
 
 class AutogenNameTest(unittest.TestCase):
-    def test_format_no_host_segment(self):
-        # Host nickname is intentionally NOT baked into the autogen name: the
-        # titles watcher already prefixes the inner session's title with
-        # `[NICK.host]`, and the log dir is per-machine, so the host segment
-        # was redundant.
-        name = autogen_name(rng=lambda n: "deadbeef")
-        self.assertEqual(name, "oneoff-deadbeef")
+    def test_format_includes_host_nick(self):
+        # `<nick>` keeps picker rows + log filenames disambiguated across
+        # parallel hosts. The full hostname stays out -- the short host-nick
+        # (config.host_nickname) is the same value the titles watcher uses for
+        # the `[NICK.host]` title prefix.
+        name = autogen_name("mini", rng=lambda n: "deadbeef")
+        self.assertEqual(name, "oneoff-mini-deadbeef")
         self.assertFalse(name.startswith("mm-"))
 
     def test_uses_passed_rng(self):
-        self.assertEqual(autogen_name(rng=lambda n: "abc"), "oneoff-abc")
+        self.assertEqual(autogen_name("note", rng=lambda n: "abc"),
+                         "oneoff-note-abc")
 
 
 class NameIsSafeTest(unittest.TestCase):
     def test_oneoff_ok(self):
         self.assertIsNone(name_is_safe("oneoff-deadbeef", "mini"))
+
+    def test_oneoff_with_nick_segment_ok(self):
+        # `oneoff-<nick>-<8hex>` (the new autogen shape) must NOT trip the
+        # `<host>-` rejection -- the name starts with `oneoff-`, the nick is
+        # just an embedded segment for cross-host disambiguation.
+        self.assertIsNone(name_is_safe("oneoff-mini-deadbeef", "mini"))
+        self.assertIsNone(name_is_safe("oneoff-m5-deadbeef", "m5"))
 
     def test_mm_rejected(self):
         err = name_is_safe("mm-evil", "mini")
@@ -248,7 +256,8 @@ class MainTest(unittest.TestCase):
         # claude binary, remote-control mode, our generated name.
         self.assertEqual(cmd[0], sys.executable)
         self.assertEqual(cmd[1], "remote-control")
-        self.assertIn("oneoff-deadbeef", cmd)
+        # Autogen name embeds the host-nick (env REMOTE_CONTROL_HOST=mini).
+        self.assertIn("oneoff-mini-deadbeef", cmd)
         self.assertEqual(cmd[cmd.index("--capacity") + 1], "1")
         self.assertEqual(cmd[cmd.index("--spawn") + 1], "worktree")
         self.assertEqual(kw["cwd"], str(Path(d).resolve()))
@@ -566,8 +575,9 @@ class SubnameTest(unittest.TestCase):
                     get_token=lambda cfg, log: "TOKEN")
         self.assertEqual(rc, 0)
         self.assertEqual(captured["sid"], "cse_WORKER")
-        # Auto-derived from `oneoff-abc` -> subname "abc"
-        self.assertIn("[FR.mini][abc]", captured["title"])
+        # Auto-derived from `oneoff-mini-abc` (host=mini) -> subname "mini-abc"
+        # (default_subname strips only the `oneoff-` prefix).
+        self.assertIn("[FR.mini][mini-abc]", captured["title"])
 
     def test_subname_skipped_silently_when_repo_unresolvable(self):
         # Spawn in a tempdir NOT under dev root -> no repo -> skip set_title,

@@ -47,12 +47,13 @@ python3 -m remote_control new-session [--dir PATH] [--name SLUG]
 ```
 
 - `--dir` — where to anchor the server. Default: the current working directory.
-- `--name` — server name. Default: `oneoff-<8hex>`. Refuses any name starting
-  with `mm-` or `<host>-` (the supervisor would otherwise reap or adopt it).
-  The host nickname is **not** baked into the autogen name — the titles
-  watcher already prefixes the inner session's title with `[NICK.host]` in
-  the background, and the log dir is per-machine, so the host segment was
-  redundant.
+- `--name` — server name. Default: `oneoff-<nick>-<8hex>`, where `<nick>` is
+  this machine's short host-nick (the same value the titles watcher uses to
+  render the `[NICK.host]` title prefix — see `config.host_nickname`).
+  Refuses any name starting with `mm-` or `<host>-` (the supervisor would
+  otherwise reap or adopt it). The nick segment keeps picker rows + log
+  filenames disambiguated across parallel hosts without re-embedding the
+  full hostname.
 - `--spawn` — `worktree` (git-aware isolation; creates a `.claude/worktrees/`
   subdir per session) or `same-dir`. Default: auto from a git probe of `--dir`
   (same rule the supervisor's discovery uses).
@@ -86,9 +87,10 @@ python3 -m remote_control new-session [--dir PATH] [--name SLUG]
   ~10min ticks via `session_titles.extract_sub_token`. **Requires `--wait`
   or `--prompt`** (the title PUT needs the cse_id; we don't grow a 30s poll
   loop just for an aesthetic tag). **Default: auto-derive from the server
-  name** (strip `oneoff-` prefix → `oneoff-deadbeef` becomes `[deadbeef]`,
-  `oneoff-ff-emails` becomes `[ff-emails]`). Skipped silently if the cwd
-  doesn't resolve to a known repo (no `[NICK]` to pair it with).
+  name** (strip `oneoff-` prefix → `oneoff-mini-3f2a1c8b` becomes
+  `[mini-3f2a1c8b]`, `oneoff-mini-ff-emails` becomes `[mini-ff-emails]`).
+  Skipped silently if the cwd doesn't resolve to a known repo (no `[NICK]`
+  to pair it with).
 - `--no-subname` — skip the `[SUB]` title tag (the session title gets only
   the watcher's standard `[NICK.host]` prefix on the next pass).
 - `--dry-run` — print the exact command + cwd + log path + reply-to /
@@ -169,10 +171,10 @@ Spawn a one-off in the current worktree (cwd is a git repo):
 ```bash
 python3 -m remote_control new-session
 # new-session: launched (pid 12345)
-#   name   : oneoff-3f2a1c8b
+#   name   : oneoff-mini-3f2a1c8b
 #   cwd    : /Users/user/dev/ai-harness-worktrees/some-feature
 #   spawn  : worktree
-#   log    : /Users/user/dev/ai-harness/logs/oneoff-3f2a1c8b.log
+#   log    : /Users/user/dev/ai-harness/logs/oneoff-mini-3f2a1c8b.log
 ```
 
 Spawn + wait for the cse_id without submitting a prompt (useful if the
@@ -193,7 +195,7 @@ python3 -m remote_control new-session \
 # ... pid + name + log lines ...
 #   reply-to: cse_01MANAGER
 #   session: cse_01WORKER
-#   title  : '[JOB.mini][3f2a1c8b] auto-spawned'
+#   title  : '[JOB.mini][mini-3f2a1c8b] auto-spawned'
 # submitted cse_01WORKER (1234 chars)
 ```
 

@@ -10,10 +10,11 @@ Same shape as the launchd supervisor's per-dir servers, but:
   * ``--create-session-in-dir`` (the CLI default) is left on, so a session
     row appears in the Claude app picker immediately.
 
-The autogen name is just ``oneoff-<8hex>`` -- the host is **not** baked in,
-because the titles watcher already prefixes the inner cloud session's title
-with ``[NICK.host]`` in the background, and the log dir is per-machine.
-Repeating the host in the server name added noise without information.
+The autogen name is ``oneoff-<nick>-<8hex>``, where ``<nick>`` is this
+machine's short host-nick (the same value the titles watcher uses to render
+the ``[NICK.host]`` title prefix; see ``config.host_nickname``). The nick
+segment keeps picker rows + log filenames disambiguated across parallel
+hosts without re-embedding the full hostname.
 
 Use when an agent wants a fresh picker-visible session for itself or another
 agent from inside the current session -- e.g. ``start-work`` after claiming
@@ -48,7 +49,8 @@ USAGE = (
     "  Spawn a single-session `claude remote-control` server (capacity 1),\n"
     "  picker-visible, supervisor-invisible. Self-exits when its session ends.\n"
     "    --dir              run in this dir (default: cwd)\n"
-    "    --name             server name (default: oneoff-<8hex>); refuses any\n"
+    "    --name             server name (default: oneoff-<nick>-<8hex>, where\n"
+    "                       <nick> is this machine's host-nick); refuses any\n"
     "                       name starting with 'mm-' or '<host>-' (supervisor\n"
     "                       would otherwise reap or adopt it)\n"
     "    --spawn            worktree|same-dir; default auto from git probe\n"
@@ -93,13 +95,14 @@ _LOG_TAIL_BYTES = 64_000
 # --------------------------------------------------------------------------- #
 # Pure helpers
 # --------------------------------------------------------------------------- #
-def autogen_name(rng: Optional[Callable[[int], str]] = None) -> str:
-    """``oneoff-<8hex>``. No host segment: the inner session's title gets
-    ``[NICK.host]`` prefixed by the titles watcher already, and the log dir is
-    per-machine, so repeating the host in the server name added noise without
-    information."""
+def autogen_name(host: str, rng: Optional[Callable[[int], str]] = None) -> str:
+    """``oneoff-<host>-<8hex>``. *host* is the short host-nick from
+    ``config.host_nickname`` (the same value the titles watcher uses to render
+    the ``[NICK.host]`` title prefix), so picker rows + log filenames stay
+    disambiguated across parallel hosts without re-embedding the full
+    hostname."""
     gen = rng or (lambda n: secrets.token_hex(n // 2))
-    return f"oneoff-{gen(8)}"
+    return f"oneoff-{host}-{gen(8)}"
 
 
 def pick_spawn_mode(directory: Path, git_probe: Callable[[Path], bool]) -> str:
@@ -440,7 +443,7 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
         print(f"target dir does not exist: {cwd}", file=sys.stderr)
         return 2
 
-    name = opts["name"] or autogen_name(rng)
+    name = opts["name"] or autogen_name(cfg.host, rng)
     err = name_is_safe(name, cfg.host)
     if err:
         print(err, file=sys.stderr)
