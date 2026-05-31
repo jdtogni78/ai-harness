@@ -110,12 +110,23 @@ MM_LOG_TAIL_BYTES = 64_000
 # title_format and the module docstring for the available {tokens}.
 DEFAULT_TITLE_FORMAT = "{nick}.{host}"
 
-# A title prefix we own: a bracketed token (any chars but a closing `]`) at the
-# very start, then whitespace. The format template is user-configurable, so this
-# must strip ANY separator it could emit (``.`` ``/`` ``@`` ``:`` ...) or a re-run
-# would stack instead of replace. The <=64 cap is the one guard that keeps us from
-# eating a long bracketed sentence a human happens to start a title with.
-_PREFIX_RE = re.compile(r"^\[[^\]]{1,64}\]\s+")
+# A title prefix we own: ONE OR MORE bracketed tokens (any chars but a closing
+# `]`) at the very start, then whitespace. The format template is
+# user-configurable, so this must strip ANY separator it could emit (``.`` ``/``
+# ``@`` ``:`` ...) or a re-run would stack instead of replace. The chained form
+# (``[NICK.host][SUB] desc``) is how new-session tags its spawned subsessions
+# with an extra ``[SUB]`` bracket while still letting the watcher own the outer
+# ``[NICK.host]``; extract_sub_token reads the second bracket back so plan_renames
+# can preserve it across passes. The <=64 cap (per bracket) is the one guard that
+# keeps us from eating a long bracketed sentence a human happens to start a title
+# with.
+_PREFIX_RE = re.compile(r"^(?:\[[^\]]{1,64}\])+\s+")
+# Single-bracket form: used where we ONLY care about the outermost bracket
+# (e.g. existing_prefix_host, which reads the [NICK.host] claim segment).
+_PREFIX_RE_FIRST = re.compile(r"^\[[^\]]{1,64}\]")
+# Read the SECOND bracket's contents in a chained-prefix title.
+# ``[NICK.host][SUB] desc`` -> ``SUB``; a single-bracket title yields None.
+_SUB_TOKEN_RE = re.compile(r"^\[[^\]]{1,64}\]\[([^\]]{1,64})\]\s+")
 
 # Separators the title-format template can emit between tokens. Used to split an
 # existing ``[NICK.HOST] ...`` prefix back into its segments so a self-heal pass
@@ -248,8 +259,20 @@ def nickname_for(repo: str, nmap: Dict[str, str]) -> str:
 
 
 def strip_prefix(title: str) -> str:
-    """Drop a leading ``[token] `` prefix we previously added, if any."""
+    """Drop a leading ``[token] `` prefix we previously added, if any. Strips a
+    chained ``[N][S] `` form too -- so a title written as ``[NICK.host][SUB] desc``
+    round-trips back to ``desc`` on a re-render pass."""
     return _PREFIX_RE.sub("", title or "", count=1)
+
+
+def extract_sub_token(title: str) -> Optional[str]:
+    """The contents of the SECOND bracket in a chained ``[A][B] desc`` prefix,
+    or None if the title has at most one leading bracket. Lets
+    :func:`plan_renames` preserve a subname tag the watcher itself doesn't
+    know -- the only authoritative source is the title it's currently looking
+    at, set there by ``new-session --subname`` at spawn time."""
+    m = _SUB_TOKEN_RE.match(title or "")
+    return m.group(1) if m else None
 
 
 def existing_prefix_host(title: str) -> Optional[str]:
@@ -262,8 +285,10 @@ def existing_prefix_host(title: str) -> Optional[str]:
     session shows ``[AO.<host-a>]`` and *this* host is ``<host-b>``, we don't
     want host-b's pass to overwrite host-a's claim and start a ping-pong with
     host-a's own pass. The host token is always the *last* segment because the
-    default template (and the supported tokens) put ``{nick}`` first."""
-    m = _PREFIX_RE.match(title or "")
+    default template (and the supported tokens) put ``{nick}`` first. Reads the
+    FIRST bracket only, so a chained ``[NICK.host][SUB]`` title still resolves
+    to ``host`` (the [SUB] is a sibling, not part of the claim)."""
+    m = _PREFIX_RE_FIRST.match(title or "")
     if not m:
         return None
     inner = m.group(0).strip()[1:-1].strip()  # strip "[" + "]"
@@ -271,10 +296,15 @@ def existing_prefix_host(title: str) -> Optional[str]:
     return parts[-1] if len(parts) >= 2 else None
 
 
-def apply_prefix(title: str, nickname: str) -> str:
+def apply_prefix(title: str, nickname: str, sub: Optional[str] = None) -> str:
     """Re-prefix a title with ``[nickname] `` (idempotent: an existing prefix is
-    replaced, not stacked)."""
-    return f"[{nickname}] {strip_prefix(title)}".rstrip()
+    replaced, not stacked). With *sub*, emit the chained
+    ``[nickname][sub] desc`` form -- the subname tag new-session uses to mark
+    a spawned one-off subsession so it's distinguishable in the picker."""
+    body = strip_prefix(title)
+    if sub:
+        return f"[{nickname}][{sub}] {body}".rstrip()
+    return f"[{nickname}] {body}".rstrip()
 
 
 def is_active_session(session: dict) -> bool:
@@ -452,7 +482,12 @@ def plan_renames(
         branch = branch_for(sid, repo) if (local and want_branch) else ""
         vals = session_values(s, repo, nmap, host=host, host_local=local, branch=branch)
         token = render_prefix(template, vals)
-        plan.append(Rename(sid, repo, token, old, apply_prefix(old, token)))
+        # Preserve a [SUB] tag set by new-session --subname (or by a human via
+        # ``titles set``). The watcher itself has no per-session source for
+        # subnames -- the only authoritative source is the title it's looking
+        # at right now -- so re-extract on every pass and re-emit.
+        sub = extract_sub_token(old)
+        plan.append(Rename(sid, repo, token, old, apply_prefix(old, token, sub=sub)))
     return plan
 
 

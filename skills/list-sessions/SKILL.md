@@ -27,7 +27,16 @@ host/sandbox. **Read-only** — it never writes to a session (that's
   event time, plus by-repo / by-host tallies.
 - `--all` — include archived sessions too.
 - `--repo <name>` — only sessions for this repo basename (case-insensitive).
-- `--json` — machine-readable rows instead of the table (for piping/filtering).
+- `--json` — machine-readable JSON array (one object per row, fields
+  `id title repo env_kind location worker_status connection_status
+  last_event_at`). Use this for programmatic flows (e.g. a manager scraping
+  the cse_id of a specific worker) instead of regexing the text table.
+- `--ids-only` — just the `cse_` ids, one per line (e.g. for piping into
+  `fork-all --ids`).
+- `--stale [--older-than DUR] [--disconnected]` — narrow to idle sessions
+  whose `last_event_at` is older than the threshold (default 1h); add
+  `--disconnected` to also require `connection_status=disconnected`.
+- `--location this-host|other-host|cloud` — narrow by where the session runs.
 - `--dev <DIR>` — dev root for bridge-worktree repo lookup (default `~/dev`).
 
 Auth reuses the usage-limit monitor's keychain OAuth token; no extra setup.
