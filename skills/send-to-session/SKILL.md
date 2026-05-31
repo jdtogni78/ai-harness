@@ -46,7 +46,31 @@ warning and submits without the header — pass `--reply-to` to be explicit.
 
 Auth reuses the usage-limit monitor's keychain OAuth token; no extra setup.
 
-## Interactive workflow (default)
+## Programmatic manager dispatch (skip the interactive flow)
+
+When this agent is acting as a **manager** that already knows exactly which
+session it is addressing — typically because the agent itself just spawned
+the target via [[new-session]] and has its `cse_*` id in hand — skip the
+interactive list / pick / confirm flow below. The dispatch is unambiguous,
+and the friction of a 6-step guided send doesn't add safety to a call the
+manager has already decided to make.
+
+The whole spawn-and-brief sequence can be done in **one** CLI call via
+`new-session --prompt`/`--prompt-file`, which auto-detects the manager's
+own `cse_*` from its `CLAUDE_CODE_SESSION_ACCESS_TOKEN` and submits the
+first turn after the worker registers. See [[new-session]]'s "Manager /
+worker pattern" section. Prefer that over `new-session` + `send-to-session`
+as two calls; the composed flow eliminates the registration race and the
+manual id-scrape that broke earlier dispatches.
+
+A follow-up message to an already-spawned worker (i.e. after the first
+turn has landed) is still a `sessions submit` call, but skip the
+interactive picker — go straight to `--dry-run` then `--message`/`--stdin`
+on the known id. The "confirm before sending" rule still applies if the
+prompt could derail in-progress work; for a worker idle and waiting on you
+specifically, brevity is the right call.
+
+## Interactive workflow (default for human-driven sends)
 
 Unless the user already named a target id and a message verbatim, drive this
 end-to-end as a guided flow — the agent should NOT silently guess the target.
@@ -122,12 +146,18 @@ event into their session via this skill.
 
 Procedure for the receiving agent:
 
-1. **Find the sender's `cse_*` id.** When the send-to-session CLI was used
-   on the sending side, the body opens with a header line
-   `[from cse_XXX — reply via send-to-session]` — read the id from there.
-   If that header is absent, the sender may have quoted the id in prose, or
-   you may have to ask the user to confirm/paste it. Do not guess across
-   multiple candidates.
+1. **Find the sender's `cse_*` id.** Three sources, in order of reliability:
+   - **`REMOTE_CONTROL_REPLY_TO` env var.** When the worker was spawned via
+     [[new-session]] (with `--reply-to` or the auto-detect default), the
+     manager's id is injected into the worker process's environment and
+     survives any user-side edit of the prompt body. Check this first —
+     it's the most reliable source.
+   - **`[from cse_XXX — reply via send-to-session]` header.** When the
+     send-to-session CLI was used on the sending side, the body opens with
+     this line. Read the id from there.
+   - **Prose in the message.** The sender may have quoted the id inline, or
+     you may have to ask the user to confirm/paste it. Do not guess across
+     multiple candidates.
 2. **Wait for your in-flight work to settle** before replying, so the reply
    reflects a final state, not an intermediate one.
 3. **Compose the reply as a status report** — what you did, what verified,

@@ -11,6 +11,7 @@ from remote_control.session_titles import (
     derive_nickname,
     encode_dev_prefix,
     existing_prefix_host,
+    extract_sub_token,
     is_host_local,
     live_session_entries,
     merged_repo_index,
@@ -97,6 +98,34 @@ class PrefixTest(unittest.TestCase):
         # must still recognize our prefix so re-runs don't stack.
         for old in ("[repo@mini] t", "[a/b:c] t", "[claude-remote-control@mini] t"):
             self.assertEqual(apply_prefix(old, "X"), "[X] t")
+
+    def test_strip_chained_prefix(self):
+        # `[NICK][SUB] desc` strips both brackets when there's no space between
+        # them -- the form new-session uses for tagged subsessions.
+        self.assertEqual(strip_prefix("[CRC.mini][deadbeef] do x"), "do x")
+
+    def test_extract_sub_token(self):
+        self.assertEqual(extract_sub_token("[CRC.mini][deadbeef] do x"), "deadbeef")
+        # Single-bracket title -> no SUB token to extract.
+        self.assertIsNone(extract_sub_token("[CRC.mini] do x"))
+        # No prefix at all.
+        self.assertIsNone(extract_sub_token("plain title"))
+
+    def test_apply_prefix_with_sub_emits_chained_form(self):
+        self.assertEqual(apply_prefix("do x", "CRC.mini", sub="deadbeef"),
+                         "[CRC.mini][deadbeef] do x")
+
+    def test_apply_prefix_with_sub_round_trips(self):
+        # Re-applying with the same SUB on an already-chained title must replace,
+        # not stack -- this is exactly the watcher's behavior on every pass.
+        once = apply_prefix("do x", "CRC.mini", sub="deadbeef")
+        twice = apply_prefix(once, "CRC.note", sub="deadbeef")
+        self.assertEqual(twice, "[CRC.note][deadbeef] do x")
+
+    def test_existing_prefix_host_reads_first_bracket_only(self):
+        # A [NICK.host][SUB] chained title still resolves to the host claim
+        # (the host segment lives in the FIRST bracket; SUB is a sibling).
+        self.assertEqual(existing_prefix_host("[CRC.mini][SUB] x"), "mini")
 
 
 class RepoDerivationTest(unittest.TestCase):
@@ -386,6 +415,46 @@ class PlanRenamesTest(unittest.TestCase):
         plan_renames(self.sessions, self.index, self.nmap, host="mini",
                      template="{nick}.{host}", branch_for=lambda s, r: called.append(s) or "x")
         self.assertEqual(called, [])  # no {branch} in template -> zero git calls
+
+    def test_sub_token_preserved_across_pass(self):
+        # A subname tag set by new-session ([CRC.mini][deadbeef]) must survive
+        # the watcher's re-render -- otherwise the tag dies on the next ~10min
+        # pass and the picker loses the subsession marker. plan_renames reads
+        # the SUB out of the old title and re-emits it.
+        sessions = [{"id": "cse_bridge",
+                     "title": "[CRC.mini][deadbeef] auto-spawned",
+                     "config": {}}]
+        plan = {r.id: r for r in plan_renames(
+            sessions, self.index, self.nmap, host="mini")}
+        self.assertEqual(plan["cse_bridge"].new_title,
+                         "[CRC.mini][deadbeef] auto-spawned")
+        # No change -> watcher won't issue a PUT (good: less API churn).
+        self.assertFalse(plan["cse_bridge"].changed)
+
+    def test_sub_token_preserved_when_outer_token_changes(self):
+        # Outer prefix needs updating (host changed mini -> note); the SUB tag
+        # must survive that rewrite. Without preservation, the watcher would
+        # drop [deadbeef] silently on the first cross-host pass.
+        sessions = [{"id": "cse_bridge",
+                     "title": "[CRC.mini][deadbeef] auto-spawned",
+                     "config": {}}]
+        plan = {r.id: r for r in plan_renames(
+            sessions, self.index, self.nmap, host="note")}
+        # mini-claim was foreign, so the title is left alone (existing_prefix_host
+        # check). This is the right behavior: another host owns the claim.
+        self.assertFalse(plan["cse_bridge"].changed)
+
+    def test_sub_token_preserved_when_only_desc_changed(self):
+        # Same host, same outer token, only the human-supplied desc differs.
+        # The watcher's pass should re-emit the SUB tag against the new desc.
+        sessions = [{"id": "cse_bridge",
+                     "title": "[CRC.mini][deadbeef] cloud auto-renamed this",
+                     "config": {}}]
+        plan = {r.id: r for r in plan_renames(
+            sessions, self.index, self.nmap, host="mini")}
+        self.assertEqual(plan["cse_bridge"].new_title,
+                         "[CRC.mini][deadbeef] cloud auto-renamed this")
+        self.assertFalse(plan["cse_bridge"].changed)
 
     def test_id_and_shortid_tokens_render_for_any_session(self):
         plan = {r.id: r for r in plan_renames(
