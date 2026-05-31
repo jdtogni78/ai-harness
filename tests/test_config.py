@@ -17,7 +17,18 @@ class SupervisorConfigTest(unittest.TestCase):
         self.assertEqual(c.tick_secs, 30)
         self.assertEqual(c.idle_recycle_secs, 43200)
         self.assertEqual(c.grace_secs, 10)
+        self.assertEqual(c.deactivate_min_strikes, 2)
         self.assertEqual(c.manager_log, c.logdir / "manager.log")
+
+    def test_deactivate_min_strikes_floor_is_one(self):
+        # The hysteresis is the whole point of this knob -- accept 1 (= old,
+        # zero-tolerance behaviour, for debugging) but clamp anything lower up
+        # to 1 so a misconfigured 0 / negative doesn't reintroduce the issue #8
+        # oscillation by accident.
+        for raw, want in (("1", 1), ("0", 1), ("-3", 1), ("3", 3)):
+            with self.subTest(raw=raw):
+                c = SupervisorConfig.from_env({"DEACTIVATE_MIN_STRIKES": raw})
+                self.assertEqual(c.deactivate_min_strikes, want)
 
     def test_claude_bin_default_is_per_user(self):
         # Regression: the default used to be the literal "/Users/user/..." and

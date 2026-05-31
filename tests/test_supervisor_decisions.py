@@ -86,7 +86,8 @@ class FakeProc:
 
 
 class SupervisorTickTest(unittest.TestCase):
-    def _make(self, allow="AppOne\napp-two\n", idle_recycle=43200, host="mm"):
+    def _make(self, allow="AppOne\napp-two\n", idle_recycle=43200, host="mm",
+              deactivate_min_strikes="1"):
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
         dev = root / "dev"
@@ -101,6 +102,10 @@ class SupervisorTickTest(unittest.TestCase):
             "REMOTE_CONTROL_HOST": host,
             "IDLE_RECYCLE_SECS": str(idle_recycle),
             "GRACE_SECS": "1",
+            # Existing tests assert one-tick deactivation; keep them on the old
+            # zero-hysteresis behaviour. The hysteresis itself gets its own
+            # dedicated suite below (DeactivateHysteresisTest).
+            "DEACTIVATE_MIN_STRIKES": deactivate_min_strikes,
         })
         self.addCleanup(self.tmp.cleanup)
         proc = FakeProc()
@@ -175,6 +180,135 @@ class SupervisorTickTest(unittest.TestCase):
         sup.tick(now=0)
         self.assertEqual(proc.spawned, [])
         self.assertTrue(any("active-file missing" in m for m in logs))
+
+
+class DeactivateHysteresisTest(unittest.TestCase):
+    """Regression for ai-harness#8: under launchd, ``discover()`` occasionally
+    returned a partial ``wanted`` set on a single tick even though the
+    allowlist + filesystem hadn't changed. The old "kill on first miss" rule
+    then SIGTERM'd every server the partial set omitted -- which the next tick
+    promptly respawned, burning cloud sessions in a 30s loop. With hysteresis
+    the supervisor tolerates a single bad tick: a name must be flagged across
+    cfg.deactivate_min_strikes consecutive ticks before it gets reaped.
+    """
+
+    def _make(self, deactivate_min_strikes=2):
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        dev = root / "dev"
+        for name in ("AppOne", "app-two"):
+            (dev / name).mkdir(parents=True)
+        active = root / "active-dirs.txt"
+        active.write_text("AppOne\napp-two\n")
+        cfg = SupervisorConfig.from_env({
+            "REMOTE_CONTROL_DEV": str(dev),
+            "REMOTE_CONTROL_LOGDIR": str(root / "logs"),
+            "REMOTE_CONTROL_ACTIVE_FILE": str(active),
+            "REMOTE_CONTROL_HOST": "mm",
+            "GRACE_SECS": "1",
+            "DEACTIVATE_MIN_STRIKES": str(deactivate_min_strikes),
+        })
+        self.addCleanup(self.tmp.cleanup)
+        proc = FakeProc()
+        logs = []
+        sup = Supervisor(cfg, proc=proc, log=logs.append, sleep=lambda s: None)
+        return sup, proc, logs, dev
+
+    def _flake_discover_once(self, sup, dropped_basenames):
+        """Make the next call to ``_discover`` omit *dropped_basenames* (simulating
+        the launchd-only partial-wanted bug), then restore normal behaviour."""
+        original = sup._discover
+        calls = {"n": 0}
+
+        def flaky(allowlist):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                # Mutate the snapshot the supervisor sees: pretend discover()
+                # forgot about the listed basenames this tick (the issue #8
+                # symptom). Subsequent ticks fall through to the real discover.
+                return [s for s in original(allowlist)
+                        if s.name.split("-", 1)[1] not in dropped_basenames]
+            return original(allowlist)
+
+        sup._discover = flaky  # type: ignore[assignment]
+
+    def test_oscillation_reproducer_without_hysteresis(self):
+        # Baseline: with strikes=1 (old behaviour) a single partial-wanted tick
+        # is enough to TERM a healthy adopted server. This is the bug.
+        sup, proc, logs, _ = self._make(deactivate_min_strikes=1)
+        # Both servers already adopted (running pre-tick).
+        for name, pid in (("mm-AppOne", 1001), ("mm-app-two", 1002)):
+            proc.pids[name] = pid
+            proc._alive.add(pid)
+        self._flake_discover_once(sup, ["AppOne"])
+        sup.tick(now=0)
+        # Old behaviour: mm-AppOne killed despite being a legit adopted server.
+        self.assertIn(1001, proc.termed,
+                      "without hysteresis, a single bad discover() tick reaps "
+                      "an adopted server -- this is the oscillation bug")
+        self.assertTrue(any("deactivate: mm-AppOne" in m for m in logs))
+
+    def test_single_bad_tick_tolerated_with_hysteresis(self):
+        # Same flake under the default strikes=2: the bad tick records a strike
+        # but does NOT TERM anything. The next (good) tick clears the strike.
+        sup, proc, logs, _ = self._make(deactivate_min_strikes=2)
+        for name, pid in (("mm-AppOne", 1001), ("mm-app-two", 1002)):
+            proc.pids[name] = pid
+            proc._alive.add(pid)
+        self._flake_discover_once(sup, ["AppOne"])
+        sup.tick(now=0)
+        self.assertNotIn(1001, proc.termed,
+                         "hysteresis must absorb a single bad discover() tick")
+        self.assertEqual(sup._deactivate_strikes, {"mm-AppOne": 1})
+        self.assertTrue(any("deactivate-pending: mm-AppOne" in m and "1/2" in m
+                            for m in logs))
+        # Recovery tick: AppOne back in wanted -> strike cleared, no kill.
+        sup.tick(now=30)
+        self.assertEqual(sup._deactivate_strikes, {})
+        self.assertNotIn(1001, proc.termed)
+
+    def test_repeated_misses_eventually_deactivate(self):
+        # A name that's actually unwanted (e.g. user really removed it from
+        # active-dirs.txt) must still be reaped -- just after enough strikes.
+        sup, proc, logs, _ = self._make(deactivate_min_strikes=2)
+        # Pre-running stale server NOT in the allowlist.
+        proc.pids["mm-stale"] = 4242
+        proc._alive.add(4242)
+        sup.tick(now=0)
+        self.assertNotIn(4242, proc.termed)        # strike 1: pending only
+        self.assertEqual(sup._deactivate_strikes, {"mm-stale": 1})
+        sup.tick(now=30)
+        self.assertIn(4242, proc.termed)           # strike 2: actually killed
+        self.assertNotIn("mm-stale", sup._deactivate_strikes)
+        self.assertTrue(any("deactivate-pending: mm-stale" in m for m in logs))
+        self.assertTrue(any("deactivate: mm-stale not in allowlist" in m for m in logs))
+
+    def test_strike_resets_when_name_returns(self):
+        # Flake tick A: AppOne missing -> strike 1. Tick B: AppOne back -> reset.
+        # Flake tick C: AppOne missing AGAIN -> strike 1 (not 2). Must not kill.
+        sup, proc, _, _ = self._make(deactivate_min_strikes=2)
+        for name, pid in (("mm-AppOne", 1001), ("mm-app-two", 1002)):
+            proc.pids[name] = pid
+            proc._alive.add(pid)
+        self._flake_discover_once(sup, ["AppOne"])
+        sup.tick(now=0)
+        self.assertEqual(sup._deactivate_strikes.get("mm-AppOne"), 1)
+        sup.tick(now=30)  # recovery
+        self.assertNotIn("mm-AppOne", sup._deactivate_strikes)
+        self._flake_discover_once(sup, ["AppOne"])
+        sup.tick(now=60)
+        self.assertEqual(sup._deactivate_strikes.get("mm-AppOne"), 1)
+        self.assertNotIn(1001, proc.termed)
+
+    def test_strikes_floor_to_one(self):
+        # DEACTIVATE_MIN_STRIKES=0 / negative must clamp up to 1, not to 0
+        # (which would silently disable deactivation entirely).
+        sup, proc, _, _ = self._make(deactivate_min_strikes=0)
+        proc.pids["mm-stale"] = 9999
+        proc._alive.add(9999)
+        sup.tick(now=0)
+        # Floored to 1 -> behaves like old code: stale gets killed on tick 1.
+        self.assertIn(9999, proc.termed)
 
 
 class SupervisorMainArgvTest(unittest.TestCase):

@@ -73,6 +73,13 @@ class Supervisor:
         self._clock = clock
         self.last_busy: Dict[str, float] = {}   # name -> epoch last seen busy/spawned/adopted
         self._children: Dict[str, "object"] = {}  # name -> Popen we spawned (for reaping)
+        # Per-name count of consecutive ticks where the server has been flagged
+        # as "not in allowlist". A name is only deactivated once the count hits
+        # cfg.deactivate_min_strikes -- the hysteresis that defends against the
+        # transient-partial-wanted oscillation in issue #8. Reset whenever the
+        # server reappears in this tick's discover() output (so the strike
+        # never persists across an unrelated transient miss).
+        self._deactivate_strikes: Dict[str, int] = {}
         self._running = True
 
     # --- discovery wiring (side effects isolated here) ---
@@ -153,12 +160,30 @@ class Supervisor:
             elif should_recycle(self.last_busy[srv.name], now, self.cfg.idle_recycle_secs):
                 self._recycle(srv, pid, now)
 
-        for name in to_deactivate(self.proc.running_servers(self.cfg.host), wanted):
+        candidates = to_deactivate(self.proc.running_servers(self.cfg.host), wanted)
+        # Drop strikes for anything that's no longer a candidate (it's back in
+        # wanted, or it's no longer running) -- so a single recovered tick fully
+        # clears prior misses, no half-strike state lingering across ticks.
+        candidate_set = set(candidates)
+        for name in list(self._deactivate_strikes):
+            if name not in candidate_set:
+                del self._deactivate_strikes[name]
+        for name in candidates:
+            self._deactivate_strikes[name] = self._deactivate_strikes.get(name, 0) + 1
+            strikes = self._deactivate_strikes[name]
+            needed = self.cfg.deactivate_min_strikes
+            if strikes < needed:
+                self.log(f"deactivate-pending: {name} not in allowlist "
+                         f"(strike {strikes}/{needed})")
+                continue
             pid = self.proc.server_pid(name)
             if pid is None:
+                # Already gone -- clear the strike so we don't carry it forward.
+                self._deactivate_strikes.pop(name, None)
                 continue
             self.log(f"deactivate: {name} not in allowlist (pid {pid})")
             self._kill_server(name, pid)
+            self._deactivate_strikes.pop(name, None)
 
     def shutdown_all(self) -> None:
         self.log("shutdown: forwarding SIGTERM to all servers")
@@ -235,6 +260,7 @@ class Supervisor:
         self.log(f"supervisor: up (pid {os.getpid()}, host={self.cfg.host}, "
                  f"tick={self.cfg.tick_secs}s, "
                  f"idle_recycle={self.cfg.idle_recycle_secs}s, "
+                 f"deactivate_min_strikes={self.cfg.deactivate_min_strikes}, "
                  f"active_file={self.cfg.active_file})")
         self._rehydrate_on_startup()
         while self._running:
