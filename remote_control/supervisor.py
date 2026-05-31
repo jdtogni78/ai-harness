@@ -181,6 +181,54 @@ class Supervisor:
         signal.signal(signal.SIGTERM, handler)
         signal.signal(signal.SIGINT, handler)
 
+    def _rehydrate_on_startup(self) -> None:
+        """Recover orphaned sessions from the previous supervisor incarnation.
+
+        Runs before the first tick: any ``cse_`` whose owning server died at the
+        last SIGTERM is forked to a local sibling that ``resume-work`` (and the
+        desktop ``/resume`` picker) can surface. One-off ``new_session.py``
+        checkpoints whose process is gone go through the same sweep. Failures
+        log and continue -- a broken rehydration mustn't prevent the supervisor
+        from booting.
+        """
+        # Imports deferred so a supervisor that never starts (e.g. an arg-parse
+        # error in `main`) doesn't pull in the urllib monitor client.
+        from . import rehydrate
+        from .config import UsageLimitConfig
+        from .session_fork import default_projects_root
+        from .usage_limit import monitor
+
+        try:
+            projects_root = default_projects_root()
+            ulim = UsageLimitConfig.from_env()
+            token = monitor.get_token(ulim, self.log)
+
+            def list_sessions() -> Optional[List[dict]]:
+                if not token:
+                    return None
+                return monitor.list_sessions(ulim, token, self.log)
+
+            rehydrate.sweep_oneoff_checkpoints(
+                projects_root=projects_root,
+                state_dir=self.cfg.state_dir,
+                dev=str(self.cfg.dev),
+                alive=self.proc.alive,
+                now=self._clock(),
+                ttl_secs=self.cfg.resume_ttl_hours * 3600,
+                log=self.log,
+            )
+            rehydrate.rehydrate_supervisor_orphans(
+                projects_root=projects_root,
+                state_dir=self.cfg.state_dir,
+                dev=str(self.cfg.dev),
+                list_sessions=list_sessions,
+                now=self._clock(),
+                ttl_secs=self.cfg.resume_ttl_hours * 3600,
+                log=self.log,
+            )
+        except Exception as e:  # pragma: no cover -- defensive last-resort
+            self.log(f"rehydrate: aborted with unhandled error: {type(e).__name__}: {e}")
+
     def run(self) -> int:
         self.cfg.logdir.mkdir(parents=True, exist_ok=True)
         self._install_signals()
@@ -188,6 +236,7 @@ class Supervisor:
                  f"tick={self.cfg.tick_secs}s, "
                  f"idle_recycle={self.cfg.idle_recycle_secs}s, "
                  f"active_file={self.cfg.active_file})")
+        self._rehydrate_on_startup()
         while self._running:
             self.tick(self._clock())
             # Sleep TICK_SECS in 1s slices so SIGTERM is acted on within ~1s
