@@ -60,6 +60,14 @@ class SupervisorConfig:
     # (``basename@nick``). Explicit via REMOTE_CONTROL_HOST, else derived from
     # the hostname. See discovery.host_allows.
     host: str
+    # Per-host state dir holding the rehydration ledger + one-off checkpoints
+    # (see :mod:`remote_control.rehydrate`). Sibling of active-dirs.txt so the
+    # entire ai-harness host-local state is under one tree.
+    state_dir: Path
+    # Rehydration cutoff: orphan transcripts older than this are NOT yanked
+    # back -- a day-old thread reads as "done", not "interrupted". Hours,
+    # matching the spec's env name (RESUME_TTL_HOURS).
+    resume_ttl_hours: int
 
     @classmethod
     def from_env(cls, env: Optional[Mapping[str, str]] = None) -> "SupervisorConfig":
@@ -76,11 +84,23 @@ class SupervisorConfig:
             idle_recycle_secs=int(env.get("IDLE_RECYCLE_SECS", "43200")),  # 12h
             grace_secs=int(env.get("GRACE_SECS", "10")),                 # TERM->KILL wait
             host=host,
+            state_dir=Path(env.get(
+                "REMOTE_CONTROL_STATE_DIR",
+                str(Path(env.get("HOME", str(Path.home()))) / ".ai-harness"))),
+            resume_ttl_hours=int(env.get("RESUME_TTL_HOURS", "24")),
         )
 
     @property
     def manager_log(self) -> Path:
         return self.logdir / "manager.log"
+
+    @property
+    def oneoffs_dir(self) -> Path:
+        return self.state_dir / "oneoffs"
+
+    @property
+    def rehydrated_dir(self) -> Path:
+        return self.state_dir / "rehydrated"
 
 
 @dataclass(frozen=True)

@@ -173,6 +173,26 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
     finally:
         if hasattr(out, "close"):
             out.close()
+
+    # Drop a checkpoint so the supervisor sweep can fork our transcript for the
+    # /resume picker if our process dies before clean exit (reboot, OOM, etc.).
+    # The checkpoint lives at ~/.ai-harness/oneoffs/<name>.json -- the sweep
+    # reads from the same SupervisorConfig.state_dir.
+    try:
+        from datetime import datetime, timezone
+        from .rehydrate import write_oneoff_checkpoint
+        write_oneoff_checkpoint(
+            cfg.state_dir,
+            name=name, directory=str(cwd), pid=proc.pid,
+            started_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        )
+    except OSError as e:
+        # A failed checkpoint is non-fatal: the spawn succeeded, we just lose
+        # the post-crash recovery for THIS one-off. Surface it so the user
+        # knows recovery won't kick in.
+        print(f"new-session: WARN -- checkpoint write failed ({e}); "
+              f"this oneoff won't be auto-rehydrated on reboot", file=sys.stderr)
+
     print(f"new-session: launched (pid {proc.pid})")
     print(f"  name   : {name}")
     print(f"  cwd    : {cwd}")
