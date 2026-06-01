@@ -465,7 +465,14 @@ def spawn_and_seed_handoff(
     except OSError:
         out = subprocess.DEVNULL
 
-    child_env = spawn_env(cfg, None)
+    # Inherit os.environ (a literal None here would crash spawn_env via
+    # dict(None)), then strip REMOTE_CONTROL_REPLY_TO -- handoffs are
+    # automated, so the spawned worker has no manager to reply to and
+    # mustn't inherit a stale sender id from the supervisor's parent.
+    # Same class of leak #38 fixes in new_session.
+    import os as _os
+    child_env = spawn_env(cfg, _os.environ)
+    child_env.pop("REMOTE_CONTROL_REPLY_TO", None)
     try:
         proc = subprocess.Popen(
             cmd, cwd=str(cwd),
