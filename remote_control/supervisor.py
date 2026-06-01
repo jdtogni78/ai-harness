@@ -209,16 +209,24 @@ class Supervisor:
     def _rehydrate_on_startup(self) -> None:
         """Recover orphaned sessions from the previous supervisor incarnation.
 
-        Runs before the first tick: any ``cse_`` whose owning server died at the
-        last SIGTERM is forked to a local sibling that ``resume-work`` (and the
-        desktop ``/resume`` picker) can surface. One-off ``new_session.py``
-        checkpoints whose process is gone go through the same sweep. Failures
-        log and continue -- a broken rehydration mustn't prevent the supervisor
-        from booting.
+        Runs before the first tick. Two passes, in this order:
+          1. :func:`rehydrate.sweep_oneoff_checkpoints` -- fork one-off
+             transcripts whose process is gone.
+          2. :func:`rehydrate.rehydrate_supervisor_orphans` -- fork bridge
+             transcripts whose owning server died at the last SIGTERM. The
+             freshly-forked uuids feed into the handoff dispatch below.
+          3. :func:`handoff.run_handoff_dispatch` -- spawn a brand-new bridge
+             server seeded with a brief from each forked orphan, so the user
+             gets a "ready to work" picker row instead of a "ready to pick up"
+             one. Gated by ``RESUME_ON_RESTART`` (default ``handoff``; set
+             ``off`` to keep the rehydrate forks but skip the handoff layer).
+
+        Failures log and continue -- a broken rehydration mustn't prevent the
+        supervisor from booting.
         """
         # Imports deferred so a supervisor that never starts (e.g. an arg-parse
         # error in `main`) doesn't pull in the urllib monitor client.
-        from . import rehydrate
+        from . import handoff, rehydrate
         from .config import UsageLimitConfig
         from .session_fork import default_projects_root
         from .usage_limit import monitor
@@ -242,7 +250,7 @@ class Supervisor:
                 ttl_secs=self.cfg.resume_ttl_hours * 3600,
                 log=self.log,
             )
-            rehydrate.rehydrate_supervisor_orphans(
+            rh = rehydrate.rehydrate_supervisor_orphans(
                 projects_root=projects_root,
                 state_dir=self.cfg.state_dir,
                 dev=str(self.cfg.dev),
@@ -251,6 +259,15 @@ class Supervisor:
                 ttl_secs=self.cfg.resume_ttl_hours * 3600,
                 log=self.log,
             )
+            if rh.forked:
+                from datetime import datetime, timezone
+                handoff.run_handoff_dispatch(
+                    cfg=self.cfg,
+                    forked_cse_ids=rh.forked,
+                    env=os.environ,
+                    now_iso=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    log=self.log,
+                )
         except Exception as e:  # pragma: no cover -- defensive last-resort
             self.log(f"rehydrate: aborted with unhandled error: {type(e).__name__}: {e}")
 
