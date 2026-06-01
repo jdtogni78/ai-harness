@@ -6,6 +6,14 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV="$HERE/.venv"
 
+# Auto-load TTS credentials so cloud engines (openai) "just work" in demo mode
+# without exporting keys in every shell. Off-repo + gitignored; key is never
+# committed. Set OPENAI_API_KEY there once: `echo 'OPENAI_API_KEY=sk-...' > ~/.ai-harness/narrate.env`
+NARRATE_ENV="${NARRATE_ENV:-$HOME/.ai-harness/narrate.env}"
+if [ -f "$NARRATE_ENV" ]; then
+  set -a; . "$NARRATE_ENV"; set +a
+fi
+
 if [ ! -x "$VENV/bin/python" ]; then
   "$HERE/install.sh" >&2
 fi

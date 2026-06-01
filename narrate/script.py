@@ -82,6 +82,7 @@ def load(path: Path) -> DemoScript:
         engine=str(tts_raw.get("engine", "say")),
         name=tts_raw.get("voice"),
         rate=int(tts_raw.get("rate", 185)),
+        instructions=tts_raw.get("instructions"),
     )
 
     steps_raw = raw.get("steps") or []
