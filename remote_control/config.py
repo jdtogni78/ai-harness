@@ -125,6 +125,15 @@ class SupervisorConfig:
     # back -- a day-old thread reads as "done", not "interrupted". Hours,
     # matching the spec's env name (RESUME_TTL_HOURS).
     resume_ttl_hours: int
+    # Permission mode for handoff-respawned sessions
+    # (:mod:`remote_control.handoff`). These come up on supervisor restart
+    # seeded with a heuristic brief and no user at the keyboard -- "default"
+    # (gates risky tools) is the safer choice than the supervisor's usual
+    # "acceptEdits", even though active dev sessions normally run with the
+    # latter. Override via ``RESUME_ON_RESTART_PERM_MODE`` if the safer
+    # default proves too cautious in practice; passed through verbatim to
+    # ``claude --permission-mode`` so any value that flag accepts works.
+    handoff_perm_mode: str
 
     @classmethod
     def from_env(cls, env: Optional[Mapping[str, str]] = None) -> "SupervisorConfig":
@@ -146,6 +155,7 @@ class SupervisorConfig:
                 "REMOTE_CONTROL_STATE_DIR",
                 str(Path(env.get("HOME", str(Path.home()))) / ".ai-harness"))),
             resume_ttl_hours=int(env.get("RESUME_TTL_HOURS", "24")),
+            handoff_perm_mode=env.get("RESUME_ON_RESTART_PERM_MODE", "default"),
         )
 
     @property

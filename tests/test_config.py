@@ -64,6 +64,20 @@ class SupervisorConfigTest(unittest.TestCase):
         self.assertEqual(SupervisorConfig.from_env({}).host,
                          nickname_from_hostname(socket.gethostname()))
 
+    def test_handoff_perm_mode_default_is_default(self):
+        # Handoff sessions come up unattended on supervisor restart with a
+        # heuristic brief, so "default" (gates risky tools) is safer than the
+        # rest of the supervisor's acceptEdits posture. Locked in by this test
+        # so a careless edit doesn't silently re-grant blanket auto-accept to
+        # the auto-spawned heirs.
+        self.assertEqual(SupervisorConfig.from_env({}).handoff_perm_mode, "default")
+
+    def test_handoff_perm_mode_env_override(self):
+        # Passed through verbatim to ``claude --permission-mode`` so any value
+        # the flag accepts (acceptEdits, plan, bypassPermissions, etc.) works.
+        c = SupervisorConfig.from_env({"RESUME_ON_RESTART_PERM_MODE": "plan"})
+        self.assertEqual(c.handoff_perm_mode, "plan")
+
 
 class HostNicknamePrecedenceTest(unittest.TestCase):
     """The strict env > file > derive precedence from #32. Each test pins one

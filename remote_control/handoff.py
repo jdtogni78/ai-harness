@@ -567,7 +567,7 @@ def spawn_and_seed_handoff(
         return None
 
     spawn_mode = new_session.pick_spawn_mode(cwd, lambda p: cwd.joinpath(".git").exists())
-    cmd = new_session.build_argv(cfg.claude_bin, name, spawn_mode, "acceptEdits")
+    cmd = new_session.build_argv(cfg.claude_bin, name, spawn_mode, cfg.handoff_perm_mode)
     logpath = Path(cfg.logdir) / f"{name}.log"
 
     if not Path(cmd[0]).exists():
