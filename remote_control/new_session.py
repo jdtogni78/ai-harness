@@ -514,6 +514,14 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
         # session: the worker can read REMOTE_CONTROL_REPLY_TO from its env at
         # any time and reply, even if the human strips the `[from ...]` line.
         child_env["REMOTE_CONTROL_REPLY_TO"] = reply_to
+    else:
+        # The PARENT process may itself be a bridge worker whose env was
+        # seeded with REMOTE_CONTROL_REPLY_TO (its own manager's id, per
+        # the same `--reply-to` propagation above). Inheriting it via
+        # spawn_env would silently retarget the grandchild at our parent's
+        # manager -- exactly the leak surfaced in #38. Strip it so the
+        # spawned worker has no stale reply target.
+        child_env.pop("REMOTE_CONTROL_REPLY_TO", None)
 
     try:
         proc = popen(

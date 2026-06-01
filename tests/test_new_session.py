@@ -352,6 +352,74 @@ class ReplyToEnvTest(unittest.TestCase):
                     popen=_FakePopen(), git_probe=lambda p: True)
         self.assertEqual(rc, 2)
 
+    # The next three lock down the #38 fix: even when the PARENT process
+    # already has REMOTE_CONTROL_REPLY_TO in its env (the manager-pattern
+    # bridge case -- the parent is itself a worker whose own manager
+    # injected the var), the child env passed to popen must NOT carry the
+    # inherited value unless the explicit --reply-to path re-sets it. We
+    # explicitly seed REMOTE_CONTROL_REPLY_TO into the patched os.environ
+    # so the test surface matches what was happening at run time inside a
+    # real bridge process.
+    def test_no_reply_to_strips_inherited_env_var(self):
+        polluted = dict(_env(""))
+        polluted["REMOTE_CONTROL_REPLY_TO"] = "cse_INHERITED_FROM_PARENT"
+        fake = _FakePopen()
+        with tempfile.TemporaryDirectory() as d:
+            polluted["HOME"] = d
+            polluted["REMOTE_CONTROL_DEV"] = d
+            polluted["REMOTE_CONTROL_LOGDIR"] = d
+            polluted["REMOTE_CONTROL_ACTIVE_FILE"] = str(Path(d) / "active-dirs.txt")
+            with mock.patch.dict(os.environ, polluted, clear=False):
+                rc = new_session.main(
+                    ["--dir", d, "--no-reply-to"],
+                    popen=fake, git_probe=lambda p: True,
+                    rng=lambda n: "abc")
+        self.assertEqual(rc, 0)
+        _, kw = fake.calls[0]
+        self.assertNotIn("REMOTE_CONTROL_REPLY_TO", kw["env"])
+
+    def test_no_sender_strips_inherited_env_var(self):
+        # No --reply-to AND no CLAUDE_CODE_SESSION_ACCESS_TOKEN to auto-detect
+        # from (cleared by _env). Inherited REMOTE_CONTROL_REPLY_TO must
+        # still be stripped from the child.
+        polluted = dict(_env(""))
+        polluted["REMOTE_CONTROL_REPLY_TO"] = "cse_INHERITED_FROM_PARENT"
+        fake = _FakePopen()
+        with tempfile.TemporaryDirectory() as d:
+            polluted["HOME"] = d
+            polluted["REMOTE_CONTROL_DEV"] = d
+            polluted["REMOTE_CONTROL_LOGDIR"] = d
+            polluted["REMOTE_CONTROL_ACTIVE_FILE"] = str(Path(d) / "active-dirs.txt")
+            with mock.patch.dict(os.environ, polluted, clear=False):
+                rc = new_session.main(
+                    ["--dir", d],  # no flag at all
+                    popen=fake, git_probe=lambda p: True,
+                    rng=lambda n: "abc")
+        self.assertEqual(rc, 0)
+        _, kw = fake.calls[0]
+        self.assertNotIn("REMOTE_CONTROL_REPLY_TO", kw["env"])
+
+    def test_explicit_reply_to_overwrites_inherited_env_var(self):
+        # --reply-to <X> while the parent has REMOTE_CONTROL_REPLY_TO=<Y>:
+        # the child env must end up with X (the explicit one), not Y
+        # (the inherited one). Locks down "explicit wins" over inheritance.
+        polluted = dict(_env(""))
+        polluted["REMOTE_CONTROL_REPLY_TO"] = "cse_INHERITED_FROM_PARENT"
+        fake = _FakePopen()
+        with tempfile.TemporaryDirectory() as d:
+            polluted["HOME"] = d
+            polluted["REMOTE_CONTROL_DEV"] = d
+            polluted["REMOTE_CONTROL_LOGDIR"] = d
+            polluted["REMOTE_CONTROL_ACTIVE_FILE"] = str(Path(d) / "active-dirs.txt")
+            with mock.patch.dict(os.environ, polluted, clear=False):
+                rc = new_session.main(
+                    ["--dir", d, "--reply-to", "cse_EXPLICIT"],
+                    popen=fake, git_probe=lambda p: True,
+                    rng=lambda n: "abc")
+        self.assertEqual(rc, 0)
+        _, kw = fake.calls[0]
+        self.assertEqual(kw["env"]["REMOTE_CONTROL_REPLY_TO"], "cse_EXPLICIT")
+
 
 class WaitAndPromptTest(unittest.TestCase):
     def test_wait_flag_polls_and_prints_session_id(self):
