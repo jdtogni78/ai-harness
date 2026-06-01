@@ -64,17 +64,20 @@ class SupervisorConfigTest(unittest.TestCase):
         self.assertEqual(SupervisorConfig.from_env({}).host,
                          nickname_from_hostname(socket.gethostname()))
 
-    def test_handoff_perm_mode_default_is_default(self):
-        # Handoff sessions come up unattended on supervisor restart with a
-        # heuristic brief, so "default" (gates risky tools) is safer than the
-        # rest of the supervisor's acceptEdits posture. Locked in by this test
-        # so a careless edit doesn't silently re-grant blanket auto-accept to
-        # the auto-spawned heirs.
-        self.assertEqual(SupervisorConfig.from_env({}).handoff_perm_mode, "default")
+    def test_handoff_perm_mode_default_is_bypass(self):
+        # Handoff sessions come up unattended on supervisor restart -- any
+        # mode that prompts (default / acceptEdits) leaves the worker hung
+        # indefinitely waiting for input that no human will type. Safety is
+        # enforced by the PreToolUse perm-gate hook, not by in-Claude
+        # prompting. Locked in by this test so a careless edit doesn't
+        # silently re-introduce a blocking default that strands every
+        # respawned heir on its first tool call.
+        self.assertEqual(SupervisorConfig.from_env({}).handoff_perm_mode,
+                         "bypassPermissions")
 
     def test_handoff_perm_mode_env_override(self):
         # Passed through verbatim to ``claude --permission-mode`` so any value
-        # the flag accepts (acceptEdits, plan, bypassPermissions, etc.) works.
+        # the flag accepts (acceptEdits, plan, default, etc.) works.
         c = SupervisorConfig.from_env({"RESUME_ON_RESTART_PERM_MODE": "plan"})
         self.assertEqual(c.handoff_perm_mode, "plan")
 

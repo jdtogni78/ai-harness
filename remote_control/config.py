@@ -127,12 +127,15 @@ class SupervisorConfig:
     resume_ttl_hours: int
     # Permission mode for handoff-respawned sessions
     # (:mod:`remote_control.handoff`). These come up on supervisor restart
-    # seeded with a heuristic brief and no user at the keyboard -- "default"
-    # (gates risky tools) is the safer choice than the supervisor's usual
-    # "acceptEdits", even though active dev sessions normally run with the
-    # latter. Override via ``RESUME_ON_RESTART_PERM_MODE`` if the safer
-    # default proves too cautious in practice; passed through verbatim to
-    # ``claude --permission-mode`` so any value that flag accepts works.
+    # with no user at the keyboard, so a mode that prompts on every tool
+    # (default / acceptEdits) leaves the spawned worker hung indefinitely
+    # waiting for input that will never come. The ai-harness PreToolUse
+    # perm-gate hook (project_perm_gate.md, #23) is what actually enforces
+    # safety on this host; the in-Claude mode just needs to stop blocking
+    # on prompts the gate already adjudicates. Default ``bypassPermissions``
+    # skips all in-Claude prompts and lets the gate do its job. Override
+    # via ``RESUME_ON_RESTART_PERM_MODE`` -- any value ``claude
+    # --permission-mode`` accepts works (acceptEdits, plan, etc.).
     handoff_perm_mode: str
 
     @classmethod
@@ -155,7 +158,7 @@ class SupervisorConfig:
                 "REMOTE_CONTROL_STATE_DIR",
                 str(Path(env.get("HOME", str(Path.home()))) / ".ai-harness"))),
             resume_ttl_hours=int(env.get("RESUME_TTL_HOURS", "24")),
-            handoff_perm_mode=env.get("RESUME_ON_RESTART_PERM_MODE", "default"),
+            handoff_perm_mode=env.get("RESUME_ON_RESTART_PERM_MODE", "bypassPermissions"),
         )
 
     @property
