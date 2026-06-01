@@ -119,6 +119,40 @@ class StaticDecisionTest(unittest.TestCase):
                 d, _r, _t, risk = static_decision("Bash", cmd)
                 self.assertEqual((d, risk), (ALLOW, GREEN))
 
+    def test_recursive_rm_of_safe_temp_paths_is_green(self):
+        # rm -rf of clearly-temp targets must NOT escalate -- the broad "any
+        # recursive delete" ASK rule used to strand auto-spawned workers on
+        # routine /tmp cleanups. Covers /tmp/*, macOS per-user temp under
+        # /var/folders/*/*/T/*, and the literal "$TMPDIR/" form a shell
+        # script might emit. Various flag orderings are tested because the
+        # regex must handle them all.
+        for cmd in (
+            "rm -rf /tmp/perm-test-159A23B9.txt",
+            "rm -r /tmp/foo",
+            "rm -fr /tmp/some-dir",
+            "rm -Rf /tmp/x",
+            "rm -rf /var/folders/w1/x3k4q0v974q1w_nt38f2b1740000gq/T/tmpfoo",
+            "rm -rf $TMPDIR/x",
+        ):
+            with self.subTest(cmd=cmd):
+                d, _r, _t, risk = static_decision("Bash", cmd)
+                self.assertEqual((d, risk), (ALLOW, GREEN))
+
+    def test_recursive_rm_outside_temp_still_asks(self):
+        # Mirror of the above: rm -r of anything OTHER than a clearly-temp
+        # path must still escalate. Guards against the negative-lookahead in
+        # the ASK rule being too greedy and letting unsafe rm targets through.
+        for cmd in (
+            "rm -rf build",                         # relative path
+            "rm -rf /etc/something",                # outside tmp
+            "rm -rf /home/user/x",
+            "rm -rf /tmp",                          # /tmp itself, not /tmp/<file>
+            "rm -rf /tmpfoo",                       # path that starts with /tmp but isn't /tmp/
+        ):
+            with self.subTest(cmd=cmd):
+                d, _r, _t, risk = static_decision("Bash", cmd)
+                self.assertEqual((d, risk), (ASK, ORANGE))
+
     def test_gh_readonly_surface_is_green(self):
         # The static-allow has to cover the read-only `gh` calls the skills
         # actually use, otherwise PERM_GATE_ENFORCE_AI=1 binds them to ASK.

@@ -97,7 +97,12 @@ ASK_PATTERNS: Tuple[str, ...] = (
     r"\bgit\s+rebase\b",
     r"\bgit\s+merge\b",                         # local merge = medium stakes
     r"\bgit\s+clean\b[^|;&]*-[a-z]*f",          # force-clean (deletes untracked)
-    r"\brm\s+-[a-z]*r",                         # any recursive delete
+    # Any recursive delete -- EXCEPT when the target is unambiguously a temp
+    # path (/tmp/<x>, macOS per-user /var/folders/<u>/<h>/T/<x>, $TMPDIR/<x>).
+    # Test workflows clean those up routinely; escalating to a human strands
+    # auto-spawned workers indefinitely. Wider `rm -r` patterns (relative
+    # paths, /etc, $HOME, etc.) still hit this rule and ask.
+    r"\brm\s+-[a-z]*r[a-z]*\s+(?!(?:/tmp/|/var/folders/[^/\s]+/[^/\s]+/T/|\$TMPDIR/))",
     r"\bsudo\b",
     r"\b(deploy|kubectl|terraform\s+apply|helm\s+(install|upgrade|delete)|docker\s+push)\b",
     r"\b(sops|age)\b",                          # secrets tooling
@@ -127,6 +132,12 @@ ALLOW_PATTERNS: Tuple[str, ...] = (
     r"^gh\s+search\s+(code|commits|issues|prs|repos)\b",
     r"^gh\s+(label|secret|variable)\s+list\b",
     r"^gh\s+(auth\s+status|browse)\b",
+    # Recursive cleanup of a clearly-temp path. The complementary ASK rule
+    # above excludes the same paths so this rule actually gets a chance to
+    # run; both must move together if either is edited. Composable with the
+    # all-segments-allow check: ``rm -rf /tmp/x && cat /etc/shadow`` still
+    # requires the second segment to allow-list independently.
+    r"^rm\s+-[a-z]*r[a-z]*\s+(?:/tmp/|/var/folders/[^/\s]+/[^/\s]+/T/|\$TMPDIR/)\S+\s*$",
 )
 
 _DENY_RE = [re.compile(p, re.I) for p in DENY_PATTERNS]
