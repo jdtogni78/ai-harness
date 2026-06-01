@@ -134,6 +134,23 @@ async def _do(page, step: Step, viewport):
             x = box["x"] + box["width"] / 2
             y = box["y"] + min(box["height"] / 2, 30)
             await _glide(page, x, y)
+    elif step.do == "reveal":
+        # Scroll a section/anchor into view, then point the cursor at it. Unlike
+        # `move` (which targets the element's absolute position and can land
+        # off-screen), this guarantees the section is visible — the right
+        # primitive for walking a long page section by section.
+        try:
+            el = await page.query_selector(step.to)
+            if el:
+                await el.scroll_into_view_if_needed(timeout=2000)
+                await page.wait_for_timeout(200)
+                box = await el.bounding_box()
+                if box:
+                    x = box["x"] + box["width"] / 2
+                    y = box["y"] + min(box["height"] / 2, 60)
+                    await _glide(page, x, y)
+        except Exception:
+            pass
     elif step.do == "move_first_visible_h2":
         box = await page.evaluate("""
             () => {

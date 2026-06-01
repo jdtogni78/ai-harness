@@ -37,7 +37,8 @@ import yaml
 
 from .tts import Voice
 
-VALID_ACTIONS = {"intro", "goto", "move", "scroll", "wait", "move_first_visible_h2"}
+VALID_ACTIONS = {"intro", "goto", "move", "reveal", "scroll", "wait",
+                 "move_first_visible_h2"}
 
 
 @dataclass
@@ -105,6 +106,8 @@ def load(path: Path) -> DemoScript:
             raise ValueError(f"{path}: step {i} ('goto') needs a 'url'")
         if do == "move" and not s.get("to"):
             raise ValueError(f"{path}: step {i} ('move') needs a 'to' selector")
+        if do == "reveal" and not s.get("to"):
+            raise ValueError(f"{path}: step {i} ('reveal') needs a 'to' selector")
         if do == "scroll" and "y" not in s:
             raise ValueError(f"{path}: step {i} ('scroll') needs 'y' (pixels)")
         steps.append(Step(
