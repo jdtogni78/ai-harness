@@ -61,16 +61,25 @@ e.g. `~/.app-one-pool/`), survives worktree churn, and is never committed:
 - `testdb/` — pool-owned MariaDB datadir
 - `warm/` — branch-agnostic vendor/build cache
 
-`link.sh` symlinks the dispatchers from `$STATE_DIR/pool.sh` and
-`$STATE_DIR/testpool.sh` back to this repo so every caller (skills, agents)
-finds the same code.
+`link.sh` symlinks the **whole code layout** into `$STATE_DIR` — the two
+dispatchers, the sourced libs (`load-config.sh`, `pool-core.sh`,
+`_yaml_to_env.py`), and **both adapters** under `adapters/` — back to this
+repo, so every caller (skills, agents) finds the same code. It links the full
+set on purpose: the dispatchers resolve adapters/libs relative to the dir they
+are invoked from (`$STATE_DIR`, since `$0` is the symlink there), so a state
+dir with only the two dispatchers silently breaks `pool.sh`/`testpool.sh`.
 
 ## Activate / update
 
 ```bash
-scripts/pool/link.sh   # run from a STABLE checkout, not a .claude worktree
+# Point link.sh at the app config (same resolution as the dispatchers):
+AI_HARNESS_POOL_CONFIG=~/.ai-harness/pools/<app>/config.yaml \
+  scripts/pool/link.sh   # run from a STABLE checkout, not a .claude worktree
 ```
 
+`link.sh` reads `$STATE_DIR` from the config, links the full layout there, and
+(when `$AI_HARNESS_POOL_CONFIG` is set and the state dir has none yet) symlinks
+`config.local.yaml` → that config so the dispatchers run with no env var.
 Idempotent. The first run backs up any existing real file to
 `$STATE_DIR/<name>.bak.<ts>` before replacing it with a symlink. After that,
 edit the scripts **here** and the change is live for both pools on this host.
