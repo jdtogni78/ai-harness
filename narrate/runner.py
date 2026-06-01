@@ -78,6 +78,12 @@ async def _drive(
         browser = await p.chromium.launch(headless=headless)
         ctx_kwargs = dict(viewport={"width": vw, "height": vh})
         if record:
+            # Clear any *.webm left by a previous render to this output. The work
+            # dir is reused, and Playwright names recordings with random hashes —
+            # so a stale recording could be picked below and muxed under the new
+            # narration (wrong video, right audio). Start clean.
+            for old in work.glob("*.webm"):
+                old.unlink()
             ctx_kwargs.update(
                 record_video_dir=str(work),
                 record_video_size={"width": vw, "height": vh},
@@ -122,7 +128,8 @@ async def _drive(
 
     if not record:
         return Path()  # caller ignores
-    videos = sorted(work.glob("*.webm"))
+    # Newest by mtime (not alphabetical: Playwright filenames are random hashes).
+    videos = sorted(work.glob("*.webm"), key=lambda p: p.stat().st_mtime)
     if not videos:
         raise RuntimeError("Playwright produced no video")
     return videos[-1]
