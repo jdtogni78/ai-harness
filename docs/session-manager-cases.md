@@ -19,7 +19,8 @@ questions → submission shape*).
 
 All signals come from `GET /v1/code/sessions` plus a per-session
 `GET /v1/code/sessions/{id}` (which carries `requires_action_details`). Scope is
-the repo allowlist (`active-dirs.txt`, host-aware). Priority order top to bottom:
+the host-local allowlist (`~/.ai-harness/active-dirs.txt`, host-aware). Priority
+order top to bottom:
 
 | Signal | Case | Default action |
 |---|---|---|
