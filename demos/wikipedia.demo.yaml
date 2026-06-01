@@ -1,0 +1,36 @@
+title: Wikipedia smoke test
+output: out/wikipedia.mp4
+viewport: {width: 1280, height: 720}
+tts:
+  engine: say
+  voice: Alex
+  rate: 185
+
+steps:
+  - say: >-
+      Welcome to a quick proof of concept. We'll drive a browser,
+      narrate each step with text to speech, and produce a single mp4.
+    do: intro
+
+  - say: First, we open the Wikipedia article on web browsers.
+    do: goto
+    url: https://en.wikipedia.org/wiki/Web_browser
+
+  - say: >-
+      Our virtual cursor can glide across the page to point at specific
+      elements, like the article title.
+    do: move
+    to: h1#firstHeading
+
+  - say: Now we scroll down the page to find more content.
+    do: scroll
+    y: 1400
+
+  - say: And here we hover over a section heading that came into view.
+    do: move_first_visible_h2
+
+  - say: >-
+      That concludes the smoke test. The whole thing was generated from a
+      short YAML script. Thanks for watching.
+    do: wait
+    ms: 800
