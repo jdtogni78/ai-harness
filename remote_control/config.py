@@ -60,6 +60,17 @@ class SupervisorConfig:
     # (``basename@nick``). Explicit via REMOTE_CONTROL_HOST, else derived from
     # the hostname. See discovery.host_allows.
     host: str
+    # Hysteresis: a running ``<host>-*`` server flagged as "not in allowlist"
+    # must stay flagged across this many consecutive ticks before we actually
+    # SIGTERM it. Defends against the launchd-only oscillation in issue #8,
+    # where a single tick's ``discover()`` occasionally returns a partial
+    # ``wanted`` set even though the allowlist + filesystem haven't changed --
+    # the next tick recovers, but the old "kill on first miss" rule had already
+    # killed (and forced a respawn of) every server the partial set omitted.
+    # Default 2 (one extra tick = ~30s extra latency before a legit removal is
+    # reaped, which is the price of the race fix); set to 1 to restore the old
+    # behaviour for debugging.
+    deactivate_min_strikes: int
     # Per-host state dir holding the rehydration ledger + one-off checkpoints
     # (see :mod:`remote_control.rehydrate`). Sibling of active-dirs.txt so the
     # entire ai-harness host-local state is under one tree.
@@ -84,6 +95,7 @@ class SupervisorConfig:
             idle_recycle_secs=int(env.get("IDLE_RECYCLE_SECS", "43200")),  # 12h
             grace_secs=int(env.get("GRACE_SECS", "10")),                 # TERM->KILL wait
             host=host,
+            deactivate_min_strikes=max(1, int(env.get("DEACTIVATE_MIN_STRIKES", "2"))),
             state_dir=Path(env.get(
                 "REMOTE_CONTROL_STATE_DIR",
                 str(Path(env.get("HOME", str(Path.home()))) / ".ai-harness"))),
