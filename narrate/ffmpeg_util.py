@@ -40,10 +40,14 @@ def concat_audio(wavs: List[Path], dst: Path) -> None:
     ], check=True)
 
 
-def mux(video: Path, audio: Path, dst: Path) -> None:
+def mux(video: Path, audio: Path, dst: Path, video_start: float = 0.0) -> None:
+    # video_start trims that many seconds off the FRONT of the video (the setup
+    # prefix recorded before scene 0) so the result opens on the first scene and
+    # stays in sync with the narration. -ss before -i seeks; we re-encode anyway.
+    pre = ["-ss", f"{video_start:.3f}"] if video_start and video_start > 0.05 else []
     subprocess.run([
         FFMPEG, "-y", "-loglevel", "error",
-        "-i", str(video), "-i", str(audio),
+        *pre, "-i", str(video), "-i", str(audio),
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-shortest",
         str(dst),

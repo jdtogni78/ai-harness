@@ -37,7 +37,8 @@ async def render(script: DemoScript, *, headless: bool = True, record: bool = Tr
 
     # 2. Drive the browser, time each action to its narration length.
     print("[2/4] Driving browser ...")
-    video_path = await _drive(script, segments, work, headless=headless, record=record)
+    video_path, setup_lead = await _drive(
+        script, segments, work, headless=headless, record=record)
     if not record:
         return video_path  # preview mode, no audio mux
 
@@ -46,9 +47,10 @@ async def render(script: DemoScript, *, headless: bool = True, record: bool = Tr
     master = work / "narration.wav"
     ffmpeg_util.concat_audio([s.wav for s in segments], master)
 
-    # 4. Mux.
+    # 4. Mux, trimming the setup prefix off the video so it starts on the first
+    #    scene (no leading blank flash) and stays in sync with the narration.
     print("[4/4] Muxing video + audio ...")
-    ffmpeg_util.mux(video_path, master, script.output)
+    ffmpeg_util.mux(video_path, master, script.output, video_start=setup_lead)
     print(f"\nDone: {script.output}")
     return script.output
 
@@ -92,6 +94,7 @@ async def _drive(
         await context.add_init_script(script=INIT_SCRIPT)
 
         page = await context.new_page()
+        rec_t0 = time.time()  # ~ video t=0 (recording starts with the page)
         # Pre-load the opening page so recording starts on a painted page instead
         # of white about:blank + the first goto's load flash (which otherwise
         # plays under the first sentence or two of narration). If the demo opens
@@ -107,6 +110,13 @@ async def _drive(
             await page.evaluate(INIT_SCRIPT)  # init on the blank starter page too
         await _glide(page, vw // 6, vh // 4)
         await page.wait_for_timeout(200)
+
+        # The video records from page creation, so everything above (about:blank,
+        # the prewarm load, glide, settle) is a setup prefix the narration audio
+        # does NOT cover. Measure it so the mux can trim it off the video front —
+        # otherwise the demo opens on that prefix (a white/blank flash) and the
+        # whole video lags the audio by this much.
+        setup_lead = time.time() - rec_t0
 
         for i, seg in enumerate(segments):
             t0 = time.time()
@@ -127,12 +137,12 @@ async def _drive(
         await browser.close()
 
     if not record:
-        return Path()  # caller ignores
+        return Path(), 0.0  # caller ignores
     # Newest by mtime (not alphabetical: Playwright filenames are random hashes).
     videos = sorted(work.glob("*.webm"), key=lambda p: p.stat().st_mtime)
     if not videos:
         raise RuntimeError("Playwright produced no video")
-    return videos[-1]
+    return videos[-1], setup_lead
 
 
 async def _do(page, step: Step, viewport):
