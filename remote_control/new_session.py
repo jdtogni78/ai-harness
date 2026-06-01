@@ -88,7 +88,12 @@ USAGE = (
 # Same pattern session_titles.build_mm_log_index uses to harvest cse-ids from
 # the supervisor's per-server logs; duplicated here so new_session has no
 # dependency on session_titles.
-_SESSION_LINK_RE = re.compile(rb"session_([A-Za-z0-9]+)\?from=cli")
+# The `?from=cli` suffix used to be appended by the TUI's OSC-8 hyperlink but
+# more recent versions emit `https://claude.ai/code/session_<id>` bare. Match
+# either: the suffix is optional so both formats are recognized. `[A-Za-z0-9]+`
+# stops at the URL's terminator (newline, `?`, or any non-alnum) so the
+# capture is exactly the session id.
+_SESSION_LINK_RE = re.compile(rb"session_([A-Za-z0-9]+)(?:\?from=cli)?")
 _LOG_TAIL_BYTES = 64_000
 
 

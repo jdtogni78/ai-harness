@@ -95,6 +95,15 @@ class ExtractSessionIdTest(unittest.TestCase):
     def test_no_match(self):
         self.assertIsNone(extract_session_id(b"nothing here"))
 
+    def test_returns_id_from_bare_url_without_from_cli(self):
+        # Newer TUI versions emit `claude.ai/code/session_<id>` without the
+        # `?from=cli` suffix; the regex must match either format so spawn-wait
+        # works across releases (otherwise the supervisor's handoff and the
+        # relaunch CLI both stall waiting for a session id that already
+        # registered).
+        tail = b"Continue coding in https://claude.ai/code/session_01XYZ\nmore"
+        self.assertEqual(extract_session_id(tail), "cse_01XYZ")
+
 
 class ReadLogTailTest(unittest.TestCase):
     def test_missing_file_returns_empty(self):
