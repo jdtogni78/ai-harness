@@ -109,11 +109,19 @@ def read_capacity(logpath: Path) -> int:
 
 
 def spawn_argv(server: Server, cfg: SupervisorConfig) -> List[str]:
-    """The ``claude remote-control`` command line for *server* (pure)."""
+    """The ``claude remote-control`` command line for *server* (pure).
+
+    ``bypassPermissions`` skips the in-Claude permission dialog so unattended
+    inner sessions (auto-spawned by the manager, worker dispatches) don't hang
+    on ask-list ops with no human at the keyboard. The global ``PreToolUse``
+    perm-gate hook (project_perm_gate.md, #23) still vets every tool call --
+    it's the host's actual safety layer regardless of ``--permission-mode``.
+    Attached human-driven inner sessions on these servers also inherit
+    ``bypassPermissions``; the gate continues to gate risky ops."""
     return [
         str(cfg.claude_bin), "remote-control",
         "--name", server.name, "--spawn", server.spawn_mode,
-        "--permission-mode", "acceptEdits",
+        "--permission-mode", "bypassPermissions",
         "--no-create-session-in-dir",
     ]
 

@@ -81,6 +81,20 @@ class BuildArgvTest(unittest.TestCase):
         self.assertNotIn("--no-create-session-in-dir", argv)
 
 
+class ParseArgsTest(unittest.TestCase):
+    def test_default_permission_mode_is_bypass(self):
+        # Unattended one-offs (manager dispatches, worker reuse) must not hang
+        # on in-Claude permission prompts -- the global perm-gate hook (#23)
+        # is the host's actual safety layer. Operators can still pass
+        # --permission-mode explicitly to override.
+        opts = new_session._parse_args([])
+        self.assertEqual(opts["permission_mode"], "bypassPermissions")
+
+    def test_explicit_permission_mode_overrides_default(self):
+        opts = new_session._parse_args(["--permission-mode", "plan"])
+        self.assertEqual(opts["permission_mode"], "plan")
+
+
 # --- Log polling + session-id extraction ----------------------------------- #
 
 class ExtractSessionIdTest(unittest.TestCase):

@@ -57,8 +57,9 @@ python3 -m remote_control new-session [--dir PATH] [--name SLUG]
 - `--spawn` — `worktree` (git-aware isolation; creates a `.claude/worktrees/`
   subdir per session) or `same-dir`. Default: auto from a git probe of `--dir`
   (same rule the supervisor's discovery uses).
-- `--permission-mode` — pass-through. Default `acceptEdits` (the supervisor's
-  posture for unattended servers).
+- `--permission-mode` — pass-through. Default `bypassPermissions` (the
+  supervisor's posture for unattended servers; the global perm-gate hook still
+  vets every tool call).
 - `--wait` — after launch, poll the server's log file for the OSC-8
   `session_<id>?from=cli` hyperlink the `claude` TUI prints when the inner
   cloud session registers. On success, prints `session : cse_...` so a caller

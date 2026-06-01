@@ -287,10 +287,12 @@ class ManagerConfig:
     # log the would-be command, never spawn) until trusted, mirroring
     # submit_enabled; live auto-execution also needs dry_run off.
     execute_enabled: bool
-    # The executor must WRITE (unlike the read-only `plan` investigator), so it
-    # runs with this permission mode. Default `acceptEdits`; bump to
-    # `bypassPermissions` for fully-unattended git/skill ops -- the global perm-gate
-    # hook still vets each tool call either way.
+    # The executor must WRITE (unlike the read-only `plan` investigator), so
+    # it runs with this permission mode. Default ``bypassPermissions`` -- the
+    # executor runs autonomously via ``claude -p`` from the manager-ui loop
+    # with no human at the keyboard, so a mode that prompts on every tool
+    # (default / acceptEdits) would strand it on the first ask-list op. The
+    # global perm-gate hook vets each tool call regardless of mode.
     executor_permission_mode: str
     executor_timeout_secs: int
     skip_session_ids: FrozenSet[str]
@@ -373,7 +375,7 @@ class ManagerConfig:
             # set 1 (and dry_run off) to let the loop carry it out via `claude -p`.
             execute_enabled=_truthy(env.get("MANAGER_EXECUTE_ENABLED", "0")),
             executor_permission_mode=env.get(
-                "MANAGER_EXECUTOR_PERMISSION_MODE", "acceptEdits"),
+                "MANAGER_EXECUTOR_PERMISSION_MODE", "bypassPermissions"),
             executor_timeout_secs=int(
                 env.get("MANAGER_EXECUTOR_TIMEOUT_SECS", "1200")),   # 20m
             skip_session_ids=skip,

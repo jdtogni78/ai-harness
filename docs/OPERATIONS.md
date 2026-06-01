@@ -77,9 +77,12 @@ services don't read the pool config at all.
 - **Naming / spawn mode:** `<host>-<dir>` (original casing; `<host>` is the
   supervisor's host nickname). `~/dev` root →
   `--spawn same-dir`; git-repo subdirs → `--spawn worktree`; non-git →
-  `same-dir`. All run `--permission-mode acceptEdits
+  `same-dir`. All run `--permission-mode bypassPermissions
   --no-create-session-in-dir`, so spawned servers come up empty — sessions are
-  created on demand from the app, not pre-allocated at start.
+  created on demand from the app, not pre-allocated at start. The
+  `bypassPermissions` mode skips in-Claude permission prompts so unattended
+  inner sessions don't hang on ask-list ops; the global PreToolUse perm-gate
+  hook (#23) still vets every tool call.
 - **Adoption:** servers already running (incl. ones from an earlier
   fire-and-forget model) are adopted by PID — no disruptive kill at cutover.
 - **Idle-recycle:** a server idle (`Capacity == 0` in its log — no on-demand
@@ -333,9 +336,10 @@ python3 -m remote_control work start --engine claude --dir "$PWD" "summarize the
 ```
 
 - **Codex** → `codex exec "<prompt>"`.
-- **Claude** → headless `claude -p --permission-mode acceptEdits "<prompt>"` (the
-  same permission posture the supervisor uses; there is no API to create a *cloud*
-  session from a prompt, so this is a local run).
+- **Claude** → headless `claude -p --permission-mode bypassPermissions "<prompt>"`
+  (the same permission posture the supervisor uses; there is no API to create a
+  *cloud* session from a prompt, so this is a local run — the global perm-gate
+  hook still vets every tool call).
 
 Together these are the four pieces of the cross-engine work-orchestration goal
 (**trigger / inventory / stale-detect / migrate**).

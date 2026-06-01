@@ -22,6 +22,15 @@ class SpawnArgvTest(unittest.TestCase):
         i = argv.index("--name")
         self.assertEqual(argv[i + 2], "--spawn")
 
+    def test_permission_mode_is_bypass(self):
+        # Unattended workers must not hang on in-Claude permission prompts;
+        # the global perm-gate hook (#23) is the actual safety layer.
+        cfg = _cfg()
+        srv = Server("mm-AppOne", Path("/Users/x/dev/AppOne"), "worktree")
+        argv = spawn_argv(srv, cfg)
+        self.assertEqual(argv[argv.index("--permission-mode") + 1],
+                         "bypassPermissions")
+
 
 class SpawnEnvTest(unittest.TestCase):
     def test_sets_session_name_prefix_to_host(self):

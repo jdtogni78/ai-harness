@@ -970,9 +970,12 @@ class ExecuteManagerRecTest(unittest.TestCase):
         self.assertEqual(res["note"], "no manager action")
 
     def test_executor_runs_writeable_by_default(self):
-        # the executor must be able to act -- not the read-only `plan` investigator
+        # the executor must be able to act -- not the read-only `plan`
+        # investigator. ``bypassPermissions`` is required because the
+        # executor runs unattended from the manager loop; the perm-gate
+        # hook is the safety layer.
         cfg = _cfg()
-        self.assertEqual(cfg.executor_permission_mode, "acceptEdits")
+        self.assertEqual(cfg.executor_permission_mode, "bypassPermissions")
         self.assertFalse(cfg.execute_enabled)            # off until trusted
 
     def test_executor_prompt_carries_rec(self):

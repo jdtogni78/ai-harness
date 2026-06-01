@@ -3,8 +3,9 @@
 Spawn a new agent run from a prompt, on a chosen engine and in a chosen repo:
 
   * **Codex**  -> ``codex exec "<prompt>"`` (non-interactive).
-  * **Claude** -> ``claude -p --permission-mode acceptEdits "<prompt>"`` (headless
-    print mode, the same permission posture the supervisor spawns servers with).
+  * **Claude** -> ``claude -p --permission-mode bypassPermissions "<prompt>"``
+    (headless print mode, the same permission posture the supervisor spawns
+    servers with -- the global perm-gate hook still vets every tool call).
 
 There is no API to create a *cloud* Claude session from a prompt, so the Claude
 side is a local headless run; both engines run on this machine.
@@ -40,14 +41,16 @@ ENGINES = ("codex", "claude")
 def build_command(engine: str, prompt: str, *, claude_bin, codex_bin) -> List[str]:
     """The argv to spawn for *engine* running *prompt*, or raise ``ValueError``.
 
-    Claude runs headless with ``--permission-mode acceptEdits`` (the supervisor's
-    posture for unattended servers) so a triggered run can actually do work."""
+    Claude runs headless with ``--permission-mode bypassPermissions`` (the
+    supervisor's posture for unattended servers) so a triggered run can act
+    without hanging on in-Claude prompts; the host's global perm-gate hook
+    (project_perm_gate.md, #23) still vets every tool call."""
     if not prompt.strip():
         raise ValueError("a prompt is required")
     if engine == "codex":
         return [str(codex_bin), "exec", prompt]
     if engine == "claude":
-        return [str(claude_bin), "-p", "--permission-mode", "acceptEdits", prompt]
+        return [str(claude_bin), "-p", "--permission-mode", "bypassPermissions", prompt]
     raise ValueError(f"--engine must be codex or claude, got {engine!r}")
 
 

@@ -15,10 +15,12 @@ class BuildCommandTest(unittest.TestCase):
             build_command("codex", "fix tests", claude_bin="/c", codex_bin="/x"),
             ["/x", "exec", "fix tests"])
 
-    def test_claude_is_headless_accept_edits(self):
+    def test_claude_is_headless_bypass(self):
+        # Unattended headless runs must not hang on in-Claude permission
+        # prompts; the global perm-gate hook is the safety layer.
         self.assertEqual(
             build_command("claude", "do it", claude_bin="/c", codex_bin="/x"),
-            ["/c", "-p", "--permission-mode", "acceptEdits", "do it"])
+            ["/c", "-p", "--permission-mode", "bypassPermissions", "do it"])
 
     def test_unknown_engine(self):
         with self.assertRaises(ValueError):

@@ -54,7 +54,7 @@ USAGE = (
     "                       name starting with 'mm-' or '<host>-' (supervisor\n"
     "                       would otherwise reap or adopt it)\n"
     "    --spawn            worktree|same-dir; default auto from git probe\n"
-    "    --permission-mode  passed through (default: acceptEdits, matches supervisor)\n"
+    "    --permission-mode  passed through (default: bypassPermissions, matches supervisor)\n"
     "    --wait             after launch, poll the server's log for its inner\n"
     "                       cse_* session id (printed on cloud registration);\n"
     "                       on success, prints `session : cse_...` to stdout.\n"
@@ -264,7 +264,7 @@ def own_session_id_from_env(env: Mapping[str, str]) -> Optional[str]:
 def _parse_args(argv: List[str]) -> dict:
     opts: dict = {
         "dir": None, "name": None, "spawn": None,
-        "permission_mode": "acceptEdits", "dry_run": False, "help": False,
+        "permission_mode": "bypassPermissions", "dry_run": False, "help": False,
         "wait": False, "wait_timeout": 30.0,
         "prompt": None, "prompt_file": None,
         "reply_to": None, "no_reply_to": False,
