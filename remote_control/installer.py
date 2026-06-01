@@ -101,6 +101,55 @@ def seed_active_file(path: Path, out=print, sample: Path = ACTIVE_FILE_SAMPLE) -
     return True
 
 
+def _host_file_seed_body(host_value: str) -> str:
+    """Default body for a freshly-seeded ``~/.ai-harness/host`` file. A short
+    header explains that the FILE (not the plist) is the post-install knob,
+    followed by the actual nickname on its own line. Pure for unit testing."""
+    return (
+        "# Host nickname for this machine (Phase B of #32). One line, lower-case.\n"
+        "# Read with precedence: REMOTE_CONTROL_HOST env > THIS FILE > hostname-derive.\n"
+        "# The installer seeds this from the plist env on first install; afterwards\n"
+        "# this file is authoritative -- rename the host by editing it (no plist edit\n"
+        "# required). `#`-prefixed lines and blanks are ignored on read.\n"
+        f"{host_value}\n"
+    )
+
+
+def seed_host_file(path: Path, host_value: str, out=print) -> bool:
+    """Create ``~/.ai-harness/host`` from the supplied *host_value* if the
+    file doesn't exist yet. *host_value* is the plist's
+    ``REMOTE_CONTROL_HOST`` env value at install time (the operator's chosen
+    nickname for this machine).
+
+    Returns True if the file was just created; False if it already exists or
+    if *host_value* is empty (no plist override -> nothing to capture, fall
+    through to the hostname-derive path at run time). Idempotent. Perms: dir
+    700, file 600 (matches ``seed_active_file`` so the entire host-local
+    config tree has the same mode)."""
+    p = Path(path)
+    if p.exists():
+        return False
+    value = (host_value or "").strip()
+    if not value:
+        # Nothing to seed (the plist didn't carry REMOTE_CONTROL_HOST on this
+        # host -- run-time will derive from the hostname). Stay silent rather
+        # than create an empty/comment-only file.
+        return False
+    p.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        p.parent.chmod(0o700)
+    except OSError:
+        pass
+    p.write_text(_host_file_seed_body(value))
+    try:
+        p.chmod(0o600)
+    except OSError:
+        pass
+    out(f"Seeded {p} with host nickname {value!r} (chmod 600); "
+        f"edit it (not the plist) to rename this host.")
+    return True
+
+
 def agent_user(label_or_plist: str) -> str:
     """The ``<user>`` token of a ``com.<user>.<service>`` label/plist name
     (``com.user2.claude-remote-control`` -> ``user2``); "" if it doesn't fit
@@ -170,12 +219,18 @@ def main(argv: Optional[List[str]] = None) -> int:
     uid = os.getuid()
     user = getpass.getuser()
     la_dir = Path.home() / "Library" / "LaunchAgents"
-    # Seed the host-local allowlist BEFORE we (re)bootstrap any agent, so the
-    # supervisor's first tick doesn't trip the fail-closed "active-file missing"
-    # branch on a clean machine. Import is local to avoid a config<->installer
-    # cycle at module load.
-    from .config import ACTIVE_FILE
+    # Seed the host-local config files BEFORE we (re)bootstrap any agent so
+    # the supervisor's first tick has both an allowlist (fail-closed otherwise)
+    # AND a captured host nickname on disk. Imports are local to avoid a
+    # config<->installer cycle at module load.
+    from .config import ACTIVE_FILE, HOST_FILE
     seed_active_file(Path(ACTIVE_FILE))
+    # Capture the plist's REMOTE_CONTROL_HOST into the host-local config file
+    # so it survives a future plist edit and operators can rename a host by
+    # editing the file (not the committed plist). No-op if the plist didn't
+    # set REMOTE_CONTROL_HOST on this host (we fall through to hostname-derive
+    # at run time -- see config.host_nickname).
+    seed_host_file(Path(HOST_FILE), os.environ.get("REMOTE_CONTROL_HOST", ""))
     selected = plan_install(AGENTS, filter_arg, current_user=user)
     if not selected:
         if filter_arg is None:

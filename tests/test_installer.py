@@ -1,3 +1,4 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,12 +7,15 @@ from remote_control.installer import (
     ACTIVE_FILE_SAMPLE,
     AGENTS,
     _ACTIVE_FILE_FALLBACK,
+    _host_file_seed_body,
     agent_user,
     install_agent,
     launchctl_commands,
     plan_install,
     seed_active_file,
+    seed_host_file,
 )
+from remote_control.config import host_nickname
 
 
 class PlanInstallTest(unittest.TestCase):
@@ -158,6 +162,75 @@ class SeedActiveFileTest(unittest.TestCase):
             if stripped and not stripped.startswith("#"):
                 self.fail(f"active-dirs.example.txt contains an active entry: "
                           f"{line!r}")
+
+
+class SeedHostFileTest(unittest.TestCase):
+    """Mirror :class:`SeedActiveFileTest` for the new host-nick seed (#32)."""
+
+    def test_creates_file_with_value_and_perms(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "nested" / "host"
+            out = []
+            created = seed_host_file(target, "mini", out=out.append)
+            self.assertTrue(created)
+            self.assertTrue(target.exists())
+            # The seeded body contains the value on its own line plus the
+            # explanatory header. host_nickname must round-trip the value.
+            self.assertIn("\nmini\n", target.read_text())
+            self.assertEqual(host_nickname({}, host_file=str(target)), "mini")
+            # File 600, dir 700 -- same regime as seed_active_file.
+            self.assertEqual(target.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(target.parent.stat().st_mode & 0o777, 0o700)
+            self.assertTrue(any("mini" in m for m in out))
+
+    def test_idempotent_no_overwrite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "host"
+            target.write_text("# operator-renamed\nnote\n")
+            out = []
+            created = seed_host_file(target, "mini", out=out.append)
+            self.assertFalse(created)
+            # The operator's earlier file wins (the FILE is authoritative
+            # post-install per the spec). seed_host_file must not clobber it
+            # even if a different host_value is passed in.
+            self.assertEqual(target.read_text(), "# operator-renamed\nnote\n")
+            self.assertFalse(any("Seeded" in m for m in out))
+
+    def test_empty_host_value_is_no_op(self):
+        # No REMOTE_CONTROL_HOST in the plist -> nothing to capture. Don't
+        # create a comment-only file; that would mask the hostname-derive
+        # path at run time and silently break the supervisor's nickname.
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "host"
+            for value in ("", "   ", "\n"):
+                with self.subTest(value=repr(value)):
+                    if target.exists():
+                        target.unlink()
+                    out = []
+                    created = seed_host_file(target, value, out=out.append)
+                    self.assertFalse(created)
+                    self.assertFalse(target.exists())
+                    self.assertFalse(any("Seeded" in m for m in out))
+
+    def test_strips_whitespace_around_value(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "host"
+            seed_host_file(target, "  note  ", out=lambda _m: None)
+            # Whitespace stripped before write; round-trips through host_nickname.
+            self.assertIn("\nnote\n", target.read_text())
+            self.assertEqual(host_nickname({}, host_file=str(target)), "note")
+
+    def test_seeded_body_has_explanatory_header(self):
+        # Operators reading the file should see WHY editing it is the right
+        # post-install knob (instead of editing the plist). Lock that in.
+        body = _host_file_seed_body("mini")
+        self.assertIn("#", body)
+        # The file is consumed by host_nickname's comment-tolerant reader,
+        # so leading comment lines must not break the parse.
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "host"
+            target.write_text(body)
+            self.assertEqual(host_nickname({}, host_file=str(target)), "mini")
 
 
 if __name__ == "__main__":

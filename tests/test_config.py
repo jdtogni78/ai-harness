@@ -1,8 +1,9 @@
 import socket
+import tempfile
 import unittest
 from pathlib import Path
 
-from remote_control.config import SupervisorConfig, UsageLimitConfig
+from remote_control.config import SupervisorConfig, UsageLimitConfig, host_nickname
 from remote_control.discovery import nickname_from_hostname
 
 
@@ -62,6 +63,76 @@ class SupervisorConfigTest(unittest.TestCase):
     def test_host_defaults_to_hostname_nickname(self):
         self.assertEqual(SupervisorConfig.from_env({}).host,
                          nickname_from_hostname(socket.gethostname()))
+
+
+class HostNicknamePrecedenceTest(unittest.TestCase):
+    """The strict env > file > derive precedence from #32. Each test pins one
+    tier of input and verifies the resolved value matches that tier."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.host_file = Path(self._tmp.name) / "host"
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_env_wins_over_file_and_derive(self):
+        self.host_file.write_text("from-file\n")
+        nick = host_nickname({"REMOTE_CONTROL_HOST": "from-env"},
+                             host_file=str(self.host_file))
+        self.assertEqual(nick, "from-env")
+
+    def test_env_is_normalized(self):
+        # `normalize_host` lowercases + strips whitespace (same as the
+        # existing env-only behavior).
+        nick = host_nickname({"REMOTE_CONTROL_HOST": "  MyNick  "},
+                             host_file=str(self.host_file))
+        self.assertEqual(nick, "mynick")
+
+    def test_file_wins_over_derive_when_env_unset(self):
+        self.host_file.write_text("note\n")
+        nick = host_nickname({}, host_file=str(self.host_file))
+        self.assertEqual(nick, "note")
+
+    def test_file_is_normalized(self):
+        self.host_file.write_text("  Note  \n")
+        nick = host_nickname({}, host_file=str(self.host_file))
+        self.assertEqual(nick, "note")
+
+    def test_file_skips_comments_and_blanks(self):
+        self.host_file.write_text(
+            "# header line\n"
+            "\n"
+            "  # indented comment\n"
+            "note\n"
+            "# trailing comment\n"
+        )
+        self.assertEqual(host_nickname({}, host_file=str(self.host_file)), "note")
+
+    def test_inline_comment_stripped(self):
+        self.host_file.write_text("note  # the macbook\n")
+        self.assertEqual(host_nickname({}, host_file=str(self.host_file)), "note")
+
+    def test_empty_env_falls_through_to_file(self):
+        # env present but empty/whitespace -> treat as unset (the existing
+        # ``.strip()`` semantics must be preserved through the new file tier).
+        self.host_file.write_text("from-file\n")
+        nick = host_nickname({"REMOTE_CONTROL_HOST": "   "},
+                             host_file=str(self.host_file))
+        self.assertEqual(nick, "from-file")
+
+    def test_derive_when_both_env_and_file_absent(self):
+        # No env, no file (file doesn't exist) -> hostname-derive.
+        nick = host_nickname({}, host_file=str(self.host_file))
+        self.assertEqual(nick, nickname_from_hostname(socket.gethostname()))
+
+    def test_empty_file_falls_through_to_derive(self):
+        # A file present but containing only comments/whitespace must NOT
+        # mask the hostname-derive fallback -- otherwise an operator's
+        # comment-only seed would silently break the supervisor's nickname.
+        self.host_file.write_text("# only a header, no value\n\n")
+        nick = host_nickname({}, host_file=str(self.host_file))
+        self.assertEqual(nick, nickname_from_hostname(socket.gethostname()))
 
 
 class UsageLimitConfigTest(unittest.TestCase):
