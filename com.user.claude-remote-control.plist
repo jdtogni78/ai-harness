@@ -21,11 +21,15 @@
     <dict>
         <key>PYTHONPATH</key>
         <string>/Users/user/dev/ai-harness</string>
-        <!-- This machine: the Mac Mini (nickname "mini"). No REMOTE_CONTROL_HOST:
-             the nickname auto-derives from this box's hostname
-             (macmini.local -> "mini"), matched by the `@mini` entries in
-             active-dirs.txt. Set it explicitly here only if you want to pin a
-             nickname independent of the hostname. -->
+        <!-- This machine: the Mac Mini (nickname "mini"). REMOTE_CONTROL_HOST
+             is set explicitly so `installer.seed_host_file` captures it into
+             `~/.ai-harness/host` on first install (#32 Phase B). The
+             hostname-derive fallback (`macmini.local` -> "mini") would also
+             yield the same value -- the explicit set is the seed channel, not
+             a correction. After install the file is authoritative; rename
+             this host by editing the file, not the plist. -->
+        <key>REMOTE_CONTROL_HOST</key>
+        <string>mini</string>
     </dict>
 
     <!-- Start at login and keep the supervisor itself alive: if it crashes,

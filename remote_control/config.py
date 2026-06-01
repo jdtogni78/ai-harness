@@ -29,22 +29,68 @@ CLAUDE_BIN = str(Path.home() / ".local/bin/claude")
 # template if missing. REMOTE_CONTROL_ACTIVE_FILE overrides this default.
 ACTIVE_FILE = str(Path.home() / ".ai-harness" / "active-dirs.txt")
 
+# Per-host nickname config (Phase B of #32). One-line value: this machine's
+# short nick (``mini`` / ``note`` / ...). Sibling of active-dirs.txt under
+# ``~/.ai-harness/`` so the entire host-local config lives under one tree.
+# Read AFTER the env var but BEFORE the hostname-derive fallback (see
+# host_nickname). The installer seeds it from REMOTE_CONTROL_HOST on first
+# install (see installer.seed_host_file); afterwards the FILE is authoritative
+# -- operators rename a host by editing the file, not the plist.
+HOST_FILE = str(Path.home() / ".ai-harness" / "host")
+
 
 def _truthy(value: str) -> bool:
     return value.strip().lower() not in ("0", "false", "no", "")
 
 
-def host_nickname(env: Optional[Mapping[str, str]] = None) -> str:
-    """This machine's short nickname: explicit ``REMOTE_CONTROL_HOST`` if set,
-    else derived from the hostname (``*macmini*`` -> ``mini``; see
-    discovery.NICKNAME_RULES). Shared by every config that is host-aware, by
-    the session-title host suffix, and by the supervisor's server-name prefix
-    (``<host>-<basename>``). Set ``REMOTE_CONTROL_HOST`` in your plist to
-    assign a per-machine personal nickname (the ``NICKNAME_RULES`` table is
-    public, so personal nicknames belong in the override, not the defaults)."""
+def _read_host_file(path: str) -> str:
+    """Pull the nickname out of ``~/.ai-harness/host``. Format: one line per
+    file, ``#``-prefixed lines and blanks ignored (so an operator can put a
+    short header in the file without breaking the read). Returns the empty
+    string on missing/unreadable file -- the caller falls through to
+    hostname-derive."""
+    try:
+        text = Path(path).read_text()
+    except OSError:
+        return ""
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            return line
+    return ""
+
+
+def host_nickname(
+    env: Optional[Mapping[str, str]] = None,
+    *,
+    host_file: Optional[str] = None,
+) -> str:
+    """This machine's short nickname. Strict precedence (settled spec from #32):
+
+        1. ``REMOTE_CONTROL_HOST`` env var -- per-process override; highest.
+        2. ``~/.ai-harness/host`` file -- host-local persistent config (the
+           installer seeds it from the plist env on first install, after which
+           the FILE is authoritative; rename a host by editing it).
+        3. Hostname derive via :func:`discovery.nickname_from_hostname`
+           (``*macmini*`` -> ``mini``; see ``discovery.NICKNAME_RULES``).
+
+    Shared by every config that is host-aware, by the session-title host
+    suffix, and by the supervisor's server-name prefix (``<host>-<basename>``).
+    The ``NICKNAME_RULES`` table is in a public repo, so personal nicknames
+    belong in the env/file overrides, not in the defaults.
+
+    *host_file* is injectable for tests so they can point at a temp file
+    without mutating the real ``~/.ai-harness/host``. Default in production
+    is the module-level :data:`HOST_FILE`.
+    """
     env = os.environ if env is None else env
     explicit = env.get("REMOTE_CONTROL_HOST", "").strip()
-    return normalize_host(explicit) if explicit else nickname_from_hostname(socket.gethostname())
+    if explicit:
+        return normalize_host(explicit)
+    from_file = _read_host_file(host_file if host_file is not None else HOST_FILE)
+    if from_file:
+        return normalize_host(from_file)
+    return nickname_from_hostname(socket.gethostname())
 
 
 @dataclass(frozen=True)
