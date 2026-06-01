@@ -213,6 +213,120 @@ def derive_brief_from_transcript(
 
 
 # --------------------------------------------------------------------------- #
+# Pure helpers: brief derivation from the cloud events API
+# --------------------------------------------------------------------------- #
+# Mirrors of the JSONL helpers above, but for events returned by
+# ``GET /sessions/{id}/events`` (used when no local transcript exists --
+# cloud-agent or cross-host bridge sessions, where event records never make
+# it into ``~/.claude/projects/``). The events array is newest-first
+# (descending ``sequence_num``); the helpers preserve that ordering, then
+# the final ``format_brief`` call reverses to the oldest-of-the-last-N
+# layout the JSONL path uses.
+def _event_user_text(event: dict) -> Optional[str]:
+    """Extract user-typed text from one events-API record, or None.
+
+    Filters the events the way :func:`extract_user_turns` filters JSONL:
+      * only ``event_type == 'user'`` records (not assistant/system/control)
+      * only ``source == 'client'`` (worker-source user events are tool
+        results echoed back into the agent, not human input)
+      * skip empty / pure tool-result payloads (no text block, or text
+        beginning with ``"<"`` -- slash commands and prompt scaffolding)
+    """
+    if not isinstance(event, dict):
+        return None
+    if event.get("event_type") != "user":
+        return None
+    if event.get("source") != "client":
+        return None
+    payload = event.get("payload") or {}
+    content = (payload.get("message") or {}).get("content")
+    if isinstance(content, str):
+        text = content
+    elif isinstance(content, list):
+        text = " ".join(
+            b.get("text", "") for b in content
+            if isinstance(b, dict) and b.get("type") == "text"
+        )
+    else:
+        return None
+    text = text.strip()
+    if not text or text.startswith("<"):
+        return None
+    return text
+
+
+def extract_user_turns_from_events(events: Iterable[dict]) -> List[str]:
+    """Pull every user-typed turn out of an events-API page, oldest first.
+
+    Events arrive newest-first from the API (descending ``sequence_num``);
+    this returns them oldest-first to match :func:`extract_user_turns`'s
+    contract so callers can ``[-max_turns:]`` the result identically."""
+    out: List[Tuple[int, str]] = []
+    for e in events:
+        text = _event_user_text(e)
+        if text is None:
+            continue
+        seq = e.get("sequence_num")
+        out.append((seq if isinstance(seq, int) else 0, text))
+    out.sort(key=lambda r: r[0])
+    return [t for _, t in out]
+
+
+def first_cwd_from_events(events: Iterable[dict]) -> Optional[str]:
+    """Pull ``cwd`` from the first ``system`` event's payload (the
+    session-init record Claude Code emits on startup). Mirrors
+    :func:`session_fork.first_cwd` for the events-API code path. Returns
+    None if the system event is past the fetched window (the caller then
+    falls back to ``--cwd`` or session metadata)."""
+    for e in events:
+        if not isinstance(e, dict):
+            continue
+        if e.get("event_type") != "system":
+            continue
+        payload = e.get("payload") or {}
+        cwd = payload.get("cwd")
+        if isinstance(cwd, str) and cwd:
+            return cwd
+    return None
+
+
+def first_git_branch_from_events(events: Iterable[dict]) -> Optional[str]:
+    """Pull ``gitBranch`` from the first system event that has one. Cloud
+    sessions usually leave this null; we still expose it for symmetry with
+    :func:`first_git_branch` so the brief shows the same fields."""
+    for e in events:
+        if not isinstance(e, dict):
+            continue
+        if e.get("event_type") != "system":
+            continue
+        branch = (e.get("payload") or {}).get("gitBranch")
+        if isinstance(branch, str) and branch:
+            return branch
+    return None
+
+
+def derive_brief_from_session_events(
+    events: List[dict],
+    *,
+    cwd: str,
+    source_label: str,
+    max_turns: int = DEFAULT_MAX_USER_TURNS,
+    max_bytes: int = DEFAULT_MAX_BRIEF_BYTES,
+) -> str:
+    """Build the handoff brief from a cloud-events-API page.
+
+    *source_label* substitutes for the ``transcript at <path>`` line --
+    typically ``"events api: <cse_id>"`` since there is no local file to
+    point the recovered session at."""
+    branch = first_git_branch_from_events(events)
+    turns = extract_user_turns_from_events(events)[-max_turns:]
+    return format_brief(
+        cwd=cwd, branch=branch, user_turns=turns,
+        transcript_path=source_label, max_bytes=max_bytes,
+    )
+
+
+# --------------------------------------------------------------------------- #
 # Idempotency: handoff records
 # --------------------------------------------------------------------------- #
 def handoff_record_path(state_dir: Path, new_cse: str) -> Path:

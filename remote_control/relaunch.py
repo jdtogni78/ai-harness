@@ -22,6 +22,15 @@ newest ``.jsonl`` inside. The originating cwd is read from the transcript's
 first ``cwd`` record (:func:`session_fork.first_cwd`), not derived from the
 dir name -- so an ``--into-main`` relocated fork still resolves correctly.
 
+When no local JSONL exists (cloud-agent sessions whose reasoning loop runs
+in an Anthropic sandbox, or sessions whose bridge is on another host), the
+resolver falls back to ``GET /sessions/{id}/events`` -- the same OAuth path
+``sessions submit`` already uses. ``cwd`` then comes from the first
+``system`` event's payload (the session-init record). The brief is derived
+identically; only the header's ``transcript at <path>`` swaps for
+``events api: <cse_id>`` so the new session knows where its history came
+from.
+
 Pure helpers (source resolution, idempotency lookup) live above ``main`` so
 the tests don't shell out or hit the network.
 """
@@ -38,7 +47,9 @@ from .handoff import (
     DEFAULT_MAX_BRIEF_BYTES,
     DEFAULT_MAX_USER_TURNS,
     DEFAULT_WAIT_TIMEOUT_SECS,
+    derive_brief_from_session_events,
     derive_brief_from_transcript,
+    first_cwd_from_events,
     forked_uuids_already_dispatched,
     handoff_record_path,
     write_handoff_record,
@@ -50,10 +61,31 @@ from .session_fork import (
 )
 
 
+# Returned by an injectable event-fetcher: (cwd_or_none, events_list). The
+# None-cwd case happens when the events page didn't include the session-init
+# ``system`` event (very long-lived sessions where it's been paged off); the
+# caller then requires ``--cwd`` to proceed.
+FetchEventsResult = Tuple[Optional[str], List[dict]]
+
+
 class RelaunchSource(NamedTuple):
-    """Resolved (transcript path, originating cwd) for a source ``cse_*``."""
-    transcript: Path
+    """Resolved source for a relaunch -- either a local transcript path OR a
+    cloud-events-API page, plus the originating cwd.
+
+    The two source modes mirror the two ways a session's history can be reached:
+
+      * ``transcript`` (with ``events=None``) -- the canonical path. A local
+        JSONL under ``~/.claude/projects`` exists because the agent ran on
+        this host (or the bridge mirrored its events here).
+      * ``events`` (with ``transcript=None``) -- the API fallback. Cloud-agent
+        sessions and cross-host bridges don't write local JSONL, so the brief
+        is built from ``GET /sessions/{id}/events`` instead. ``source_label``
+        is the string the brief header points at in place of a path.
+    """
+    transcript: Optional[Path]
     cwd: str
+    events: Optional[List[dict]] = None
+    source_label: Optional[str] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -83,10 +115,21 @@ def resolve_source(
     transcript_arg: Optional[str],
     cwd_arg: Optional[str],
     projects_root: Path,
+    fetch_events: Optional[Callable[[str], Optional[FetchEventsResult]]] = None,
 ) -> RelaunchSource:
     """Turn ``--from`` / ``--from-transcript`` + ``--cwd`` into a concrete
-    (transcript, cwd) pair. Raises ``FileNotFoundError`` / ``ValueError``
-    with the offending argument named so the CLI surface stays diagnosable."""
+    source for the brief. Raises ``FileNotFoundError`` / ``ValueError`` with
+    the offending argument named so the CLI surface stays diagnosable.
+
+    *fetch_events* (injectable for tests) is the cloud-events-API fallback:
+    when ``--from CSE_ID`` has no local transcript on disk, ``fetch_events
+    (cse_id)`` runs and the brief is built from the returned events instead.
+    A ``None`` fetcher (or one that returns ``None``) preserves the original
+    "no transcript -> FileNotFoundError" behavior, so unit tests that don't
+    want to hit the network can skip it entirely. The fetcher returns
+    ``(cwd_or_none, events)``: when its cwd is None and *cwd_arg* is also
+    unset, the function raises ``ValueError`` rather than guessing.
+    """
     if cse_id and transcript_arg:
         raise ValueError("--from and --from-transcript are mutually exclusive")
     if not cse_id and not transcript_arg:
@@ -102,14 +145,33 @@ def resolve_source(
         return RelaunchSource(transcript=t, cwd=cwd)
     # --from CSE_ID
     t = find_source_transcript(cse_id, projects_root)
-    if t is None:
+    if t is not None:
+        cwd = cwd_arg or first_cwd(t.read_text(errors="ignore").splitlines())
+        if not cwd:
+            raise ValueError(
+                f"transcript for {cse_id} carries no cwd record; pass --cwd")
+        return RelaunchSource(transcript=t, cwd=cwd)
+    # No local transcript. Try the events API if a fetcher is wired in;
+    # otherwise preserve the original FileNotFoundError so tests that don't
+    # mock the API keep working.
+    if fetch_events is None:
         raise FileNotFoundError(
             f"no transcript on disk for {cse_id!r} under {projects_root}")
-    cwd = cwd_arg or first_cwd(t.read_text(errors="ignore").splitlines())
+    fetched = fetch_events(cse_id)
+    if not fetched:
+        raise FileNotFoundError(
+            f"no transcript on disk for {cse_id!r} under {projects_root}, "
+            f"and events API returned no usable data")
+    api_cwd, events = fetched
+    cwd = cwd_arg or api_cwd
     if not cwd:
         raise ValueError(
-            f"transcript for {cse_id} carries no cwd record; pass --cwd")
-    return RelaunchSource(transcript=t, cwd=cwd)
+            f"events API didn't yield a cwd for {cse_id} "
+            f"(session-init event may be past the fetched window); pass --cwd")
+    return RelaunchSource(
+        transcript=None, cwd=cwd, events=events,
+        source_label=f"events api: {cse_id}",
+    )
 
 
 def already_dispatched(state_dir: Path, forked_marker: str) -> bool:
@@ -400,11 +462,34 @@ def default_retitle(
 # --------------------------------------------------------------------------- #
 # main
 # --------------------------------------------------------------------------- #
+def _default_fetch_events(log) -> Callable[[str], Optional[FetchEventsResult]]:
+    """Production events-API fetcher: keychain OAuth + monitor.fetch_session_events.
+
+    Returned as a closure so :func:`resolve_source` stays a pure
+    ``(cse_id) -> result | None`` call; tests inject a no-network alternative.
+    """
+    def _fetch(cse_id: str) -> Optional[FetchEventsResult]:
+        from .config import UsageLimitConfig
+        from .usage_limit import monitor
+        cfg = UsageLimitConfig.from_env()
+        token = monitor.get_token(cfg, log)
+        if not token:
+            log("events fallback: keychain OAuth missing; cannot reach API")
+            return None
+        code, events = monitor.fetch_session_events(cfg, token, cse_id, log)
+        if code != 200 or not events:
+            log(f"events fallback: GET events http={code}; no events to use")
+            return None
+        return first_cwd_from_events(events), events
+    return _fetch
+
+
 def main(
     argv: Optional[List[str]] = None,
     *,
     spawn: Optional[Callable[..., Optional[str]]] = None,
     retitle: Optional[Callable[..., Tuple[bool, Optional[str]]]] = None,
+    fetch_events: Optional[Callable[[str], Optional[FetchEventsResult]]] = None,
     projects_root: Optional[Path] = None,
     env: Optional[Mapping[str, str]] = None,
     now_iso: Optional[str] = None,
@@ -416,6 +501,8 @@ def main(
     projects_root = (default_projects_root() if projects_root is None
                      else projects_root)
     log = lambda m: print(m, file=sys.stderr)  # noqa: E731
+    if fetch_events is None:
+        fetch_events = _default_fetch_events(log)
 
     try:
         opts = _parse_args(argv)
@@ -432,15 +519,23 @@ def main(
             transcript_arg=opts["from_transcript"],
             cwd_arg=opts["cwd"],
             projects_root=Path(projects_root),
+            fetch_events=fetch_events,
         )
     except (ValueError, FileNotFoundError) as e:
         print(f"{e}\n{USAGE}", file=sys.stderr)
         return 2
 
-    brief = derive_brief_from_transcript(
-        src.transcript, cwd=src.cwd,
-        max_turns=opts["max_turns"], max_bytes=opts["max_bytes"],
-    )
+    if src.events is not None:
+        brief = derive_brief_from_session_events(
+            src.events, cwd=src.cwd,
+            source_label=src.source_label or f"events api: {opts['from_cse']}",
+            max_turns=opts["max_turns"], max_bytes=opts["max_bytes"],
+        )
+    else:
+        brief = derive_brief_from_transcript(
+            src.transcript, cwd=src.cwd,
+            max_turns=opts["max_turns"], max_bytes=opts["max_bytes"],
+        )
 
     state_dir = (Path(opts["state_dir"]) if opts["state_dir"]
                  else _default_state_dir(env))
@@ -460,7 +555,8 @@ def main(
     if opts["dry_run"]:
         print("relaunch: DRY-RUN (drop --dry-run to spawn)")
         print(f"  source     : {opts['from_cse'] or src.transcript}")
-        print(f"  transcript : {src.transcript}")
+        print(f"  transcript : "
+              f"{src.transcript if src.transcript else src.source_label}")
         print(f"  cwd        : {src.cwd}")
         print(f"  subname    : {sub}")
         print(f"  brief      : {len(brief.encode())} bytes, "

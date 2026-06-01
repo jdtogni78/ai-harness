@@ -138,6 +138,72 @@ class ResolveSourceTest(unittest.TestCase):
                     cse_id="cse_01MISSING", transcript_arg=None,
                     cwd_arg=None, projects_root=Path(td))
 
+    def test_fetch_events_fallback_used_when_no_local_transcript(self):
+        # Cloud-agent / cross-host sessions don't write a local JSONL; the
+        # caller injects ``fetch_events`` and we should fall through to it
+        # instead of raising FileNotFoundError.
+        with tempfile.TemporaryDirectory() as td:
+            events = [{"event_type": "user", "source": "client",
+                       "payload": {"message": {"role": "user",
+                                               "content": "hi from cloud"}},
+                       "sequence_num": 1}]
+
+            def fake_fetch(cse_id):
+                self.assertEqual(cse_id, "cse_01CLOUD")
+                return ("/Users/x/dev/cloudrepo", events)
+
+            src = relaunch.resolve_source(
+                cse_id="cse_01CLOUD", transcript_arg=None,
+                cwd_arg=None, projects_root=Path(td),
+                fetch_events=fake_fetch,
+            )
+            self.assertIsNone(src.transcript)
+            self.assertEqual(src.cwd, "/Users/x/dev/cloudrepo")
+            self.assertEqual(src.events, events)
+            self.assertIn("cse_01CLOUD", src.source_label or "")
+
+    def test_fetch_events_fallback_respects_cwd_override(self):
+        # When the API didn't yield a cwd (session-init event paged off) the
+        # caller can still supply ``--cwd`` and the fetcher's None is OK.
+        with tempfile.TemporaryDirectory() as td:
+            events = [{"event_type": "user", "source": "client",
+                       "payload": {"message": {"role": "user",
+                                               "content": "hi"}},
+                       "sequence_num": 1}]
+            src = relaunch.resolve_source(
+                cse_id="cse_01CLOUD", transcript_arg=None,
+                cwd_arg="/override/cwd", projects_root=Path(td),
+                fetch_events=lambda _id: (None, events),
+            )
+            self.assertEqual(src.cwd, "/override/cwd")
+            self.assertEqual(src.events, events)
+
+    def test_fetch_events_returning_none_still_raises(self):
+        # Fetcher itself failed (no token, API 5xx) -> we should report
+        # FileNotFoundError so the failure mode matches the no-fetcher case.
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaises(FileNotFoundError):
+                relaunch.resolve_source(
+                    cse_id="cse_01CLOUD", transcript_arg=None,
+                    cwd_arg=None, projects_root=Path(td),
+                    fetch_events=lambda _id: None,
+                )
+
+    def test_fetch_events_yields_no_cwd_and_no_override_raises(self):
+        # API returned events but no cwd, and the user didn't pass --cwd -->
+        # ValueError naming the missing argument, NOT a silent spawn into ``.``.
+        with tempfile.TemporaryDirectory() as td:
+            events = [{"event_type": "user", "source": "client",
+                       "payload": {"message": {"role": "user",
+                                               "content": "hi"}},
+                       "sequence_num": 1}]
+            with self.assertRaises(ValueError):
+                relaunch.resolve_source(
+                    cse_id="cse_01CLOUD", transcript_arg=None,
+                    cwd_arg=None, projects_root=Path(td),
+                    fetch_events=lambda _id: (None, events),
+                )
+
 
 class BumpVersionTest(unittest.TestCase):
     def test_no_version_appends_v2(self):

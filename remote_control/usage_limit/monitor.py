@@ -130,6 +130,31 @@ def submit_user_message(cfg: UsageLimitConfig, token: str, sid: str,
     return code, body
 
 
+def fetch_session_events(cfg: UsageLimitConfig, token: str, sid: str,
+                         log, limit: int = 500) -> Tuple[Optional[int], list]:
+    """``GET /sessions/{id}/events`` -- the sibling of :func:`submit_user_message`.
+
+    Returns ``(http_code, events)`` where *events* is the response's ``data``
+    list (newest first, by ``sequence_num``). Used by ``relaunch`` to derive a
+    brief when no local JSONL transcript exists (cloud-agent or cross-host
+    bridge sessions, where the agent's events never get mirrored to
+    ``~/.claude/projects``).
+
+    *limit* caps how many events to ask for in one shot. The default 500
+    covers most active sessions in a single request; pagination via
+    ``next_cursor`` is the caller's job if it isn't enough.
+    """
+    code, body = api_request(
+        cfg, "GET", f"/sessions/{sid}/events?limit={int(limit)}", token)
+    if code != 200 or not isinstance(body, dict):
+        log(f"fetch_session_events {sid} http={code} body={str(body)[:200]}")
+        return code, []
+    data = body.get("data")
+    if not isinstance(data, list):
+        return code, []
+    return code, data
+
+
 def still_limit_paused(cfg: UsageLimitConfig, sid: str, token: str) -> Tuple[Optional[bool], str]:
     code, data = api_request(cfg, "GET", f"/sessions/{sid}", token)
     if code != 200 or not isinstance(data, dict):

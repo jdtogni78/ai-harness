@@ -21,9 +21,12 @@ from remote_control.handoff import (
     DEFAULT_MAX_BRIEF_BYTES,
     HandoffCandidate,
     candidates_from_rehydrate_markers,
+    derive_brief_from_session_events,
     derive_brief_from_transcript,
     dispatch_handoffs,
     extract_user_turns,
+    extract_user_turns_from_events,
+    first_cwd_from_events,
     first_git_branch,
     forked_uuids_already_dispatched,
     format_brief,
@@ -208,6 +211,139 @@ class DeriveBriefFromTranscriptTest(unittest.TestCase):
         )
         self.assertIn("fresh session reconstructed", brief)
         self.assertIn("/does-not-exist.jsonl", brief)
+        self.assertIn("(no user turns recovered", brief)
+
+
+# --------------------------------------------------------------------------- #
+# Brief derivation from cloud events API (fallback for sessions with no
+# local JSONL: cloud-agent or cross-host bridge cases)
+# --------------------------------------------------------------------------- #
+def _evt(event_type, *, source="worker", payload=None, seq=0):
+    """Build one events-API record matching the shape returned by
+    ``GET /sessions/{id}/events``."""
+    return {
+        "event_type": event_type,
+        "source": source,
+        "payload": payload or {},
+        "sequence_num": seq,
+    }
+
+
+def _user_evt(text, *, seq, source="client"):
+    return _evt(
+        "user", source=source,
+        payload={"message": {"role": "user", "content": text}},
+        seq=seq,
+    )
+
+
+class ExtractUserTurnsFromEventsTest(unittest.TestCase):
+    def test_string_content(self):
+        # API returns newest-first; helper must return oldest-first so callers
+        # can take the trailing ``[-max_turns:]`` slice as on the JSONL path.
+        events = [_user_evt("third", seq=30),
+                  _user_evt("second", seq=20),
+                  _user_evt("first", seq=10)]
+        self.assertEqual(
+            extract_user_turns_from_events(events),
+            ["first", "second", "third"])
+
+    def test_list_content_text_blocks(self):
+        events = [_evt(
+            "user", source="client",
+            payload={"message": {"role": "user", "content": [
+                {"type": "text", "text": "part one"},
+                {"type": "text", "text": "part two"},
+            ]}},
+            seq=1)]
+        self.assertEqual(
+            extract_user_turns_from_events(events), ["part one part two"])
+
+    def test_filters_worker_source_user_events(self):
+        # source=worker user events are tool-result echoes, NOT human turns.
+        # The brief is meant to surface what the user actually typed, so the
+        # worker-source ones must be filtered out (same role as ``isMeta`` on
+        # the JSONL path).
+        events = [
+            _user_evt("real", seq=2, source="client"),
+            _user_evt("tool-result-echo", seq=1, source="worker"),
+        ]
+        self.assertEqual(extract_user_turns_from_events(events), ["real"])
+
+    def test_filters_assistant_and_system(self):
+        events = [
+            _evt("assistant", payload={"message": {"content": "hi"}}, seq=2),
+            _evt("system", payload={"cwd": "/x"}, seq=1),
+            _user_evt("real", seq=3),
+        ]
+        self.assertEqual(extract_user_turns_from_events(events), ["real"])
+
+    def test_filters_command_wrappers(self):
+        events = [
+            _user_evt("<command-name>/foo</command-name>", seq=1),
+            _user_evt("real msg", seq=2),
+        ]
+        self.assertEqual(extract_user_turns_from_events(events), ["real msg"])
+
+    def test_skips_tool_result_only_payloads(self):
+        # User payload with only a tool_result block (no text) -> skipped.
+        events = [_evt(
+            "user", source="client",
+            payload={"message": {"role": "user", "content": [
+                {"type": "tool_result", "content": "..."},
+            ]}},
+            seq=1)]
+        self.assertEqual(extract_user_turns_from_events(events), [])
+
+
+class FirstCwdFromEventsTest(unittest.TestCase):
+    def test_pulls_cwd_from_system_event(self):
+        events = [
+            _evt("assistant", payload={"message": {"content": "hi"}}, seq=2),
+            _evt("system", payload={"cwd": "/Users/me/dev/foo"}, seq=1),
+        ]
+        self.assertEqual(first_cwd_from_events(events), "/Users/me/dev/foo")
+
+    def test_returns_none_when_no_system_event(self):
+        events = [_user_evt("hi", seq=1)]
+        self.assertIsNone(first_cwd_from_events(events))
+
+    def test_returns_none_when_system_event_lacks_cwd(self):
+        events = [_evt("system", payload={"agents": ["claude"]}, seq=1)]
+        self.assertIsNone(first_cwd_from_events(events))
+
+
+class DeriveBriefFromSessionEventsTest(unittest.TestCase):
+    def test_takes_last_n_user_turns(self):
+        # 10 user turns (newest first per API ordering); we expect the
+        # trailing 3 in oldest-first order in the brief.
+        events = [_user_evt(f"t{i}", seq=i) for i in range(9, -1, -1)]
+        brief = derive_brief_from_session_events(
+            events, cwd="/d", source_label="events api: cse_X", max_turns=3,
+        )
+        self.assertIn("Last 3 user turn(s)", brief)
+        self.assertIn("t7", brief)
+        self.assertIn("t8", brief)
+        self.assertIn("t9", brief)
+        self.assertNotIn("t6", brief)
+
+    def test_source_label_appears_in_header(self):
+        # The brief points at where the prior session's history lives. For the
+        # API fallback there is no file path, so the label replaces it -- e.g.
+        # "events api: cse_..." so the new session knows the source.
+        brief = derive_brief_from_session_events(
+            [_user_evt("hi", seq=1)],
+            cwd="/d", source_label="events api: cse_X",
+        )
+        self.assertIn("events api: cse_X", brief)
+
+    def test_empty_events_returns_header_only(self):
+        # No usable events -> header-only brief, same graceful fallback as the
+        # missing-transcript path.
+        brief = derive_brief_from_session_events(
+            [], cwd="/d", source_label="events api: cse_X",
+        )
+        self.assertIn("fresh session reconstructed", brief)
         self.assertIn("(no user turns recovered", brief)
 
 
