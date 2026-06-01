@@ -37,10 +37,16 @@ REPO_DIR = Path(__file__).resolve().parent.parent
 # `<repo>/active-dirs.txt` but was moved to a per-user, per-host location at
 # `~/.ai-harness/active-dirs.txt` (chmod 600) -- the file lists private app dir
 # names and shouldn't be in a public repo, and it differs per host anyway. The
-# installer seeds the file with the comment-only template below if absent, so a
-# fresh checkout's first supervisor boot finds a valid (empty) allowlist rather
-# than fail-closed-with-no-file.
-ACTIVE_FILE_TEMPLATE = """\
+# repo ships `active-dirs.example.txt` (a comment-only sample) which the
+# installer copies into place on first install, so a fresh checkout's first
+# supervisor boot finds a valid (empty) allowlist rather than fail-closed-with-
+# no-file.
+ACTIVE_FILE_SAMPLE = REPO_DIR / "active-dirs.example.txt"
+
+# Embedded copy of the sample so a seed still works when the sample file is
+# unreachable (packaged/zipped install, partial checkout). The file is the
+# source of truth; this string is the fallback.
+_ACTIVE_FILE_FALLBACK = """\
 # Allowlist for the ai-harness supervisor (per-user, per-host).
 #
 # One basename per line. Lines starting with `#` and blank lines are ignored.
@@ -63,12 +69,21 @@ ACTIVE_FILE_TEMPLATE = """\
 """
 
 
-def seed_active_file(path: Path, out=print) -> bool:
-    """Create the user-private allowlist file if it doesn't exist yet.
+def _read_sample(sample: Path) -> str:
+    try:
+        return sample.read_text()
+    except OSError:
+        return _ACTIVE_FILE_FALLBACK
+
+
+def seed_active_file(path: Path, out=print, sample: Path = ACTIVE_FILE_SAMPLE) -> bool:
+    """Create the user-private allowlist file if it doesn't exist yet, by
+    copying the in-repo sample (``active-dirs.example.txt``).
 
     Returns True if the file was just created (so the caller can log it).
     Idempotent: a no-op if the file already exists. Perms: dir 700, file 600
-    (the file names private app dirs)."""
+    (the file names private app dirs). The *sample* argument is overridable
+    for tests; in normal runs it defaults to the repo's example file."""
     p = Path(path)
     if p.exists():
         return False
@@ -77,12 +92,12 @@ def seed_active_file(path: Path, out=print) -> bool:
         p.parent.chmod(0o700)
     except OSError:
         pass
-    p.write_text(ACTIVE_FILE_TEMPLATE)
+    p.write_text(_read_sample(sample))
     try:
         p.chmod(0o600)
     except OSError:
         pass
-    out(f"Seeded {p} (chmod 600); edit it to enable dirs.")
+    out(f"Seeded {p} from {sample.name} (chmod 600); edit it to enable dirs.")
     return True
 
 

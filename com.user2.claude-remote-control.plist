@@ -13,27 +13,20 @@
         <string>supervisor</string>
     </array>
 
-    <!-- This machine: the MacBook. config.py defaults bake in /Users/user
-         paths, so every machine-specific path is overridden here. Set
+    <!-- This machine: the MacBook. config.py defaults are HOME-derived
+         (Path.home()/dev, ~/.local/bin/claude, ~/dev/ai-harness/logs,
+         ~/.ai-harness/active-dirs.txt), so the supervisor runs without any
+         REMOTE_CONTROL_* overrides on a stock user2 account. Set
          REMOTE_CONTROL_HOST below to give this host its personal nickname
          (matched by @<nick> entries in active-dirs.txt); otherwise the
          nickname auto-derives from the hostname (the first dotted label
          lowercased). /usr/bin/python3 is the always-present system Python;
-         the package is stdlib-only so no venv/site-packages is required. -->
+         the package is stdlib-only so no venv/site-packages is required.
+         PYTHONPATH stays literal because launchd doesn't expand $HOME. -->
     <key>EnvironmentVariables</key>
     <dict>
         <key>PYTHONPATH</key>
         <string>/Users/user2/dev/ai-harness</string>
-        <key>REMOTE_CONTROL_DEV</key>
-        <string>/Users/user2/dev</string>
-        <key>REMOTE_CONTROL_CLAUDE_BIN</key>
-        <string>/Users/user2/.local/bin/claude</string>
-        <!-- REMOTE_CONTROL_ACTIVE_FILE intentionally unset: config.py defaults
-             it to ~/.ai-harness/active-dirs.txt (per-user, per-host, chmod 600,
-             seeded by the installer). Override here only to point at a
-             non-standard path. -->
-        <key>REMOTE_CONTROL_LOGDIR</key>
-        <string>/Users/user2/dev/ai-harness/logs</string>
     </dict>
 
     <!-- Start at login and keep the supervisor itself alive: if it crashes,

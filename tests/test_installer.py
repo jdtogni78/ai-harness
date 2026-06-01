@@ -3,8 +3,9 @@ import unittest
 from pathlib import Path
 
 from remote_control.installer import (
-    ACTIVE_FILE_TEMPLATE,
+    ACTIVE_FILE_SAMPLE,
     AGENTS,
+    _ACTIVE_FILE_FALLBACK,
     agent_user,
     install_agent,
     launchctl_commands,
@@ -100,20 +101,21 @@ class InstallAgentTest(unittest.TestCase):
 
 
 class SeedActiveFileTest(unittest.TestCase):
-    def test_creates_file_with_template_and_perms(self):
+    def test_creates_file_with_sample_and_perms(self):
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "nested" / "active-dirs.txt"
             out = []
             created = seed_active_file(target, out=out.append)
             self.assertTrue(created)
             self.assertTrue(target.exists())
-            self.assertEqual(target.read_text(), ACTIVE_FILE_TEMPLATE)
+            # The seeded content matches the committed sample (source of truth).
+            self.assertEqual(target.read_text(), ACTIVE_FILE_SAMPLE.read_text())
             # File chmod 600 = octal 0o600 (rw-------) on platforms that support it.
             self.assertEqual(target.stat().st_mode & 0o777, 0o600)
             # Parent dir chmod 700.
             self.assertEqual(target.parent.stat().st_mode & 0o777, 0o700)
-            # Logged something so the user knows.
-            self.assertTrue(any("Seeded" in m for m in out))
+            # Log names the sample file so an operator can find what was copied.
+            self.assertTrue(any(ACTIVE_FILE_SAMPLE.name in m for m in out))
 
     def test_idempotent_no_overwrite(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -126,6 +128,36 @@ class SeedActiveFileTest(unittest.TestCase):
             self.assertEqual(target.read_text(), "# already configured\nmy-app\n")
             # No "Seeded" log.
             self.assertFalse(any("Seeded" in m for m in out))
+
+    def test_uses_explicit_sample_override(self):
+        # The sample arg is overridable so callers (and these tests) can point
+        # the seed at any committed sample without depending on the repo layout.
+        with tempfile.TemporaryDirectory() as tmp:
+            sample = Path(tmp) / "my.example.txt"
+            sample.write_text("# custom\nexplicit-entry\n")
+            target = Path(tmp) / "active-dirs.txt"
+            seed_active_file(target, out=lambda _m: None, sample=sample)
+            self.assertEqual(target.read_text(), "# custom\nexplicit-entry\n")
+
+    def test_falls_back_when_sample_missing(self):
+        # If the committed sample is somehow unreachable (zipped install,
+        # partial checkout) the seed still produces a comment-only allowlist,
+        # not an empty file (an empty allowlist would deactivate every server).
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "does-not-exist.txt"
+            target = Path(tmp) / "active-dirs.txt"
+            seed_active_file(target, out=lambda _m: None, sample=missing)
+            self.assertEqual(target.read_text(), _ACTIVE_FILE_FALLBACK)
+
+    def test_committed_sample_has_no_active_entries(self):
+        # Safety check: the repo sample MUST stay entry-free. If someone adds a
+        # real basename here, every fresh checkout would auto-spawn a server for
+        # that name on its next supervisor tick (the swap-incident shape).
+        for line in ACTIVE_FILE_SAMPLE.read_text().splitlines():
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                self.fail(f"active-dirs.example.txt contains an active entry: "
+                          f"{line!r}")
 
 
 if __name__ == "__main__":

@@ -18,15 +18,14 @@
          SESSION_TITLE_APPLY_SECS (default 600s) so the platform's auto-titler
          can't strip it mid-session. Split out from the usage-limit monitor so
          the two services have independent cadences, failure modes, and
-         restart triggers. PYTHONPATH + REMOTE_CONTROL_LOGDIR are this
-         machine's overrides (launchd's bare env / cwd won't find the package
-         or the repo logs dir). -->
+         restart triggers. REMOTE_CONTROL_LOGDIR is no longer set: config.py
+         defaults it to ~/dev/ai-harness/logs via Path.home(), which matches
+         user2's home. PYTHONPATH stays literal because launchd doesn't expand
+         $HOME. -->
     <key>EnvironmentVariables</key>
     <dict>
         <key>PYTHONPATH</key>
         <string>/Users/user2/dev/ai-harness</string>
-        <key>REMOTE_CONTROL_LOGDIR</key>
-        <string>/Users/user2/dev/ai-harness/logs</string>
     </dict>
 
     <!-- Start at login, KeepAlive. Same clean-shutdown shape as the other
