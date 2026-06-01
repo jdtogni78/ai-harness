@@ -86,15 +86,29 @@ async def _drive(
         await context.add_init_script(script=INIT_SCRIPT)
 
         page = await context.new_page()
-        await page.goto("about:blank")
-        await page.evaluate(INIT_SCRIPT)  # init on the blank starter page too
+        # Pre-load the opening page so recording starts on a painted page instead
+        # of white about:blank + the first goto's load flash (which otherwise
+        # plays under the first sentence or two of narration). If the demo opens
+        # with a goto, navigate there now and skip re-navigating in scene 0.
+        first = segments[0].step if segments else None
+        prewarmed = bool(first and first.do == "goto" and first.url)
+        if prewarmed:
+            await page.goto(first.url, wait_until="load")
+            await page.evaluate(INIT_SCRIPT)
+            await page.wait_for_timeout(500)  # let fonts/CSS settle before t=0 content
+        else:
+            await page.goto("about:blank")
+            await page.evaluate(INIT_SCRIPT)  # init on the blank starter page too
         await _glide(page, vw // 6, vh // 4)
         await page.wait_for_timeout(200)
 
-        for seg in segments:
+        for i, seg in enumerate(segments):
             t0 = time.time()
             try:
-                await _do(page, seg.step, script.viewport)
+                if i == 0 and prewarmed:
+                    pass  # already navigated during pre-warm; hold on the page
+                else:
+                    await _do(page, seg.step, script.viewport)
             except Exception as e:
                 print(f"  ! action {seg.step.do} failed: {e}")
             elapsed = time.time() - t0
