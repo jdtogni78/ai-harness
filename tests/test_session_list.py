@@ -1,8 +1,12 @@
 import base64
+import contextlib
+import io
 import json
 import unittest
+from unittest import mock
 
 from remote_control.session_list import (
+    _run_submit,
     build_rows,
     classify_location,
     format_reply_header,
@@ -13,6 +17,8 @@ from remote_control.session_list import (
     parse_duration,
     summarize,
 )
+from remote_control.usage_limit import monitor as monitor_mod
+from remote_control.usage_limit.detect import resume_event_body
 
 
 def _session(**kw) -> dict:
@@ -262,6 +268,225 @@ class FormatReplyHeaderTest(unittest.TestCase):
         body = "line one\nline two\n"
         out = format_reply_header("cse_01XYZ", body)
         self.assertTrue(out.endswith(body))
+
+
+def _silent_log(*_a, **_kw):
+    pass
+
+
+@contextlib.contextmanager
+def _capture():
+    out, err = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        yield out, err
+
+
+class RunSubmitArgsTest(unittest.TestCase):
+    """``sessions submit`` arg parsing -- the rc=2 / usage paths that must reject
+    bad invocations *before* any network or keychain call. None of these should
+    touch :func:`monitor.api_request`."""
+
+    def test_missing_cse_id_returns_2(self):
+        with _capture() as (_out, err):
+            rc = _run_submit(["--message", "hi", "--no-reply-to"], _silent_log)
+        self.assertEqual(rc, 2)
+        self.assertIn("submit requires a CSE_ID", err.getvalue())
+
+    def test_message_and_stdin_mutually_exclusive(self):
+        with _capture() as (_out, err):
+            rc = _run_submit(
+                ["cse_x", "--message", "hi", "--stdin", "--no-reply-to"],
+                _silent_log)
+        self.assertEqual(rc, 2)
+        self.assertIn("mutually exclusive", err.getvalue())
+
+    def test_missing_message_returns_2(self):
+        with _capture() as (_out, err):
+            rc = _run_submit(["cse_x", "--no-reply-to"], _silent_log)
+        self.assertEqual(rc, 2)
+        self.assertIn("--message TEXT or --stdin", err.getvalue())
+
+    def test_empty_message_returns_2(self):
+        with _capture() as (_out, err):
+            rc = _run_submit(
+                ["cse_x", "--message", "", "--no-reply-to"], _silent_log)
+        self.assertEqual(rc, 2)
+        self.assertIn("message is empty", err.getvalue())
+
+    def test_whitespace_only_message_returns_2(self):
+        # "not empty" must mean has-content, not has-bytes -- "   \n" must reject.
+        with _capture() as (_out, err):
+            rc = _run_submit(
+                ["cse_x", "--message", "   \n", "--no-reply-to"], _silent_log)
+        self.assertEqual(rc, 2)
+        self.assertIn("message is empty", err.getvalue())
+
+
+class RunSubmitDryRunTest(unittest.TestCase):
+    """``--dry-run`` must short-circuit *before* the keychain + network. The
+    printed JSON must be exactly :func:`resume_event_body`'s shape so the
+    user can see what a real POST would send."""
+
+    def setUp(self):
+        # Fake cfg with just enough surface area for the dry-run print path.
+        self.fake_cfg = mock.Mock()
+        self.fake_cfg.api_base = "https://api.test"
+        self._cfg_patch = mock.patch(
+            "remote_control.session_list.UsageLimitConfig.from_env",
+            return_value=self.fake_cfg)
+        self._cfg_patch.start()
+
+    def tearDown(self):
+        self._cfg_patch.stop()
+
+    def test_dry_run_message_prints_body_and_never_calls_api_request(self):
+        with mock.patch("remote_control.session_list.monitor") as monitor, \
+                _capture() as (out, _err):
+            rc = _run_submit(
+                ["cse_x", "--message", "hello", "--dry-run", "--no-reply-to"],
+                _silent_log)
+        self.assertEqual(rc, 0)
+        monitor.api_request.assert_not_called()
+        monitor.submit_user_message.assert_not_called()
+        monitor.get_token.assert_not_called()
+        # The printed JSON is exactly the wrapped-event shape.
+        text = out.getvalue()
+        self.assertIn("would POST https://api.test/sessions/cse_x/events", text)
+        body_json = text.split("\n", 1)[1]
+        self.assertEqual(json.loads(body_json), resume_event_body("hello"))
+
+    def test_dry_run_stdin_reads_stdin_and_prints_body(self):
+        # --stdin reads sys.stdin; patch it for determinism.
+        with mock.patch("remote_control.session_list.monitor") as monitor, \
+                mock.patch("sys.stdin", io.StringIO("from-stdin")), \
+                _capture() as (out, _err):
+            rc = _run_submit(
+                ["cse_x", "--stdin", "--dry-run", "--no-reply-to"],
+                _silent_log)
+        self.assertEqual(rc, 0)
+        monitor.api_request.assert_not_called()
+        text = out.getvalue()
+        self.assertIn("would POST https://api.test/sessions/cse_x/events", text)
+        body_json = text.split("\n", 1)[1]
+        self.assertEqual(json.loads(body_json), resume_event_body("from-stdin"))
+
+
+class RunSubmitNetworkTest(unittest.TestCase):
+    """Non-dry-run paths through ``_run_submit`` -- the CLI delegates to
+    :func:`monitor.submit_user_message`, and the rc derives from its http code."""
+
+    def setUp(self):
+        self._cfg_patch = mock.patch(
+            "remote_control.session_list.UsageLimitConfig.from_env",
+            return_value=mock.Mock(api_base="https://api.test"))
+        self._cfg_patch.start()
+
+    def tearDown(self):
+        self._cfg_patch.stop()
+
+    def test_happy_path_returns_0_and_calls_submit(self):
+        with mock.patch("remote_control.session_list.monitor") as monitor, \
+                _capture() as (out, _err):
+            monitor.get_token.return_value = "tok"
+            monitor.submit_user_message.return_value = (200, {"ok": True})
+            rc = _run_submit(
+                ["cse_x", "--message", "hi", "--no-reply-to"], _silent_log)
+        self.assertEqual(rc, 0)
+        # Called once with (cfg, token, sid, message, log).
+        monitor.submit_user_message.assert_called_once()
+        args, _ = monitor.submit_user_message.call_args
+        self.assertEqual(args[1], "tok")
+        self.assertEqual(args[2], "cse_x")
+        self.assertEqual(args[3], "hi")
+        self.assertIn("submitted cse_x", out.getvalue())
+
+    def test_non_200_returns_1_and_logs_to_stderr(self):
+        with mock.patch("remote_control.session_list.monitor") as monitor, \
+                _capture() as (_out, err):
+            monitor.get_token.return_value = "tok"
+            monitor.submit_user_message.return_value = (503, "down")
+            rc = _run_submit(
+                ["cse_x", "--message", "hi", "--no-reply-to"], _silent_log)
+        self.assertEqual(rc, 1)
+        self.assertIn("FAILED cse_x", err.getvalue())
+        self.assertIn("503", err.getvalue())
+
+    def test_missing_token_returns_1(self):
+        with mock.patch("remote_control.session_list.monitor") as monitor:
+            monitor.get_token.return_value = None
+            with _capture():
+                rc = _run_submit(
+                    ["cse_x", "--message", "hi", "--no-reply-to"], _silent_log)
+            self.assertEqual(rc, 1)
+            monitor.submit_user_message.assert_not_called()
+
+    def test_reply_to_prepends_header_to_submitted_message(self):
+        # Explicit --reply-to should embed the [from <sender>] header in the
+        # message that monitor.submit_user_message ultimately receives.
+        with mock.patch("remote_control.session_list.monitor") as monitor:
+            monitor.get_token.return_value = "tok"
+            monitor.submit_user_message.return_value = (200, {})
+            with _capture():
+                rc = _run_submit(
+                    ["cse_x", "--message", "hi", "--reply-to", "cse_sender"],
+                    _silent_log)
+            self.assertEqual(rc, 0)
+            sent = monitor.submit_user_message.call_args.args[3]
+            self.assertTrue(sent.startswith(
+                "[from cse_sender — reply via send-to-session]"))
+            self.assertIn("hi", sent)
+
+
+class SubmitUserMessageTest(unittest.TestCase):
+    """``monitor.submit_user_message`` is a thin wrapper over
+    :func:`monitor.api_request`; the test patches ``api_request`` so nothing
+    hits the network. Same approach the archive tests use."""
+
+    def test_happy_path_posts_events_with_wrapped_body(self):
+        cfg = mock.Mock()
+        with mock.patch.object(monitor_mod, "api_request",
+                               return_value=(200, {"id": "evt_1"})) as api:
+            code, body = monitor_mod.submit_user_message(
+                cfg, "tok", "cse_x", "hi", _silent_log)
+        self.assertEqual(code, 200)
+        self.assertEqual(body, {"id": "evt_1"})
+        api.assert_called_once_with(
+            cfg, "POST", "/sessions/cse_x/events", "tok",
+            resume_event_body("hi"))
+
+    def test_non_200_returns_code_and_logs(self):
+        cfg = mock.Mock()
+        logs = []
+        with mock.patch.object(monitor_mod, "api_request",
+                               return_value=(503, "down")):
+            code, body = monitor_mod.submit_user_message(
+                cfg, "tok", "cse_x", "hi", logs.append)
+        self.assertEqual(code, 503)
+        self.assertEqual(body, "down")
+        self.assertTrue(any("submit cse_x failed" in m and "503" in m
+                            for m in logs),
+                        f"expected a diagnostic log line, got: {logs!r}")
+
+
+class ResumeEventBodyShapeTest(unittest.TestCase):
+    """The wrapped-event body the submit CLI ships is the same shape
+    ``attempt_resume`` POSTs -- if these drift, the submit path silently
+    starts sending an unrecognized shape. Pin the shape with a literal."""
+
+    def test_shape_matches_verified_live_attempt_resume_body(self):
+        self.assertEqual(resume_event_body("x"), {
+            "events": [{
+                "event_type": "user",
+                "source": "client",
+                "payload": {
+                    "type": "user",
+                    "message": {
+                        "role": "user",
+                        "content": [{"type": "text", "text": "x"}],
+                    },
+                },
+            }],
+        })
 
 
 if __name__ == "__main__":
