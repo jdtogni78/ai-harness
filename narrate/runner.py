@@ -149,15 +149,25 @@ async def _do(page, step: Step, viewport):
             y = box["y"] + min(box["height"] / 2, 30)
             await _glide(page, x, y)
     elif step.do == "reveal":
-        # Scroll a section/anchor into view, then point the cursor at it. Unlike
-        # `move` (which targets the element's absolute position and can land
-        # off-screen), this guarantees the section is visible — the right
-        # primitive for walking a long page section by section.
+        # Scroll a section/anchor to a fixed offset below the top, then point the
+        # cursor at it — the primitive for walking a long page section by section.
+        # We deliberately avoid scroll_into_view_if_needed: it does a *minimal*
+        # scroll, so a section taller than the viewport (or one already partly in
+        # view) lands at y≈0, hidden under a sticky nav bar — and the narration
+        # ends up describing a section the viewer can't see. Scrolling the
+        # element's top to ~110px below the viewport top keeps its header clear
+        # of the sticky jump bar every time.
         try:
             el = await page.query_selector(step.to)
             if el:
-                await el.scroll_into_view_if_needed(timeout=2000)
-                await page.wait_for_timeout(200)
+                await page.evaluate(
+                    """(sel) => {
+                        const e = document.querySelector(sel);
+                        if (!e) return;
+                        const y = e.getBoundingClientRect().top + window.scrollY - 110;
+                        window.scrollTo({top: Math.max(0, y), behavior: 'instant'});
+                    }""", step.to)
+                await page.wait_for_timeout(300)
                 box = await el.bounding_box()
                 if box:
                     x = box["x"] + box["width"] / 2
