@@ -182,6 +182,61 @@ class SupervisorTickTest(unittest.TestCase):
         self.assertTrue(any("active-file missing" in m for m in logs))
 
 
+class ReapExitLoggingTest(unittest.TestCase):
+    """Regression for the mini-dev fragility observed in the 2026-06-01
+    kickstart test: on supervisor restart, mini-dev's first child exited
+    within ~30s and the supervisor respawned it silently on the next tick.
+    Without the exit log line the failure leaves no evidence -- and the
+    likely cloud-side name-claim race is invisible to root-cause."""
+
+    class _FakeChild:
+        """Stub Popen exposing only the surface ``_reap`` touches."""
+        def __init__(self, rc):
+            self._rc = rc
+        def poll(self):
+            return self._rc
+
+    def _supervisor_with_child(self, child):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        (root / "dev").mkdir()
+        active = root / "active-dirs.txt"
+        active.write_text("")
+        cfg = SupervisorConfig.from_env({
+            "REMOTE_CONTROL_DEV": str(root / "dev"),
+            "REMOTE_CONTROL_LOGDIR": str(root / "logs"),
+            "REMOTE_CONTROL_ACTIVE_FILE": str(active),
+            "REMOTE_CONTROL_HOST": "mm",
+        })
+        logs = []
+        sup = supervisor_mod.Supervisor(
+            cfg, proc=FakeProc(), log=logs.append, sleep=lambda s: None,
+        )
+        sup._children["mm-app"] = child
+        return sup, logs
+
+    def test_exited_child_logs_rc_and_is_removed(self):
+        sup, logs = self._supervisor_with_child(self._FakeChild(rc=1))
+        sup._reap()
+        self.assertIn("exit: mm-app rc=1", logs)
+        self.assertNotIn("mm-app", sup._children)
+
+    def test_clean_exit_still_logged(self):
+        # rc=0 is still worth recording -- the supervisor's perspective is "we
+        # asked it to run, it stopped"; whether that was clean or not, the
+        # diagnostic log line is what links a respawn to its predecessor.
+        sup, logs = self._supervisor_with_child(self._FakeChild(rc=0))
+        sup._reap()
+        self.assertIn("exit: mm-app rc=0", logs)
+
+    def test_running_child_left_alone(self):
+        sup, logs = self._supervisor_with_child(self._FakeChild(rc=None))
+        sup._reap()
+        self.assertEqual(logs, [])
+        self.assertIn("mm-app", sup._children)
+
+
 class DeactivateHysteresisTest(unittest.TestCase):
     """Regression for ai-harness#8: under launchd, ``discover()`` occasionally
     returned a partial ``wanted`` set on a single tick even though the

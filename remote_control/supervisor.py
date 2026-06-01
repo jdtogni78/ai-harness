@@ -105,10 +105,16 @@ class Supervisor:
 
     def _reap(self) -> None:
         # Reap any servers we spawned that have since exited, so they don't pile
-        # up as zombies over the supervisor's long life.
+        # up as zombies over the supervisor's long life. Log the exit code so a
+        # short-lived first-start failure (e.g. a cloud-side name-claim race
+        # against a just-SIGTERM'd predecessor) leaves diagnostic evidence --
+        # the next tick respawns the server, but without this line the failed
+        # start would be silent.
         for name in list(self._children):
             child = self._children[name]
-            if child.poll() is not None:
+            rc = child.poll()
+            if rc is not None:
+                self.log(f"exit: {name} rc={rc}")
                 del self._children[name]
 
     # --- lifecycle actions ---
