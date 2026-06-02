@@ -138,6 +138,12 @@ ALLOW_PATTERNS: Tuple[str, ...] = (
     # all-segments-allow check: ``rm -rf /tmp/x && cat /etc/shadow`` still
     # requires the second segment to allow-list independently.
     r"^rm\s+-[a-z]*r[a-z]*\s+(?:/tmp/|/var/folders/[^/\s]+/[^/\s]+/T/|\$TMPDIR/)\S+\s*$",
+    # Plain non-recursive ``rm`` of a single file. Optional flag bundle must
+    # not contain ``r``/``R`` (the negative lookahead) -- recursive deletes
+    # stay governed by the ASK rule above and its temp-path ALLOW exception.
+    # Target must not start with ``-`` so a stray flag can't masquerade as
+    # the file. Single-file only -- multi-file falls through to the human.
+    r"^rm(?:\s+-(?![a-zA-Z]*[rR])[a-zA-Z]+)?\s+[^-\s]\S*\s*$",
 )
 
 _DENY_RE = [re.compile(p, re.I) for p in DENY_PATTERNS]

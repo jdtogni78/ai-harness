@@ -153,6 +153,53 @@ class StaticDecisionTest(unittest.TestCase):
                 d, _r, _t, risk = static_decision("Bash", cmd)
                 self.assertEqual((d, risk), (ASK, ORANGE))
 
+    def test_bare_rm_of_a_single_file_is_green(self):
+        # Non-recursive ``rm <file>`` is routine cleanup -- escalating it
+        # stranded auto-spawned workers on every test/script tempfile delete.
+        # Allowed flag bundles are anything that does NOT include r/R; the
+        # target must not start with ``-`` so flags can't sneak in as files.
+        for cmd in (
+            "rm foo.txt",
+            "rm ./build.log",
+            "rm /tmp/junk",            # also covered by the recursive-temp rule
+            "rm -f foo.txt",           # -f without r is non-recursive
+            "rm -v foo.txt",           # other plain flags
+            "rm -fv foo.txt",          # bundled flags, still no r/R
+        ):
+            with self.subTest(cmd=cmd):
+                d, _r, _t, risk = static_decision("Bash", cmd)
+                self.assertEqual((d, risk), (ALLOW, GREEN))
+
+    def test_bare_rm_with_recursive_flag_still_asks(self):
+        # Mirror: as soon as r/R appears in the flag bundle the new ALLOW
+        # rule must NOT match -- the recursive ASK rule (and its temp-path
+        # exception) is back in charge.
+        for cmd in (
+            "rm -r foo",
+            "rm -R foo",
+            "rm -rf foo",
+            "rm -fr foo",
+            "rm -Rf foo",
+        ):
+            with self.subTest(cmd=cmd):
+                d, _r, _t, risk = static_decision("Bash", cmd)
+                self.assertEqual((d, risk), (ASK, ORANGE))
+
+    def test_bare_rm_does_not_override_root_deny(self):
+        # The DENY rule fires before ALLOW, so ``rm -rf /`` and friends must
+        # still hard-block even though we widened the allow list.
+        for cmd in ("rm -rf /", "rm -rf ~", "rm -rf $HOME"):
+            with self.subTest(cmd=cmd):
+                d, _r, _t, risk = static_decision("Bash", cmd)
+                self.assertEqual((d, risk), (DENY, RED))
+
+    def test_bare_rm_chained_with_risky_segment_still_asks(self):
+        # All-segments-allow composability: a safe ``rm`` prefix can't smuggle
+        # an unvetted command after ``&&``. ``git push`` trips the ASK rule
+        # for the whole subject, so the chained command escalates.
+        d, _r, _t, _risk = static_decision("Bash", "rm foo && git push origin main")
+        self.assertEqual(d, ASK)
+
     def test_gh_readonly_surface_is_green(self):
         # The static-allow has to cover the read-only `gh` calls the skills
         # actually use, otherwise PERM_GATE_ENFORCE_AI=1 binds them to ASK.
