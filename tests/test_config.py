@@ -81,6 +81,20 @@ class SupervisorConfigTest(unittest.TestCase):
         c = SupervisorConfig.from_env({"RESUME_ON_RESTART_PERM_MODE": "plan"})
         self.assertEqual(c.handoff_perm_mode, "plan")
 
+    def test_spawn_stagger_default_is_one_second(self):
+        # The whole-tick-of-spawns thundering herd was the 2026-06-01 finding;
+        # the default must be a positive value or the mitigation is silently
+        # off on every new install. 1s is small enough to be invisible on
+        # steady state (no spawns happening) and large enough to serialize
+        # the cloud-side server-registration requests on cold start.
+        self.assertEqual(SupervisorConfig.from_env({}).spawn_stagger_secs, 1.0)
+
+    def test_spawn_stagger_env_override(self):
+        for raw, want in (("0", 0.0), ("0.25", 0.25), ("3", 3.0)):
+            with self.subTest(raw=raw):
+                c = SupervisorConfig.from_env({"SPAWN_STAGGER_SECS": raw})
+                self.assertEqual(c.spawn_stagger_secs, want)
+
 
 class HostNicknamePrecedenceTest(unittest.TestCase):
     """The strict env > file > derive precedence from #32. Each test pins one

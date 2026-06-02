@@ -137,6 +137,18 @@ class SupervisorConfig:
     # via ``RESUME_ON_RESTART_PERM_MODE`` -- any value ``claude
     # --permission-mode`` accepts works (acceptEdits, plan, etc.).
     handoff_perm_mode: str
+    # Seconds to sleep between consecutive ``_spawn()`` calls in a single
+    # tick. On supervisor cold-start every supervised dir has no pid yet, so
+    # without a gap the tick fires ``proc.spawn`` for all N dirs within the
+    # same millisecond and the cloud-side server-registration endpoint 429s
+    # every request but the first (observed in a live restart test as
+    # ``rc=1 -> Registration: Rate limited`` lines in the supervisor log, one
+    # per Nth spawn; the ``_reap`` exit-code log is what made the pattern
+    # visible). The gap is skipped before the first spawn and for recycles
+    # (which already serialize one-server-per-tick), so steady-state cost is
+    # zero. 0 (or negative) disables the sleep -- which is what every existing
+    # test that injects ``sleep=lambda s: None`` already sees.
+    spawn_stagger_secs: float
 
     @classmethod
     def from_env(cls, env: Optional[Mapping[str, str]] = None) -> "SupervisorConfig":
@@ -159,6 +171,7 @@ class SupervisorConfig:
                 str(Path(env.get("HOME", str(Path.home()))) / ".ai-harness"))),
             resume_ttl_hours=int(env.get("RESUME_TTL_HOURS", "24")),
             handoff_perm_mode=env.get("RESUME_ON_RESTART_PERM_MODE", "bypassPermissions"),
+            spawn_stagger_secs=float(env.get("SPAWN_STAGGER_SECS", "1.0")),
         )
 
     @property

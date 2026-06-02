@@ -153,11 +153,21 @@ class Supervisor:
         self._reap()
         allowlist = self._allowlist()
         wanted: Set[str] = set()
+        spawn_count = 0
         for srv in self._discover(allowlist):
             wanted.add(srv.name)
             pid = self.proc.server_pid(srv.name)
             if pid is None:
+                # Stagger consecutive first-starts: a cold supervisor with N
+                # supervised dirs would otherwise call proc.spawn N times in the
+                # same millisecond, and the cloud-side server-registration
+                # endpoint 429s every request but the first (see
+                # SupervisorConfig.spawn_stagger_secs). Skip before the first
+                # spawn -- the gap only matters between siblings.
+                if spawn_count and self.cfg.spawn_stagger_secs > 0:
+                    self._sleep(self.cfg.spawn_stagger_secs)
                 self._spawn(srv, now)
+                spawn_count += 1
                 continue
             self.last_busy.setdefault(srv.name, now)  # adopt: clock starts now
             cap = self.proc.read_capacity(self.cfg.logdir / f"{srv.name}.log")

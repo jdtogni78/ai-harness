@@ -410,5 +410,79 @@ class SupervisorMainArgvTest(unittest.TestCase):
         fake_sup.return_value.run.assert_called_once()
 
 
+class SpawnStaggerTest(unittest.TestCase):
+    """Cold-start the supervisor with N dirs all missing pids -- without the
+    stagger, ``tick()`` fires ``proc.spawn`` N times in the same millisecond
+    and the cloud-side server-registration endpoint 429s every request but
+    the first (caught in a live restart test as ``rc=1 -> Registration: Rate
+    limited`` lines made visible by the new ``_reap`` exit-code log). With
+    the stagger we sleep ``cfg.spawn_stagger_secs`` between siblings -- not
+    before the first, not at all in steady state.
+    """
+
+    def _make(self, stagger_secs, n_dirs=3, host="mm"):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        dev = root / "dev"
+        names = [f"App{i}" for i in range(n_dirs)]
+        for name in names:
+            (dev / name).mkdir(parents=True)
+        active = root / "active-dirs.txt"
+        active.write_text("\n".join(names) + "\n")
+        cfg = SupervisorConfig.from_env({
+            "REMOTE_CONTROL_DEV": str(dev),
+            "REMOTE_CONTROL_LOGDIR": str(root / "logs"),
+            "REMOTE_CONTROL_ACTIVE_FILE": str(active),
+            "REMOTE_CONTROL_HOST": host,
+            "GRACE_SECS": "1",
+            "DEACTIVATE_MIN_STRIKES": "1",
+            "SPAWN_STAGGER_SECS": stagger_secs,
+        })
+        proc = FakeProc()
+        logs: list = []
+        sleeps: list = []
+        sup = Supervisor(cfg, proc=proc, log=logs.append, sleep=sleeps.append)
+        return sup, proc, sleeps
+
+    def test_stagger_inserted_between_siblings_not_before_first(self):
+        # 3 missing -> 3 spawns, 2 staggers (between 1<->2 and 2<->3).
+        sup, proc, sleeps = self._make("1.5", n_dirs=3)
+        sup.tick(now=0)
+        self.assertEqual(len(proc.spawned), 3)
+        self.assertEqual(sleeps, [1.5, 1.5])
+
+    def test_no_stagger_for_single_spawn(self):
+        # 1 missing -> 1 spawn, 0 staggers. The first spawn is never preceded
+        # by a sleep: there's no thundering-herd to mitigate when only one
+        # request is going out.
+        sup, proc, sleeps = self._make("1.0", n_dirs=1)
+        sup.tick(now=0)
+        self.assertEqual(len(proc.spawned), 1)
+        self.assertEqual(sleeps, [])
+
+    def test_steady_state_costs_no_sleep(self):
+        # All servers already adopted (pre-existing pids) -> no spawns, so no
+        # staggers. The mitigation is zero-cost in the common case.
+        sup, proc, sleeps = self._make("1.0", n_dirs=3)
+        for i in range(3):
+            name = f"mm-App{i}"
+            proc.pids[name] = 1000 + i
+            proc._alive.add(1000 + i)
+            proc.caps[name] = 0  # idle, no recycle since idle_recycle_secs huge
+        sup.tick(now=0)
+        self.assertEqual(proc.spawned, [])
+        self.assertEqual(sleeps, [])
+
+    def test_zero_stagger_disables_sleep(self):
+        # Operators with a fast-recovering cloud-side -- or tests that
+        # don't want to mock sleep -- can disable the mitigation by setting
+        # SPAWN_STAGGER_SECS=0. Spawns still happen; sleep just doesn't.
+        sup, proc, sleeps = self._make("0", n_dirs=3)
+        sup.tick(now=0)
+        self.assertEqual(len(proc.spawned), 3)
+        self.assertEqual(sleeps, [])
+
+
 if __name__ == "__main__":
     unittest.main()
