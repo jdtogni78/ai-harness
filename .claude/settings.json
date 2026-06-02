@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m remote_control sessions list*)",
+      "Bash(rm:*)"
+    ]
+  }
+}
