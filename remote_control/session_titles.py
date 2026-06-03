@@ -838,7 +838,7 @@ USAGE = (
     "usage: python3 -m remote_control titles [list|apply] [--dev DIR] "
     "[--projects-dir DIR] [--nicknames-file PATH] [--map repo=NICK,...] "
     "[--only REPO] [--all]\n"
-    "       python3 -m remote_control titles set [--self|--id CSE_ID] \"<description>\"\n"
+    "       python3 -m remote_control titles set [--self|--id CSE_ID] [--sub SUB] \"<description>\"\n"
     "       python3 -m remote_control titles watch [--interval SECS]\n"
     "  list  (default): show the planned [NICK] title prefixes (no writes)\n"
     "  apply         : PUT the changed titles\n"
@@ -857,6 +857,10 @@ USAGE = (
     "                  see it as a local bridge -- the escape hatch for\n"
     "                  sessions whose worktree lives outside the scanned\n"
     "                  dev roots\n"
+    "                  --sub SUB: emit the chained '[NICK][SUB] desc' form\n"
+    "                  so the watcher's extract_sub_token preserves SUB on\n"
+    "                  subsequent re-renders. Used by manager sessions to\n"
+    "                  tag themselves '[MGR-N]' (active worker count).\n"
     "  --projects-dir DIR : Claude Code transcript root (default ~/.claude/\n"
     "    projects). Repo is derived from a session's transcript-dir name when\n"
     "    its bridge worktree has been deleted but the transcript folder remains.\n"
@@ -874,7 +878,7 @@ def _parse_args(argv: List[str]) -> dict:
     opts = {"cmd": "list", "dev": DEV, "file": NICKNAMES_FILE,
             "map": "", "only": None, "self": False, "id": None, "desc": "",
             "projects": PROJECTS_DIR, "logdir": LOGDIR, "all": False,
-            "force_host": False, "interval": 0}
+            "force_host": False, "sub": None, "interval": 0}
     desc: List[str] = []
     i = 0
     while i < len(argv):
@@ -903,6 +907,8 @@ def _parse_args(argv: List[str]) -> dict:
             i += 1; opts["id"] = argv[i]
         elif a == "--force-host":
             opts["force_host"] = True
+        elif a == "--sub":
+            i += 1; opts["sub"] = argv[i]
         elif a in ("-h", "--help"):
             opts["cmd"] = "help"
         elif not a.startswith("-"):
@@ -976,9 +982,10 @@ def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
             branch = git_branch(wt)
         vals = session_values({"id": sid}, repo, nmap, host=host_nickname(),
                               host_local=host_local, branch=branch)
-        title = apply_prefix(desc, render_prefix(template, vals))
+        title = apply_prefix(desc, render_prefix(template, vals),
+                             sub=opts.get("sub"))
     else:
-        title = desc
+        title = (f"[{opts['sub']}] {desc}" if opts.get("sub") else desc)
     code, body = set_title(cfg, token, sid, title)
     if code == 200:
         print(f"set {sid} -> {title!r}")
