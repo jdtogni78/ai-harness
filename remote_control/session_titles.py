@@ -111,22 +111,37 @@ MM_LOG_TAIL_BYTES = 64_000
 DEFAULT_TITLE_FORMAT = "{nick}.{host}"
 
 # A title prefix we own: ONE OR MORE bracketed tokens (any chars but a closing
-# `]`) at the very start, then whitespace. The format template is
-# user-configurable, so this must strip ANY separator it could emit (``.`` ``/``
-# ``@`` ``:`` ...) or a re-run would stack instead of replace. The chained form
-# (``[NICK.host][SUB] desc``) is how new-session tags its spawned subsessions
-# with an extra ``[SUB]`` bracket while still letting the watcher own the outer
-# ``[NICK.host]``; extract_sub_token reads the second bracket back so plan_renames
-# can preserve it across passes. The <=64 cap (per bracket) is the one guard that
-# keeps us from eating a long bracketed sentence a human happens to start a title
-# with.
-_PREFIX_RE = re.compile(r"^(?:\[[^\]]{1,64}\])+\s+")
+# `]`) at the very start, separated by OPTIONAL whitespace, followed by
+# whitespace. The format template is user-configurable, so this must strip ANY
+# separator it could emit (``.`` ``/`` ``@`` ``:`` ...) or a re-run would stack
+# instead of replace. The chained form (``[NICK.host][SUB] desc``) is how
+# new-session tags its spawned subsessions with an extra ``[SUB]`` bracket
+# while still letting the watcher own the outer ``[NICK.host]``;
+# extract_sub_token reads the last leading bracket back so plan_renames can
+# preserve it across passes.
+#
+# The optional inter-bracket whitespace (``\s*``) and the trailing
+# ``(?<=\s)`` lookbehind together let the watcher self-heal the
+# duplicated-prefix form (``[A] [A][B] body``) that accumulates when the
+# platform's auto-titler races our PUT: the watcher's own apply_prefix
+# stacks ``[NICK] `` on top of an unstripped ``[NICK][SUB]`` carry-over.
+# Before this tolerance, strip_prefix consumed only the first ``[A] ``,
+# extract_sub_token saw no adjacent bracket pair, and apply_prefix was
+# idempotent on the dup -- so the watcher considered the title "correct"
+# and never PUT a fix.
+#
+# The <=64 cap (per bracket) is the one guard that keeps us from eating
+# a long bracketed sentence a human happens to start a title with. The
+# ``(?<=\s)`` lookbehind keeps us from stripping ``[A]body`` (no
+# separator between prefix and content); without it, ``\s*`` would
+# happily match zero whitespace and consume the bracket.
+_PREFIX_RE = re.compile(r"^(?:\[[^\]]{1,64}\]\s*)+(?<=\s)")
 # Single-bracket form: used where we ONLY care about the outermost bracket
 # (e.g. existing_prefix_host, which reads the [NICK.host] claim segment).
 _PREFIX_RE_FIRST = re.compile(r"^\[[^\]]{1,64}\]")
-# Read the SECOND bracket's contents in a chained-prefix title.
-# ``[NICK.host][SUB] desc`` -> ``SUB``; a single-bracket title yields None.
-_SUB_TOKEN_RE = re.compile(r"^\[[^\]]{1,64}\]\[([^\]]{1,64})\]\s+")
+# One leading bracket-group (with optional preceding whitespace); used to
+# iteratively walk the leading bracket sequence in extract_sub_token.
+_LEADING_BRACKET_RE = re.compile(r"\s*\[([^\]]{1,64})\]")
 
 # Separators the title-format template can emit between tokens. Used to split an
 # existing ``[NICK.HOST] ...`` prefix back into its segments so a self-heal pass
@@ -266,13 +281,43 @@ def strip_prefix(title: str) -> str:
 
 
 def extract_sub_token(title: str) -> Optional[str]:
-    """The contents of the SECOND bracket in a chained ``[A][B] desc`` prefix,
-    or None if the title has at most one leading bracket. Lets
-    :func:`plan_renames` preserve a subname tag the watcher itself doesn't
-    know -- the only authoritative source is the title it's currently looking
-    at, set there by ``new-session --subname`` at spawn time."""
-    m = _SUB_TOKEN_RE.match(title or "")
-    return m.group(1) if m else None
+    """The contents of the LAST leading bracket in a chained
+    ``[A][B] desc`` or ``[A] [A][B] desc`` prefix, or None if the title has
+    at most one leading bracket. Lets :func:`plan_renames` preserve a
+    subname tag the watcher itself doesn't know -- the only authoritative
+    source is the title it's currently looking at, set there by
+    ``new-session --subname`` at spawn time.
+
+    Tolerates space-separated leading brackets so the watcher self-heals
+    the duplicated-prefix form (``[NICK] [NICK][SUB] desc``) that
+    accumulates when the platform's auto-titler races our PUT mid-pass.
+    With 3+ leading brackets, the first N-1 are assumed to be stacked
+    NICK forms (our own apply_prefix re-prepending on top of an
+    unstripped carry-over) and the LAST is the SUB -- e.g.
+    ``[NICK] [NICK] [NICK][SUB]`` -> ``SUB``. The trailing whitespace
+    requirement (lookbehind) means the leading bracket-run must end at
+    a word boundary; ``[A][B]nospace`` returns None just like
+    strip_prefix leaves it alone."""
+    text = title or ""
+    # Anchor at the start and walk one leading bracket-group at a time.
+    brackets: List[str] = []
+    pos = 0
+    while True:
+        m = _LEADING_BRACKET_RE.match(text, pos)
+        if not m:
+            break
+        brackets.append(m.group(1))
+        pos = m.end()
+    # 0 or 1 leading bracket -> no chained sub.
+    if len(brackets) < 2:
+        return None
+    # The leading bracket-run must end at whitespace (matches strip_prefix
+    # so the two helpers agree on what counts as a prefix). Without this,
+    # ``[A][B]nospace`` would return ``B`` while strip_prefix leaves the
+    # title untouched -- plan_renames would then drop the [B] body.
+    if pos >= len(text) or not text[pos].isspace():
+        return None
+    return brackets[-1]
 
 
 def existing_prefix_host(title: str) -> Optional[str]:
