@@ -7,10 +7,15 @@ move it in sync with `page.mouse.move(...)`.
 
 CURSOR_CSS = """
 #__narrate_cursor {
-  position: fixed; top: 0; left: 0; width: 22px; height: 22px;
-  background: radial-gradient(circle at 6px 6px, #ff3b30 0%, #c1272d 65%, transparent 75%);
+  position: fixed; top: 0; left: 0; width: 18px; height: 18px;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(255,255,255,0.92) 0%,
+    rgba(255,255,255,0.55) 55%,
+    transparent 75%);
   border-radius: 50%; pointer-events: none; z-index: 2147483647;
-  box-shadow: 0 0 14px 5px rgba(255,59,48,0.55);
+  box-shadow:
+    0 0 0 1.25px rgba(0,0,0,0.45),
+    0 1px 6px 2px rgba(0,0,0,0.22);
   transition: transform 0.08s linear;
   transform: translate(-9999px, -9999px);
 }
@@ -29,7 +34,8 @@ INIT_SCRIPT = r"""
     dot.id = '__narrate_cursor';
     document.body.appendChild(dot);
     window.__narrateMoveCursor = function (x, y) {
-      dot.style.transform = 'translate(' + (x - 11) + 'px,' + (y - 11) + 'px)';
+      var half = (dot.offsetWidth || 18) / 2;
+      dot.style.transform = 'translate(' + (x - half) + 'px,' + (y - half) + 'px)';
     };
   }
   install();
