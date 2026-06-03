@@ -127,6 +127,113 @@ class PrefixTest(unittest.TestCase):
         # (the host segment lives in the FIRST bracket; SUB is a sibling).
         self.assertEqual(existing_prefix_host("[CRC.mini][SUB] x"), "mini")
 
+    # ------------------------------------------------------------------
+    # Duplicated-prefix self-healing (issue #69).
+    #
+    # The platform's auto-titler can race the watcher's PUT and leave the
+    # title in a space-separated bracket form. The watcher's own
+    # apply_prefix then stacks ``[NICK] `` on top, producing
+    # ``[NICK] [NICK][SUB] body``. Before the fix, strip_prefix consumed
+    # only the first ``[NICK] ``, extract_sub_token returned None, and
+    # apply_prefix was idempotent on the dup -- watcher considered it
+    # "correct" and never PUT a fix. These tests lock in the tolerance.
+    # ------------------------------------------------------------------
+    def test_strip_dup_prefix_form(self):
+        # The two-bracket dup form the issue surfaced: watcher must strip
+        # both bracket-groups (with the inter-bracket space) so the body
+        # round-trips to the unprefixed form.
+        self.assertEqual(
+            strip_prefix("[FF.mini] [FF.mini][MGR-1] Managing 1 worker"),
+            "Managing 1 worker")
+
+    def test_strip_triple_dup_prefix_form(self):
+        # Multi-pass accumulation: every watcher tick that doesn't strip
+        # the carry-over stacks one more [NICK] on top.
+        self.assertEqual(
+            strip_prefix("[AH.mini] [AH.mini] [AH.mini][mgr-board14] auto-spawned"),
+            "auto-spawned")
+
+    def test_strip_space_separated_two_brackets_without_sub(self):
+        # Edge: a title that genuinely begins with two unrelated bracketed
+        # tokens separated by a space. The strip is still applied (we can't
+        # distinguish this from a dup at this layer); apply_prefix replaces
+        # them with the canonical [NICK] form. This trades a (rare) human
+        # title quirk for the (common) self-heal pass working.
+        self.assertEqual(strip_prefix("[A] [B] body"), "body")
+
+    def test_strip_does_not_eat_bracket_without_separator(self):
+        # ``[A][B]nospace`` -- no whitespace between the bracket-run and
+        # the body -- must be left alone, same as today's behavior. The
+        # lookbehind guard makes this hold even when the regex iterates
+        # multiple bracket-groups.
+        title = "[A][B]nospace"
+        self.assertEqual(strip_prefix(title), title)
+
+    def test_strip_leaves_bare_title_unchanged(self):
+        self.assertEqual(strip_prefix("body"), "body")
+        self.assertEqual(strip_prefix(""), "")
+
+    def test_extract_sub_from_dup_form(self):
+        # 3 leading brackets: first two are the dup of [NICK]; the last
+        # is the SUB that new-session set at spawn time. The watcher
+        # re-emits the chained form against the canonical [NICK].
+        self.assertEqual(
+            extract_sub_token("[FF.mini] [FF.mini][MGR-1] Managing 1 worker"),
+            "MGR-1")
+
+    def test_extract_sub_from_triple_dup_form(self):
+        # 4 leading brackets: pick the last as the SUB.
+        self.assertEqual(
+            extract_sub_token("[AH.mini] [AH.mini] [AH.mini][mgr-board14] body"),
+            "mgr-board14")
+
+    def test_extract_sub_from_clean_chained_form(self):
+        # The non-dup case still works (this is the test_extract_sub_token
+        # path; duplicated here as an explicit baseline for the edge tests).
+        self.assertEqual(extract_sub_token("[CRC.mini][deadbeef] body"), "deadbeef")
+
+    def test_extract_sub_from_space_separated_two_brackets(self):
+        # Edge: ``[A] [B] body`` -- two leading brackets, space between
+        # them. With only 2 brackets the heuristic can't tell "A is a
+        # stacked dup of NICK, B is the SUB" apart from "A is one tag, B
+        # is another tag". We treat the LAST as the SUB regardless, so
+        # the self-heal path covers the dup case; the cost is that a
+        # human-written ``[A] [B] body`` re-renders to ``[NICK][B] body``
+        # on the watcher's next pass. Documented heuristic, not a bug.
+        self.assertEqual(extract_sub_token("[A] [B] body"), "B")
+
+    def test_extract_sub_none_for_single_bracket(self):
+        self.assertIsNone(extract_sub_token("[CRC.mini] body"))
+        self.assertIsNone(extract_sub_token("[A] body"))
+
+    def test_extract_sub_none_for_bare_title(self):
+        self.assertIsNone(extract_sub_token("body"))
+        self.assertIsNone(extract_sub_token(""))
+        self.assertIsNone(extract_sub_token(None))
+
+    def test_extract_sub_none_when_brackets_not_followed_by_space(self):
+        # Mirror of test_strip_does_not_eat_bracket_without_separator:
+        # extract_sub_token and strip_prefix must agree on what counts as
+        # a leading prefix. Otherwise plan_renames would drop the [B]
+        # body on a title that strip_prefix leaves untouched.
+        self.assertIsNone(extract_sub_token("[A][B]nospace"))
+
+    def test_apply_prefix_heals_dup_form(self):
+        # End-to-end: watcher's apply_prefix on the dup form must collapse
+        # back to the canonical chained form. This is the round-trip the
+        # whole fix is about -- without it, plan_renames produces a
+        # changed=False rename and the dup persists.
+        dup = "[FF.mini] [FF.mini][MGR-1] Managing 1 worker"
+        sub = extract_sub_token(dup)
+        self.assertEqual(apply_prefix(dup, "FF.mini", sub=sub),
+                         "[FF.mini][MGR-1] Managing 1 worker")
+
+    def test_apply_prefix_heals_triple_dup_form(self):
+        dup = "[AH.mini] [AH.mini] [AH.mini][mgr-board14] auto-spawned"
+        sub = extract_sub_token(dup)
+        self.assertEqual(apply_prefix(dup, "AH.mini", sub=sub),
+                         "[AH.mini][mgr-board14] auto-spawned")
+
 
 class RepoDerivationTest(unittest.TestCase):
     def test_basename_from_url(self):
@@ -455,6 +562,32 @@ class PlanRenamesTest(unittest.TestCase):
         self.assertEqual(plan["cse_bridge"].new_title,
                          "[CRC.mini][deadbeef] cloud auto-renamed this")
         self.assertFalse(plan["cse_bridge"].changed)
+
+    def test_plan_self_heals_dup_prefix_form(self):
+        # Issue #69 regression: a title that has accumulated the dup form
+        # ``[CRC.mini] [CRC.mini][SUB] body`` must round-trip to the
+        # canonical chained form on the next pass. Before the fix
+        # extract_sub_token returned None and apply_prefix was idempotent
+        # on the dup -> changed=False -> watcher never PUT a fix.
+        sessions = [{"id": "cse_bridge",
+                     "title": "[CRC.mini] [CRC.mini][deadbeef] body",
+                     "config": {}}]
+        plan = {r.id: r for r in plan_renames(
+            sessions, self.index, self.nmap, host="mini")}
+        self.assertTrue(plan["cse_bridge"].changed,
+                        f"watcher must self-heal dup form: {plan['cse_bridge']}")
+        self.assertEqual(plan["cse_bridge"].new_title,
+                         "[CRC.mini][deadbeef] body")
+
+    def test_plan_self_heals_triple_dup_prefix_form(self):
+        sessions = [{"id": "cse_bridge",
+                     "title": "[CRC.mini] [CRC.mini] [CRC.mini][deadbeef] body",
+                     "config": {}}]
+        plan = {r.id: r for r in plan_renames(
+            sessions, self.index, self.nmap, host="mini")}
+        self.assertTrue(plan["cse_bridge"].changed)
+        self.assertEqual(plan["cse_bridge"].new_title,
+                         "[CRC.mini][deadbeef] body")
 
     def test_id_and_shortid_tokens_render_for_any_session(self):
         plan = {r.id: r for r in plan_renames(
