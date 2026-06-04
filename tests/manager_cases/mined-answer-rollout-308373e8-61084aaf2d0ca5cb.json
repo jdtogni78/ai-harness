@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-308373e8-61084aaf2d0ca5cb",
+  "sig": "answer:rollout-308373e8:61084aaf2d0ca5cb",
+  "captured_at": "2026-06-04T01:18:03+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 308373e8-3489-424d-9284-aab475aa2003.jsonl turn #165",
+  "input": {
+    "action": {
+      "session_id": "rollout-308373e8",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "Where should I add 'consult the web for these standard conventions' guidance?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01DAzJvDjHEVYv1f8QXStsyU",
+        "description": "",
+        "questions": [
+          {
+            "question": "Where should I add 'consult the web for these standard conventions' guidance?",
+            "header": "Web-research guidance",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Edit the 4 umbrella drafts only (Recommended)",
+                "description": "Add a 'Research conventions' section to each umbrella (4 edits). Sub-tickets inherit context because they all link back to the umbrella. Lightest touch, lowest noise."
+              },
+              {
+                "label": "Edit every sub-ticket body (42 edits)",
+                "description": "Each ticket gets its own per-doc research pointer (C4/arc42 for ARCH, STRIDE for SECURITY, ADR templates for DECISIONS, etc.). Most thorough; high API volume; touches every issue."
+              },
+              {
+                "label": "Add one comment to each umbrella + each ticket",
+                "description": "Don't edit the original bodies \u2014 add a uniform comment instead. Preserves the original ticket text but adds visible guidance. ~46 comments."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "42 tickets filed, 4 umbrellas on the boards. One transient GraphQL EOF on FamilyFund INTEGRATIONS.md \u2014 let me check whether the issue actually landed (gh sometimes errors after a successful create) and retry if not."
+      },
+      {
+        "role": "assistant",
+        "text": "INTEGRATIONS issue didn't land. I'll recreate it, then patch the umbrella draft to fix the garbage line."
+      },
+      {
+        "role": "assistant",
+        "text": "All tickets filed. Saving a brief project memory so future sessions know about the in-flight cluster."
+      },
+      {
+        "role": "assistant",
+        "text": "All done. Summary:\n\n## What was filed\n\n**Board #1 (Trading & Fund)** \u2014 32 issues + 3 umbrella drafts:\n- **dstrader** #23\u201333 (11 issues)\n- **dstrader-docker** #17\u201326 (10 issues)\n- **FamilyFund** #56\u201366 (11 issues; #66 was a retry after a GraphQL EOF \u2014 umbrella was patched to link the real URL)\n\n**Board #2 (Remote Control)** \u2014 10 issues + 2 drafts:\n- **ai-harness** #17\u201326 (10 issues)\n- `[meta] schedule quarterly memory-bank docs review across all 4 repos`\n\nEach repo has an umbrella draft on its board with a checklist linking all its sub-tickets, so you can see the cluster at a glance.\n\n## Pattern picked (from research)\n\n`docs/` folder + root `AGENTS.md` as the agent-readable index (2025/2026 standard, co-promoted by OpenAI/Google/Anthropic/JetBrains); CLAUDE.md becomes a thin pointer. Per-repo docs cover ARCHITECTURE, DATABASE (where applicable), OPERATIONS, DEVELOPMENT, SECURITY, DOMAIN_GLOSSARY, INTEGRATIONS, DECISIONS (ADR index), plus repo-specific subsystem docs. Cline-style `activeContext`/`progress` files were deliberately skipped \u2014 they drift when checked in.\n\n## Side notes\n- A memory note was saved so future sessions know the cluster exists and to check umbrellas before writing arch docs.\n- `GITHUB_PROJECTS.md` still names this repo `dstrader-aws`; actual remote is `dstrader-docker`. Flagged in the dstrader-docker umbrella for ride-along cleanup.\n\nSources:\n- [How to write a great agents.md \u2014 GitHub Blog](https://github.blog/ai-and-ml/github-copilot/how-to-write-a-great-agents-md-lessons-from-over-2500-repositories/)\n- [AGENTS.md \u2014 The File Every AI-Assisted Codebase Should Have](https://medium.com/@satish24sp/agents-md-the-file-every-ai-assisted-codebase-should-have-24490170e765)\n- [Cline Memory Bank docs](https://docs.cline.bot/prompting/cline-memory-bank)\n- [Effective architecture documentation with arc42 and C4](https://www.linkedin.com/pulse/effective-architecture-documentation-arc42-c4-torsten-mosis)\n- [Claude Code Memory Management Guide 2026](https://medium.com/data-science-collective/claude-code-memory-management-the-complete-guide-2026-b0df6300c4e8)"
+      },
+      {
+        "role": "user",
+        "text": "all done with documentation? are the tickets insturcted to research the web?"
+      },
+      {
+        "role": "assistant",
+        "text": "Two honest answers:\n\n**1. Documentation itself: not done.** You said \"issue as tickets and not really do the work right now\" \u2014 so the 42 doc tickets are filed but no doc has been written yet. Each ticket is ready to be picked up (by a sub-agent, another session, or yourself).\n\n**2. Web-research instruction: no, the tickets don't say to research the web.** The current Style block says \"1-3 pages, concise, fact-rich, link to code with `path:line` refs, mermaid welcome\" \u2014 that implicitly biases toward the repo as primary source. Standard frameworks worth consulting (C4 / arc42 for ARCHITECTURE, ADR templates for DECISIONS, STRIDE for SECURITY threat-modeling, finance/trading glossaries) are *not* called out anywhere.\n\nWant me to add a \"Research conventions to consult\" section? Three sensible scopes:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Edit the 4 umbrella drafts only (Recommended)"
+  }
+}

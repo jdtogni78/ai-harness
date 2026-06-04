@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-308373e8-2b4398aa5e5de5e5",
+  "sig": "answer:rollout-308373e8:2b4398aa5e5de5e5",
+  "captured_at": "2026-06-04T01:18:03+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 308373e8-3489-424d-9284-aab475aa2003.jsonl turn #40",
+  "input": {
+    "action": {
+      "session_id": "rollout-308373e8",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "How should I split the work into tickets per repo?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01BbakLS5o4B4bdcrPwwKpo1",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I split the work into tickets per repo?",
+            "header": "Ticket granularity",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "One ticket per doc (Recommended)",
+                "description": "~7-9 tickets per repo (\u224830 total). Each ticket = one MD file. Easy to parallelize across agents, easy to mark Done. Higher board volume."
+              },
+              {
+                "label": "One umbrella + per-doc subtasks",
+                "description": "1 umbrella ticket per repo with a checklist of sub-docs inside the body. ~4 board tickets total. Fewer tickets but harder to claim independently from parallel agents."
+              },
+              {
+                "label": "One ticket per repo, single big task",
+                "description": "Just 4 tickets \u2014 'create memory bank for X'. Minimal overhead but easy to underspecify and stall."
+              }
+            ]
+          },
+          {
+            "question": "Where should the docs live in each repo?",
+            "header": "Doc location",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "docs/ folder, AGENTS.md as root index (Recommended)",
+                "description": "Matches the 2025/2026 AGENTS.md standard. CLAUDE.md stays as a thin pointer to AGENTS.md so both tool families work. ai-harness already on this layout."
+              },
+              {
+                "label": ".claude/memory/ folder",
+                "description": "Co-located with Claude config. Cleaner separation of agent-only context vs human docs, but non-standard for non-Claude tools and less discoverable on GitHub."
+              },
+              {
+                "label": "memory-bank/ folder (Cline convention)",
+                "description": "Matches Cline's named convention. Explicit but tool-specific; mixed signal if you're primarily on Claude Code."
+              }
+            ]
+          },
+          {
+            "question": "Should the plan include cross-cutting hygiene tickets to prevent doc drift?",
+            "header": "Drift guards",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Add a 'doc-sync checklist' to CONTRIBUTING / PR template",
+                "description": "Per-repo ticket: add a 'docs updated?' checkbox to PR template + a one-liner in CONTRIBUTING.md."
+              },
+              {
+                "label": "Add a quarterly 'docs review' recurring schedule",
+                "description": "Create a /schedule routine to re-review the memory bank quarterly per repo. Catches drift but adds recurring noise."
+              },
+              {
+                "label": "Skip drift guards for now",
+                "description": "Just create the docs; revisit hygiene later."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I want to... for the four repos that we've been working, uh, the Astrader, the Asstrader Docker, uh, family fund, and AI harness, um, I want to plan to create a memory bank, like, a collection of MD files for the different modules of the system or, like, our our architectory... our our our... architect, uh, architecture, uh, document, uh, database, explanation. So multiple different of these documents that explain the system, uh, procedures, uh, operations. And I wanna have those all checked in into the repositories. But first, I want you to refine this as a plan and actually just issue as tickets and not really do the work right now. You can also research on the web if there are similar approaches that are recommended."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll plan this in stages: research best practices, peek at the four repos to tailor the modules, propose a refined plan, then issue tickets. Let me first load the tools I need."
+      },
+      {
+        "role": "assistant",
+        "text": "Now let me research best practices and inspect the four repos in parallel."
+      },
+      {
+        "role": "assistant",
+        "text": "Good research. Now let me inspect the four repos to understand structure and existing docs."
+      },
+      {
+        "role": "assistant",
+        "text": "I have enough to draft a refined plan. Before I file tickets, two structural choices will affect how I write them.\n\n## Research synthesis\n\nThree patterns dominate the \"memory bank in the repo\" space:\n\n- **AGENTS.md + docs/** (current 2025/2026 standard, co-promoted by OpenAI/Google/Anthropic/JetBrains): root-level `AGENTS.md` is the agent-facing entry point with build/test/style/setup commands; deep topics live in `docs/`.\n- **Cline-style Memory Bank** (`projectbrief.md`, `productContext.md`, `systemPatterns.md`, `techContext.md`, `activeContext.md`, `progress.md`): great for AI continuity, but `activeContext` and `progress` are session-scoped \u2014 awkward to check in long-term.\n- **arc42 / C4** (architecture-only, heavier): solid for the architecture doc itself, overkill as the whole structure.\n\nRecommended hybrid: AGENTS.md (or CLAUDE.md) at root as an index + a curated `docs/` folder with stable, topical files. Avoids Cline's session-state drift problem and matches the de-facto standard.\n\n## Current state across the four repos\n\n- **dstrader** \u2014 Java/Maven. Has CLAUDE.md, README.md; lots of scattered topical MDs at root; `docs/` has only SECRETS/SETUP. Needs consolidation + new core docs.\n- **dstrader-docker** \u2014 Compose orchestration. Has CLAUDE.md; `docs/` has only GPG_FIX and PRODUCTION_PAPER_DISCREPANCY. Architecture/ops largely undocumented.\n- **FamilyFund** \u2014 Laravel. Most mature: CLAUDE.md, AGENTS.md, README.md, `docs/ENGINEERING_DECISIONS.md`, runbooks. Mainly needs *organization* (root MDs \u2192 `docs/`).\n- **ai-harness** \u2014 Python tooling. Already has `docs/ARCHITECTURE.md`, `docs/OPERATIONS.md`, `DECISIONS.md`. Closest to done; just gaps and a skills index.\n\n## Proposed core module set (per repo, tailored)\n\n| Doc | dstrader | dstrader-docker | FamilyFund | ai-harness |\n|---|---|---|---|---|\n| `ARCHITECTURE.md` (C4 context + containers) | new | new | reorg | \u2705 exists, refresh |\n| `DATABASE.md` (schema, conventions, migrations) | new | new (volumes/backup) | new | n/a |\n| `OPERATIONS.md` (runbooks, deploy, logs) | new | new | reorg runbooks | \u2705 exists, refresh |\n| `DEVELOPMENT.md` (setup, build, test) | new | new | reorg | new |\n| `SECURITY.md` (secrets, SOPS+age, threat model) | reorg | new | reorg | new |\n| `DOMAIN_GLOSSARY.md` | new (trading) | n/a | new (fund/accounting) | new (sessions/skills/hooks) |\n| `INTEGRATIONS.md` (external systems) | new (IB/TWS, market data) | new (TWS, MariaDB, jump) | new (banks, dstrader) | new (Claude API, GitHub) |\n| `DECISIONS.md` (ADR index) | new | new | move EngineeringDecisions in | \u2705 exists |\n| Subsystem docs | trading-engine, holiday-sync | tws-container, jump-server, backups | money-flow, credit-lines, ACL | remote-control, session-mgmt, skills |\n\nPlus a root-level `AGENTS.md` (or refreshed `CLAUDE.md`) acting as the index that points into `docs/`.\n\n## Two choices that change the tickets"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "One ticket per doc (Recommended), docs/ folder, AGENTS.md as root index (Recommended), Add a quarterly 'docs review' recurring schedule, Add a 'doc-sync checklist' to CONTRIBUTING / PR template"
+  }
+}

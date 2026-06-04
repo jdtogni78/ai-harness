@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-38da8073-6eea87da22856233",
+  "sig": "answer:rollout-38da8073:6eea87da22856233",
+  "captured_at": "2026-06-04T01:18:03+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 38da8073-d6ff-4877-a73a-0aa09d31f332.jsonl turn #29",
+  "input": {
+    "action": {
+      "session_id": "rollout-38da8073",
+      "repo": "trello-mcp",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/trello-mcp",
+      "question": "What kind of review do you want for trello-mcp?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_019AV1rCr9RpSb9eLnbS1BD8",
+        "description": "",
+        "questions": [
+          {
+            "question": "What kind of review do you want for trello-mcp?",
+            "header": "Review type",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Code quality audit",
+                "description": "Full read of src/: architecture, code smells, error handling, maintainability, test coverage. General health assessment."
+              },
+              {
+                "label": "Security review",
+                "description": "Focus on auth/token handling, input validation, SSRF/injection risks, the HTTP/SSE surface \u2014 it's an MCP server handling Trello API credentials."
+              },
+              {
+                "label": "Adoption eval",
+                "description": "Is it worth using? Maturity, features, dependencies, maintenance status, how it compares to alternatives."
+              },
+              {
+                "label": "Review the v1.7.0 branch",
+                "description": "Diff origin/chore/release-1.7.0 (or another feature branch) against main and review those specific changes."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "review the trello-mcp"
+      },
+      {
+        "role": "assistant",
+        "text": "I'll start by locating the trello-mcp project."
+      },
+      {
+        "role": "assistant",
+        "text": "This is a Trello MCP server project. \"Review\" could mean a few different things here, so let me gather context before deciding how to scope this."
+      },
+      {
+        "role": "assistant",
+        "text": "This is a clone of `delorenj/mcp-server-trello` (not your own account), currently on a detached HEAD at tag v1.6.1 with no open PRs. \"Review\" could mean several different things here, and they'd lead to quite different work \u2014 let me confirm the scope."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Adoption eval"
+  }
+}

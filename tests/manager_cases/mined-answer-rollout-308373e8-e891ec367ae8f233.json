@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-308373e8-e891ec367ae8f233",
+  "sig": "answer:rollout-308373e8:e891ec367ae8f233",
+  "captured_at": "2026-06-04T01:18:03+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 308373e8-3489-424d-9284-aab475aa2003.jsonl turn #477",
+  "input": {
+    "action": {
+      "session_id": "rollout-308373e8",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "How should I re-dispatch the 41 unfinished agents?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Ab6Fr9J3PGmSoFaYmwP5mV",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I re-dispatch the 41 unfinished agents?",
+            "header": "Wave strategy",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Waves of ~6, sequenced (Recommended)",
+                "description": "Launch 6 background agents, wait for completions, then next 6. ~7 waves, each ~5-10 min wall. Total ~45-60 min. Conservative on rate limits, still mostly parallel. I drive the cadence."
+              },
+              {
+                "label": "Waves of ~12, more aggressive",
+                "description": "Faster (3-4 waves) but more likely to hit the same rate-limit wall partway through. May leave more half-finished worktrees."
+              },
+              {
+                "label": "Sequential, one at a time",
+                "description": "Safest \u2014 no rate-limit risk. But slow: 41 \u00d7 ~3-5 min = 2-3 hours, mostly idle wall time."
+              },
+              {
+                "label": "Pause until rate limit clears, then waves of ~10",
+                "description": "Wait ~15 min, then larger waves. Bet that the burst caused the throttle and a cooldown unblocks bigger fan-out."
+              }
+            ]
+          },
+          {
+            "question": "Anything to fix in the brief before re-dispatching?",
+            "header": "Brief tweaks",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Add 'check if doc already committed on this branch, skip if so'",
+                "description": "Idempotency guard \u2014 if an agent retries, it won't redo work. Useful if waves overlap or if you re-dispatch after partial progress."
+              },
+              {
+                "label": "Add 'rate-limit retry: if you hit a rate-limit, wait 60s and retry once'",
+                "description": "Helps agents self-recover from brief throttles instead of giving up entirely."
+              },
+              {
+                "label": "Add 'on completion, also use SendMessage to ping main thread with one-liner'",
+                "description": "Better visibility into per-agent finish vs only seeing notifications. Slightly noisier."
+              },
+              {
+                "label": "No changes \u2014 brief is fine",
+                "description": "Re-dispatch with the existing brief unchanged."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "API Error: Server is temporarily limiting requests (not your usage limit) \u00b7 Rate limited"
+      },
+      {
+        "role": "assistant",
+        "text": "API Error: Server is temporarily limiting requests (not your usage limit) \u00b7 Rate limited"
+      },
+      {
+        "role": "assistant",
+        "text": "API Error: Server is temporarily limiting requests (not your usage limit) \u00b7 Rate limited"
+      },
+      {
+        "role": "assistant",
+        "text": "API Error: Server is temporarily limiting requests (not your usage limit) \u00b7 Rate limited"
+      },
+      {
+        "role": "assistant",
+        "text": "Honest status: **41 of 42 agents got server-rate-limited mid-task; only 1 finished cleanly** (dstrader #33 PR-template hygiene). The harness/Anthropic API throttled the burst."
+      },
+      {
+        "role": "assistant",
+        "text": "What's on disk:\n- **1 ticket done**: dstrader#33 (PR template) \u2014 `76eb34e` on `mb-33-pr-template` worktree, codex-reviewed, ready for inspection.\n- **37 empty worktrees + branches** created on disk before the rate-limit hit. Re-dispatching agents can `cd` straight in (the brief handles \"worktree already exists\").\n- **4 not even started** (no worktree on disk): dstrader-docker #19 (DEPLOYMENT), ai-harness #23 (INTEGRATIONS), ai-harness #25 (subsystem-RC), ai-harness #26 (PR template).\n\nRoot cause: the Anthropic API server-rate-limited the 42-burst within ~60s. Per harness guidance I shouldn't retry-loop blindly. Need a smaller fan-out."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Waves of ~6, sequenced (Recommended), Add 'on completion, also use SendMessage to ping main thread with one-liner', Add 'check if doc already committed on this branch, skip if so'"
+  }
+}

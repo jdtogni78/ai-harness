@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4f824b9d-36e8d84b86186ffb",
+  "sig": "answer:rollout-4f824b9d:36e8d84b86186ffb",
+  "captured_at": "2026-06-04T01:18:03+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4f824b9d-fde1-4b3b-9001-23ea10044aff.jsonl turn #408",
+  "input": {
+    "action": {
+      "session_id": "rollout-4f824b9d",
+      "repo": "familyfund-secrets",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/familyfund-secrets",
+      "question": "Keep the SOP label or rename?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Ccq6mU6ydeyFDHnN5SzRxH",
+        "description": "",
+        "questions": [
+          {
+            "question": "Keep the SOP label or rename?",
+            "header": "Doc label",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Keep SOP (Recommended)",
+                "description": "Matches FF#55's title; standard industry term for a repeatable procedure runbook. Commit + push as `RE-SANITIZATION-SOP.md`."
+              },
+              {
+                "label": "Rename to RE-SANITIZATION-RUNBOOK.md",
+                "description": "Matches the sibling `SECRET-ROTATION-RUNBOOK.md` naming in this same directory. I'll also retitle FF#55 to match."
+              },
+              {
+                "label": "Rename to RE-SANITIZATION-CHECKLIST.md",
+                "description": "Plainer English. Emphasizes the checklist nature."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Adding the missing #19 and #14 to dstrader#1 epic, then refreshing memory."
+      },
+      {
+        "role": "assistant",
+        "text": "Now replying to the other agent via send-to-session."
+      },
+      {
+        "role": "assistant",
+        "text": "Writing the reply to a file, then dry-running so you can see exactly what would be sent."
+      },
+      {
+        "role": "assistant",
+        "text": "Dry-run looks correct: target `cse_01GJ4rEQ4hj6PSbFrs1XcDTb`, my session id auto-embedded as reply-to header. Asking before I send for real."
+      },
+      {
+        "role": "assistant",
+        "text": "Worktree ready at `familyfund-secrets-worktrees/ff-55-sop`. Drafting the SOP now."
+      },
+      {
+        "role": "assistant",
+        "text": "**SOP = Standard Operating Procedure** \u2014 a repeatable, written runbook for a process that gets done the same way every time. I picked the term because it's the standard label for \"checklist you run before a recurring deployment-type action.\" If you'd prefer a different label for this doc (Runbook? Checklist? Sync Procedure?), I can rename it now \u2014 I haven't committed yet.\n\nThe draft is written at `familyfund-secrets-worktrees/ff-55-sop/docs/RE-SANITIZATION-SOP.md` (440 lines, 9 steps, per-family aware, with a \"Findings handling\" + adoption-checklist section). FF#55 itself uses \"SOP\" in its title."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Keep SOP (Recommended)"
+  }
+}
