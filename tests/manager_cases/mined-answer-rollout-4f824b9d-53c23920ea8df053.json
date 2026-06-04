@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4f824b9d-53c23920ea8df053",
+  "sig": "answer:rollout-4f824b9d:53c23920ea8df053",
+  "captured_at": "2026-06-04T01:18:03+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4f824b9d-fde1-4b3b-9001-23ea10044aff.jsonl turn #59",
+  "input": {
+    "action": {
+      "session_id": "rollout-4f824b9d",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "What do you want me to do next with this new 3-tier plan?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01MTxBjA9NbypBNLvRi9HLGS",
+        "description": "",
+        "questions": [
+          {
+            "question": "What do you want me to do next with this new 3-tier plan?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Update the 3 epics to reflect the model",
+                "description": "Edit FamilyFund#36, dstrader#1, dstrader-aws#18 in-place: add a 3-tier section, retitle/repurpose the three 'flip in place' tickets (FamilyFund#10, dstrader#10, dstrader-aws#16) to 'create public-sanitized repo + sync', file the missing archive/SOP tickets. No code changes."
+              },
+              {
+                "label": "Draft the re-sanitization SOP first",
+                "description": "Write the runbook for the periodic private \u2192 public sync (gitleaks --all + scrub-validation greps + manual review window + how to push), so the new tickets reference a concrete process. Then update tickets in a second pass."
+              },
+              {
+                "label": "Just give me a one-page plan doc",
+                "description": "Produce a single markdown doc summarizing the new 3-tier strategy across all 3 families with the gaps and decisions called out, so you can review before any tickets/repos change."
+              },
+              {
+                "label": "Stop here \u2014 status only",
+                "description": "Don't make any changes. The status above is enough for now."
+              }
+            ]
+          },
+          {
+            "question": "For dstrader (Java), do you want a GitHub `dstrader-archive` to match the FamilyFund pattern?",
+            "header": "dstrader archive",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 push the local bundles to a new private `dstrader-archive`",
+                "description": "Create `jdtogni78/dstrader-archive` (private, DO NOT PUBLISH) and push the pre-purge bundles from `~/dev/_repo-backups/`. Mirrors what FamilyFund-archive does."
+              },
+              {
+                "label": "No \u2014 local bundles are enough",
+                "description": "Keep the archive as local-only bundle files. Cheaper but lost if this Mac dies."
+              },
+              {
+                "label": "Defer \u2014 decide later",
+                "description": "Note it as a gap in the epic and revisit."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Can you collect the status of the move to public for all the... for repos? I want to also... I I changed my mind how I wanna manage. I wanna manage it in the following way. I will have the archive repos with what I had before making the public. Like, what what were my repos before, all the cleanups or recreating the the the history without secrets, all all the sanitization. Then we will have one repo that will be the new private repo that is this sanitized version of the previous repos, and we will have one public version that I will only update once in a while after doing sanitization again because when we work on a daily basis that maybe misses on sanitization, so I wanna have a double pass before... or make things public. So I'll have one archive, one private, sanitized, and one public sanitized that is not updated all the time."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's where the go-public effort stands across the three repo families, and how the new 3-tier model maps onto today's state.\n\n## Status by epic (source: GitHub Projects board #1)\n\n| Family | Master tracker | State | Hard gates remaining |\n|---|---|---|---|\n| **FamilyFund** | `FamilyFund#36` | Open, closest to flip | `#20` rotate prod secrets \u00b7 `#10` flip to public \u00b7 `#11` post-flip CodeQL/SARIF |\n| **dstrader** (Java) | `dstrader#1` | Open, mid-flight | A\u2013F pre-prod (`#2\u2013#8`) \u00b7 prod cutover paired with `dstrader-aws#10/#11` \u00b7 human-only flip `dstrader#10` |\n| **dstrader-docker** | `dstrader-aws#18` | Open, earliest | SOPS prod cutover (`#10/#11`), spirit checkout swap (`#15`), de-hardcode compose (`#8`), prod age deploy (`#7`), IB least-priv (`#12`), then flip `#16` + post-flip `#17` |\n\n`FamilyFund#33` (the older human-only-only epic) is already Done \u2014 superseded by `#36`.\n\n## Mapping today's repos onto your new 3-tier model\n\n| Family | (1) Archive | (2) Private sanitized \u2014 daily driver | (3) Public sanitized \u2014 periodic |\n|---|---|---|---|\n| **FamilyFund** | \u2705 `FamilyFund-archive` (+ `FamilyFund-r1-interim`, slated to delete) | \u2705 `FamilyFund` | \u274c **does not exist** \u2014 current plan flips the daily driver itself |\n| **dstrader** | \u26a0\ufe0f only local bundles in `~/dev/_repo-backups/2026-05-25-dstrader-prepurge2/` and `\u2026-prepurge/` \u2014 **no GitHub `dstrader-archive`** | \u2705 `dstrader` | \u274c does not exist |\n| **dstrader-docker** | \u26a0\ufe0f `dstrader-aws` is the de facto dirty origin, still live on spirit's cron \u2014 earmarked to archive *after* `#15/#16` per `dstrader-aws#18` cleanup section | \u2705 `dstrader-docker` | \u274c does not exist |\n\nPlus the always-private companions: `familyfund-secrets`, `dstrader-secrets` (SOPS+age twins + runbooks \u2014 never publish).\n\n## What the strategy change implies\n\n1. **The \"flip the daily driver\" tickets become wrong:** `FamilyFund#10`, `dstrader#10`, `dstrader-aws#16` all say `gh repo edit --visibility public` on the live repo. Under the new model they should be replaced with \"create separate `*-public` repo + sync from sanitized private.\"\n2. **New artifact needed:** a re-sanitization SOP for the periodic private \u2192 public sync (the \"second pass\" \u2014 gitleaks `--all` + the existing scrub-validation grep + a deliberate human review window).\n3. **dstrader has no GitHub archive** \u2014 only local bundles. If you want symmetry with the FamilyFund pattern (and durability beyond this Mac), we'd push those bundles up to a private `dstrader-archive`.\n4. **`dstrader-aws` is doing double duty** (archive + still-live-on-spirit-cron). The spirit-checkout swap (`dstrader-aws#15`) is the prerequisite to fully retiring it as an archive-only thing."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Update the 3 epics to reflect the model, remember that we may already have archived archival repost. If we don\u2019t we can go ahead and create them publish them as private."
+  }
+}

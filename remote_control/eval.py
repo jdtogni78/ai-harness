@@ -555,9 +555,10 @@ def run_eval(*, cases_dir: Path, out_root: Path, guidelines_path: Path,
 # CLI
 # --------------------------------------------------------------------------- #
 USAGE = (
-    "usage: python3 -m remote_control eval <run> [args]\n"
+    "usage: python3 -m remote_control eval <run|mine> [args]\n"
     "  run    Replay every test case under tests/manager_cases/ and score "
     "against expected.\n"
+    "  mine   Backfill ANSWER cases from ~/.claude/projects/*.jsonl rollouts.\n"
 )
 
 
@@ -605,11 +606,15 @@ def _cmd_run(argv: Sequence[str]) -> int:
     return 0
 
 
+def _cmd_mine(argv: Sequence[str]) -> int:
+    from . import eval_mine
+    return eval_mine.main(list(argv))
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    """``python3 -m remote_control eval`` dispatcher. Sub-subcommands today:
-    ``run``. ``mine`` (corpus mining) is intentionally a sibling slot --
-    its module lands in ai-harness#71 and wires in as a one-line append
-    here."""
+    """``python3 -m remote_control eval`` dispatcher. Sub-subcommands:
+    ``run`` (Phase 3 replay+judge, #67) and ``mine`` (Phase 2.5 corpus
+    backfill from local rollouts, #71)."""
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv:
         print(USAGE, file=sys.stderr)
@@ -620,5 +625,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 0
     if sub == "run":
         return _cmd_run(rest)
+    if sub == "mine":
+        return _cmd_mine(rest)
     print(f"unknown eval subcommand: {sub}\n{USAGE}", file=sys.stderr)
     return 2

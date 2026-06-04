@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4f824b9d-54ddb164a7c53376",
+  "sig": "answer:rollout-4f824b9d:54ddb164a7c53376",
+  "captured_at": "2026-06-04T01:18:03+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4f824b9d-fde1-4b3b-9001-23ea10044aff.jsonl turn #248",
+  "input": {
+    "action": {
+      "session_id": "rollout-4f824b9d",
+      "repo": "dstrader",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/dstrader",
+      "question": "How should I update the existing PLAYBOOK to reflect the new 3-tier model?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Avfr79yYN6mMcfxfD5JPfP",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I update the existing PLAYBOOK to reflect the new 3-tier model?",
+            "header": "Update approach",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Extend PLAYBOOK in place (Recommended)",
+                "description": "Add a leading 'Strategy update 2026-05-28: 3-tier model' section; revise \u00a76 (publishing options) and \u00a710 (per-family status); cross-reference SOP ticket #55. Keep everything in one master doc that all 3 families point at."
+              },
+              {
+                "label": "Write a separate 3-tier-strategy doc",
+                "description": "Leave PLAYBOOK as the timeless reference of TECHNIQUES; add a new `THREE-TIER-STRATEGY.md` next to it for the ARCHITECTURE decision. Two short docs, clear scopes, more files."
+              },
+              {
+                "label": "Just fix the stale bits, leave the strategy elsewhere",
+                "description": "Touch only \u00a710 of PLAYBOOK to update per-family status. The 3-tier model already lives in the 3 epics (FF#36, dstrader#1, dstrader-aws#18) and memory; no need to also encode it in docs."
+              }
+            ]
+          },
+          {
+            "question": "Also fix the `dstrader-archive` repo description?",
+            "header": "Archive desc",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 update to 'post-rewrite snapshot 2026-05-28' (Recommended)",
+                "description": "The 2026-05-21 history rewrite is already on main of dstrader; the archive is a snapshot of that post-rewrite state. Fix the inaccurate '#7 pending' framing in the GitHub repo description."
+              },
+              {
+                "label": "No, leave it",
+                "description": "The description is wrong but harmless. Skip."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "All done. Summary:\n\n## Done this session\n\n**1. Archive created \u2014 `jdtogni78/dstrader-archive`**\n- Private, description `\u26a0\ufe0f DO NOT PUBLISH \u2014 pre-rewrite snapshot of jdtogni78/dstrader taken 2026-05-28`\n- Mirror-pushed all 4 branches (`main`, `master`, `issue-14-code-of-conduct`, `worktree-issue-7-history-audit`) from current `dstrader`\n- `refs/pull/*` were rejected by GitHub (expected \u2014 those refs are server-managed and can't be pushed), no user-visible branches missing\n- `dstrader#1` epic body updated to reflect the archive now exists; the gates row for `dstrader#7` (history audit) is no longer a blocker for \"create the archive\" since it's done\n\n**2. Six child flip tickets retitled + rewritten under the 3-tier model**\n| Repo | # | New title |\n|---|---|---|\n| FamilyFund | #10 | `[infra] create FamilyFund-public + first public sync` |\n| FamilyFund | #11 | `[security] enable code scanning + SARIF on FamilyFund-public (after first sync)` |\n| dstrader | #10 | `[HUMAN-ONLY] create dstrader-public + first public sync` |\n| dstrader | #11 | `[security] enable CodeQL (Java) on dstrader-public (after first sync)` |\n| dstrader-aws | #16 | `[infra] create dstrader-docker-public + first public sync` |\n| dstrader-aws | #17 | `[security] enable code scanning + SARIF on dstrader-docker-public (after first sync)` |\n\nEach body now describes \"create separate `*-public` repo + first sync\" instead of in-place visibility flip, with explicit blockers including the SOP and the existing security gates. All marked owner-only.\n\n**3. Shared re-sanitization SOP ticket filed \u2014 [FamilyFund#55](https://github.com/jdtogni78/FamilyFund/issues/55)**\n- Defines the 8-step second-pass runbook (gitleaks scan, scrub-validation grep, workflow diff, tracked-file inventory diff, 24h human review window, sync mechanic, post-sync verification, recurring cadence)\n- Added to project board #1\n- Cross-referenced from all three epics' `Re-sanitization SOP` row + the `Implication` paragraph\n- Deliverable: `familyfund-secrets/docs/RE-SANITIZATION-SOP.md` (lives in the private secrets repo \u2014 doesn't ride along into anything public)\n\n**4. Memory updated** \u2014 `three-tier-public-strategy.md` records the 2026-05-28 decision so future sessions don't replan in-place flips.\n\n## What's now teed up for you\n\n- File any per-family adoption work on the SOP (drafting `RE-SANITIZATION-SOP.md` in `familyfund-secrets`)\n- Continue working the existing hard gates (rotation `#20`, prod SOPS cutover `dstrader-aws#10/#11/#7/#15`, etc.) \u2014 none changed; only the destination changed\n- When ready for first sync on any family: SOP first, then the family's `create *-public + first sync` ticket"
+      },
+      {
+        "role": "user",
+        "text": "Let's make sure that we, uh, created somewhere a document that, um, states, uh, the approaches for sanitization. I think we already have some, so search first. And we should have this overall sanitization approach, uh, used by all of them."
+      },
+      {
+        "role": "assistant",
+        "text": "Searching for existing sanitization docs first before deciding what to create."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me verify two things before deciding the doc structure: is the dstrader Java history audit actually on `main` (or only in a worktree)?, and is there anything in `_repo-backups/` worth pointing at?"
+      },
+      {
+        "role": "assistant",
+        "text": "Big find \u2014 `familyfund-secrets/docs/REPO-SANITIZATION-PLAYBOOK.md` already exists. Reading it to see whether it already covers the unified approach or needs extending."
+      },
+      {
+        "role": "assistant",
+        "text": "Found it. The unified doc already exists.\n\n## What's already there\n\n**`familyfund-secrets/docs/REPO-SANITIZATION-PLAYBOOK.md`** \u2014 ~210 lines, written 2026-05-25, explicitly framed as *\"Reusable runbook... written to be reused for dstrader and dstrader-docker. FamilyFund is the worked example throughout.\"* It covers:\n\n| \u00a7 | Content |\n|---|---|\n| 0 | TL;DR |\n| 1 | What to hunt for (categories: secrets, PII, financial IDs, infra, identity, junk) |\n| 2 | Golden rules (\"private is not a security control\", force-push doesn't erase, etc.) |\n| 3 | Audit method (gitleaks `--all` + blob sweep) |\n| 4 | Purge recipe (`git-filter-repo` \u2014 paths, replace-text, replace-message, gotchas) |\n| 5 | Re-audit gate (hard 0) |\n| 6 | Publishing without residual \u2014 Option A (force-push) vs B (fresh repo + swap) |\n| 7 | Secrets management going forward (SOPS+age) |\n| 8 | Owner-only actions |\n| 9 | Environment/tooling notes |\n| 10 | Per-family application (dstrader + dstrader-docker) |\n\nPlus companion docs in the same directory: `PUBLISH-READINESS.md` (FamilyFund-specific), `SECRET-ROTATION-PLAN.md`, `SECRET-ROTATION-RUNBOOK.md`, `SECURITY_REVIEW_PLAN.md`.\n\nAlso worth noting \u2014 I had two stale assumptions corrected by this audit:\n- `dstrader#7` (history audit) is actually **CLOSED** (commit `918ffdb` on `main`), not open. The dstrader Java history rewrite happened 2026-05-21.\n- The `dstrader-archive` I just created is therefore a snapshot of a *post-rewrite* state, not pre-rewrite. Still valid as the archive tier \u2014 just the description I wrote on it (`\"pre-rewrite snapshot... before dstrader#7 history audit decides\"`) is wrong.\n\n## The gap\n\nThe PLAYBOOK predates the 2026-05-28 3-tier model decision. It still describes the **old strategy** (\"fresh repo + swap\" = the public repo *is* the sanitized daily driver). It also doesn't mention the new periodic re-sanitization SOP (#55), and section 10's per-family status is stale.\n\nSo the missing piece is **not a new doc** \u2014 it's an update to the existing one."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Extend PLAYBOOK in place (Recommended), Yes \u2014 update to 'post-rewrite snapshot 2026-05-28' (Recommended)"
+  }
+}

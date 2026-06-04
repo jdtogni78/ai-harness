@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4f824b9d-96ba274c196f2ce6",
+  "sig": "answer:rollout-4f824b9d:96ba274c196f2ce6",
+  "captured_at": "2026-06-04T01:18:03+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4f824b9d-fde1-4b3b-9001-23ea10044aff.jsonl turn #606",
+  "input": {
+    "action": {
+      "session_id": "rollout-4f824b9d",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "What should `dstrader-aws` be renamed to?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01GFmFUqcw7MTAZqWF522T8d",
+        "description": "",
+        "questions": [
+          {
+            "question": "What should `dstrader-aws` be renamed to?",
+            "header": "New name",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "dstrader-docker-archive (Recommended)",
+                "description": "Matches the `<family>-archive` pattern. Avoids collision with the existing `dstrader-archive` (which is the Java family's archive). Makes the 3-tier table fully symmetric."
+              },
+              {
+                "label": "dstrader-docker-aws-archive",
+                "description": "Preserves the historical `aws` in the name (it WAS the AWS deployment repo). Longer, less symmetric, but documents lineage."
+              },
+              {
+                "label": "Something else \u2014 tell me",
+                "description": "Pick a different name."
+              }
+            ]
+          },
+          {
+            "question": "Run the rename now, or wait until `dstrader-aws#15` lands (spirit cron checkout swap)?",
+            "header": "Timing",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Rename now (Recommended)",
+                "description": "GitHub auto-creates a redirect, so spirit's cron pull from the old URL keeps working until #15 swaps it. Open issues + cross-refs from other repos resolve via redirect too. Low-risk \u2014 the rename is reversible and the redirect is durable."
+              },
+              {
+                "label": "Wait until #15 lands",
+                "description": "Conservative \u2014 do the rename only after spirit's cron stops touching it. Avoids any chance of confusion during the swap. Means living with the asymmetric name for a while."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "FF#55 closed. Final state:\n\n## What landed this turn\n\n**3 PRs to `familyfund-secrets/main`, all merged + cleaned up:**\n- [PR #2](https://github.com/jdtogni78/familyfund-secrets/pull/2) `99fab02` \u2014 `configs/gitleaks-strict.toml` + `configs/known-family-emails.txt.template` + `configs/README.md` + `configs/.gitignore` + `sync-archives/` layout\n- [PR #3](https://github.com/jdtogni78/familyfund-secrets/pull/3) `87e3b69` \u2014 per-family sync mechanic decisions baked into `RE-SANITIZATION-SOP.md` \u00a76 + cadence rewritten to per-milestone\n\n**Final decisions captured in the SOP:**\n| Family | Mechanic | Why |\n|---|---|---|\n| FamilyFund | 6a mirror push | history audited clean (#66 + #36) |\n| dstrader (Java) | 6a mirror push | history rewritten clean (#7) |\n| dstrader-docker | 6b single-commit | history still carries GPG-migration context |\n\nCadence = per-milestone only across all 3.\n\n**FF#55 closed** with summary linking all 3 PRs + flagging the one off-repo owner action (populate `known-family-emails.txt` before FamilyFund's first sync).\n\n## Where this leaves the thread\n\nThe \"move-to-public for all repos + 3-tier model\" structural work is now genuinely complete:\n- 3-tier model documented across 3 epics, PLAYBOOK \u00a70.5+\u00a76+\u00a710, SOP, and persistent memory\n- All 3 archive tiers in place (`FamilyFund-archive` \u2705, `dstrader-archive` \u2705 created this thread, `dstrader-aws` \u2705 playing that role)\n- All 6 child flip-tickets retitled to create `*-public` repos\n- Full sanitization runbook (one-time + periodic) lives in `familyfund-secrets/docs/`\n- 4-item adoption checklist done; FF#55 closed\n\nWhat's left is the actual go-public work (rotation, SOPS cutover, spirit swap, first syncs) \u2014 all pre-existing tickets on the boards, all owner-driven, none introduced or modified beyond labeling by this thread.\n\nClean stopping point."
+      },
+      {
+        "role": "user",
+        "text": "What is the status of the archive? reboost versus, uh, private versus public."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me check live GitHub state rather than rely on memory."
+      },
+      {
+        "role": "assistant",
+        "text": "## 3-Tier Status \u2014 Live State (2026-05-28)\n\n| Family | Archive | Private sanitized (daily driver) | Public sanitized |\n|---|---|---|---|\n| **FamilyFund** | \u2705 `FamilyFund-archive` (private, DO NOT PUBLISH) | \u2705 `FamilyFund` (private) | \u274c `FamilyFund-public` does not exist |\n| **dstrader** (Java) | \u2705 `dstrader-archive` (private, created this thread 2026-05-28) | \u2705 `dstrader` (private) | \u274c `dstrader-public` does not exist |\n| **dstrader-docker** | \u2705 `dstrader-aws` (private, de facto archive \u2014 fully archive-only once `dstrader-aws#15` swaps spirit's cron checkout) | \u2705 `dstrader-docker` (private) | \u274c `dstrader-docker-public` does not exist |\n\n**Permanently-private companions** (never publish):\n- `familyfund-secrets` \u2014 SOPS+age twins + PLAYBOOK + SOP + configs + sync-archives layout\n- `dstrader-secrets` \u2014 SOPS+age twins + dstrader operational runbooks\n\n## Wrinkles to flag\n\n- **`FamilyFund-r1-interim`** still exists (private). The FF#36 epic has it slated for UI deletion (subset of `FamilyFund-archive`, so safe to drop). Needs your delete-repo action \u2014 `gh auth refresh -s delete_repo` then `gh repo delete jdtogni78/FamilyFund-r1-interim`. Or via GitHub UI.\n- **`dstrader-aws`** is private but not GitHub-archived (read-only flag). Per the `dstrader-aws#18` epic cleanup note, it can be set archived *after* `#15` swaps spirit's cron \u2014 until then it's still cron-live.\n- **All three `*-public` slots empty.** No first sync has happened yet for any family. That work lives on the now-retitled `FF#10` / `dstrader#10` / `dstrader-aws#16`, each gated on its family's pre-sync hard-gate list (rotation, SOPS cutover, etc.).\n\nSo the **archive + private tiers are fully in place**; the **public tier is the entire remaining gap**, which is by design \u2014 that's what the SOP + first-sync tickets are for. None of the public repos exist yet, and that's the correct state until you decide a family is milestone-ready."
+      },
+      {
+        "role": "user",
+        "text": "Can you rename the d s trader AWS to the d s trader archive?"
+      },
+      {
+        "role": "assistant",
+        "text": "Naming collision \u2014 `dstrader-archive` already exists (it's the Java repo's archive that I created earlier this thread). To stay consistent with the `<family>-archive` pattern, the right name would be `dstrader-docker-archive`. Before I rename, two things to confirm:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "dstrader-docker-archive (Recommended), Rename now (Recommended)"
+  }
+}

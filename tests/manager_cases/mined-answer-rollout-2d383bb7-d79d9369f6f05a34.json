@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2d383bb7-d79d9369f6f05a34",
+  "sig": "answer:rollout-2d383bb7:d79d9369f6f05a34",
+  "captured_at": "2026-06-04T01:18:03+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2d383bb7-3cd9-49b6-a8c5-e893ce07249b.jsonl turn #10",
+  "input": {
+    "action": {
+      "session_id": "rollout-2d383bb7",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "Which audience matters most for the first cut? The framing, depth, and proof-points differ meaningfully.",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01MyXnDWPJKZc3iYKMpxpogY",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which audience matters most for the first cut? The framing, depth, and proof-points differ meaningfully.",
+            "header": "Primary audience",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Employers (FTE roles)",
+                "description": "Emphasis on engineering rigor, code quality, system design, testing. Recruiters skim; hiring managers read deeply."
+              },
+              {
+                "label": "Startup founders / co-founder pitches",
+                "description": "Emphasis on product thinking, shipping velocity, full-stack range, and judgment on tradeoffs."
+              },
+              {
+                "label": "Contracting / consulting leads",
+                "description": "Emphasis on outcomes, domain expertise (fintech/trading), and 'I can ship this for you' case studies."
+              },
+              {
+                "label": "All three, equal weight",
+                "description": "Build a layered portfolio where the same artifacts get reframed per audience."
+              }
+            ]
+          },
+          {
+            "question": "These are personal finance / trading repos \u2014 what's the privacy posture?",
+            "header": "Repo visibility",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Keep private, share via curated case studies + screenshots",
+                "description": "Safest. You write narrative case studies with diagrams, screenshots, code excerpts. No live repo access."
+              },
+              {
+                "label": "Sanitize and open-source selected modules",
+                "description": "Strip real holdings/keys, extract clean modules (e.g., backtesting engine, portfolio rebalancer) into public repos."
+              },
+              {
+                "label": "Public live demo with seeded/fake data",
+                "description": "Deploy a working instance with synthetic data so reviewers can click around. Highest effort, highest impact."
+              },
+              {
+                "label": "Not sure \u2014 help me decide",
+                "description": "I'll lay out the tradeoffs in the plan."
+              }
+            ]
+          },
+          {
+            "question": "What format do you want the portfolio to take?",
+            "header": "Format",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Personal website / landing page",
+                "description": "jdtogni.com style \u2014 hero, case studies, contact. Owned channel, full control."
+              },
+              {
+                "label": "Polished GitHub READMEs",
+                "description": "Each repo's README becomes the case study. Low friction for technical reviewers."
+              },
+              {
+                "label": "Long-form written case studies (PDF / blog posts)",
+                "description": "Deep narrative: problem, architecture, tradeoffs, results. Good for sharing in applications."
+              },
+              {
+                "label": "Short demo videos (Loom / YouTube)",
+                "description": "2-5 min walkthroughs. High impact for non-technical viewers (founders, recruiters)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I want to plan for a showoff / software portfolio of the dstrader and family fund. The idea is to use that to sell myself for employees, startups, and show as contractor portfolios..."
+      },
+      {
+        "role": "assistant",
+        "text": "Before I draft a plan, two things will shape it a lot \u2014 let me ask:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "All three, equal weight, Keep private, share via curated case studies + screenshots, Personal website / landing page"
+  }
+}

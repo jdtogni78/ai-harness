@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4f824b9d-798d25383f1800b5",
+  "sig": "answer:rollout-4f824b9d:798d25383f1800b5",
+  "captured_at": "2026-06-04T01:18:03+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4f824b9d-fde1-4b3b-9001-23ea10044aff.jsonl turn #555",
+  "input": {
+    "action": {
+      "session_id": "rollout-4f824b9d",
+      "repo": "familyfund-secrets",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/familyfund-secrets",
+      "question": "FamilyFund \u2014 sync mechanic for FamilyFund-public?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Uiq9kCKqRV4vMkQ1wo3zTv",
+        "description": "",
+        "questions": [
+          {
+            "question": "FamilyFund \u2014 sync mechanic for FamilyFund-public?",
+            "header": "FF mechanic",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "6a \u2014 Mirror push (Recommended)",
+                "description": "Full history visible on FamilyFund-public. Safe because the rounds 1+2 purge (#66 + #36) already audited the history clean over `--all`. Outside viewers can see commit-by-commit evolution; useful if you ever want to cite the project's history."
+              },
+              {
+                "label": "6b \u2014 Single-commit fresh init",
+                "description": "Each public sync overwrites FamilyFund-public with a single `sync from <SHA>` commit. Strongest residual guarantee (no historical commits leak even on a future SOP miss), but the public side has no git history."
+              }
+            ]
+          },
+          {
+            "question": "dstrader (Java) \u2014 sync mechanic for dstrader-public?",
+            "header": "dstrader mechanic",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "6a \u2014 Mirror push (Recommended)",
+                "description": "History was rewritten clean by #7 in 2026-05-21 and audited. Sharing commit history is fine and matches the FamilyFund choice."
+              },
+              {
+                "label": "6b \u2014 Single-commit fresh init",
+                "description": "Same strongest-residual property as the FF 6b option. Loses the post-rewrite history view."
+              }
+            ]
+          },
+          {
+            "question": "dstrader-docker \u2014 sync mechanic for dstrader-docker-public?",
+            "header": "Docker mechanic",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "6b \u2014 Single-commit fresh init (Recommended)",
+                "description": "History still carries GPG-migration context, SOPS cutover commits, and references to the dirty `dstrader-aws` origin. Even after the clean-origin scrub, those commits don't add value for public viewers and increase audit surface. Single-commit eliminates the concern entirely."
+              },
+              {
+                "label": "6a \u2014 Mirror push",
+                "description": "Only after re-running the full HISTORY-AUDIT on `dstrader-docker` clean over `--all` AND the spirit checkout swap (#15) AND the SOPS prod cutover (#10/#11) all land. More work + more residual risk than 6b."
+              }
+            ]
+          },
+          {
+            "question": "Default cadence across all 3 families?",
+            "header": "Cadence",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Monthly active, quarterly Java (Recommended)",
+                "description": "FF + dstrader-docker monthly (active development); dstrader Java quarterly (slower iteration). Trigger early for milestones; skip when no meaningful changes. Owner-driven, not automated."
+              },
+              {
+                "label": "Quarterly all three",
+                "description": "Calmer cadence across the board. Reduces SOP overhead but stretches the lag between private daily-driver and public mirror."
+              },
+              {
+                "label": "Per-milestone only",
+                "description": "No regular cadence \u2014 sync only when a meaningful milestone is ready to be public. Fully event-driven."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Go ahead. Continue working on it."
+      },
+      {
+        "role": "assistant",
+        "text": "Continuing. Spinning a fresh worktree for the SOP adoption prerequisites."
+      },
+      {
+        "role": "assistant",
+        "text": "Got the project's gitleaks-config conventions. Now writing the strict config (no per-project allowlists, just the structural ones that apply everywhere)."
+      },
+      {
+        "role": "assistant",
+        "text": "Now updating the SOP to mark these items done, pushing, opening + merging the PR, then asking about the 4th item (per-family sync mechanic + cadence \u2014 needs your input)."
+      },
+      {
+        "role": "assistant",
+        "text": "Now opening PR + merging + cleaning up."
+      },
+      {
+        "role": "assistant",
+        "text": "3 of 4 adoption items landed (PR #2 merged, branch + worktree cleaned up). Item 4 is the per-family sync mechanic + cadence decision \u2014 owner-only, so asking you now."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "6a \u2014 Mirror push (Recommended), 6a \u2014 Mirror push (Recommended), 6b \u2014 Single-commit fresh init (Recommended), Per-milestone only"
+  }
+}
