@@ -4,6 +4,12 @@ logs/
 __pycache__/
 *.pyc
 scripts/pool/config.local.yaml
+# Eval harness output (manager guideline regression runs): per-case actual
+# recs + judge samples land here under out/eval/<guidelines_hash>/. Re-runs
+# are content-addressed by hash, so the dir grows quickly and is not
+# something we want to commit (the cases under tests/manager_cases/ are
+# the corpus; this is just the per-run output).
+out/
 # Defensive: the supervisor's allowlist lives at ~/.ai-harness/active-dirs.txt
 # (per-user, per-host, names private app dirs). If a misconfigured `cp` or
 # `git add -A` ever pulls it back into the repo, this rule blocks it.
