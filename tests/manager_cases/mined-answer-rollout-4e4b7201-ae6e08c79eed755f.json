@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4e4b7201-ae6e08c79eed755f",
+  "sig": "answer:rollout-4e4b7201:ae6e08c79eed755f",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4e4b7201-b016-476b-88f9-639bc99cea52.jsonl turn #312",
+  "input": {
+    "action": {
+      "session_id": "rollout-4e4b7201",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "When you type a request for a thread and hit the new 'ask manager' button, what should happen?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01B8uy2mKzNkTx6jWtNchZ7U",
+        "description": "",
+        "questions": [
+          {
+            "question": "When you type a request for a thread and hit the new 'ask manager' button, what should happen?",
+            "header": "Ask-manager btn",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "One-off Q&A, answer inline",
+                "description": "Runs a claude -p investigator with the thread's context + your question and shows its answer right there in the detail pane. Ephemeral (not cached). Best for 'what about X?' / 'check Y' on the spot."
+              },
+              {
+                "label": "Custom analysis \u2192 MANAGER/SESSION rec",
+                "description": "Like Analyze, but seeded with your prompt. Updates the Recommendation fields (rec_manager/rec_session), so you can then '\u2192 send to session' or '\u25b7 run manager rec'. Cached like a normal analysis."
+              },
+              {
+                "label": "Queue a standing instruction",
+                "description": "Saves your note on the thread so the autonomous manager --loop reads it and acts on it next cycle. No immediate answer in the UI."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "All green. Now ship it the same way: commit, fast-forward push to main, update the checkout, restart live. First commit:"
+      },
+      {
+        "role": "assistant",
+        "text": "Another agent pushed \u2014 `origin/main` is now `9a0d3f8`. I need to integrate before pushing. Let me see what landed and whether it touches `manager_ui.py`:"
+      },
+      {
+        "role": "assistant",
+        "text": "Their changes are in `manager.py`/docs/tests \u2014 **not** `manager_ui.py` \u2014 so no conflict with my button. I'll rebase my commit onto the new main, re-run tests, then fast-forward push:"
+      },
+      {
+        "role": "assistant",
+        "text": "Rebased cleanly. Let me run tests against the updated test files, then push, update the checkout, and restart live:"
+      },
+      {
+        "role": "assistant",
+        "text": "The main checkout is now at the latest `origin/main` with my change. Now restart the live server to pick it up:"
+      },
+      {
+        "role": "assistant",
+        "text": "The \"+ Add note\" button is now live (PID 54321, pushed as `296086a`, checkout updated, server restarted). Refresh the tab to see it in the detail action bar.\n\nNow, on your new request \u2014 \"create a note to manager with a button, so we can ask the AI for something right there.\" I want to build the right thing, because there are a few genuinely different behaviors this could mean and they need different backends:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "One-off Q&A, answer inline"
+  }
+}

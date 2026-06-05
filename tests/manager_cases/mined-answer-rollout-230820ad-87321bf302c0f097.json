@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-230820ad-87321bf302c0f097",
+  "sig": "answer:rollout-230820ad:87321bf302c0f097",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 230820ad-5772-4c4e-8077-dbf25d411ea3.jsonl turn #43",
+  "input": {
+    "action": {
+      "session_id": "rollout-230820ad",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_015FZLGYEMDKi1fkvcMxzR7u",
+      "question": "How should the SHARES (and Market Value) tiles reflect outstanding credit-line shares?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01JUu9W32wHJHQKXAPF6UwMB",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the SHARES (and Market Value) tiles reflect outstanding credit-line shares?",
+            "header": "Borrow display",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Net shares + net value (Recommended)",
+                "description": "SHARES shows 1,624.59 (5,391.26 \u2212 3,766.67 borrowed). Market Value shows $3,564 (net). Share Price unchanged. Small sub-line under the tile notes the borrowed amount."
+              },
+              {
+                "label": "Net shares only",
+                "description": "SHARES shows 1,624.59 net. Market Value stays $11,826.05 gross. Share Price will no longer equal MV/Shares \u2014 drop it from the formula and read it from fund instead."
+              },
+              {
+                "label": "Gross with sub-line",
+                "description": "SHARES stays 5,391.26 but a small red sub-line shows '\u22123,766.67 borrowed'. Market Value unchanged. No math changes."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "the total shares should show the borrowing... as they are not available for the account anymore"
+      },
+      {
+        "role": "assistant",
+        "text": "I see \u2014 currently the SHARES tile shows the gross balance (5,391.26) without subtracting the 3,766.67 outstanding/borrowed shares from active credit lines. Before I change this, let me check whether the codebase already has an \"available shares\" concept I should reuse, and look at how Market Value handles credit lines."
+      },
+      {
+        "role": "assistant",
+        "text": "Before I edit, I want to confirm the display choice \u2014 the SHARES tile drives the Share Price calculation (`$marketValue / $shares`), so if I subtract borrowed shares from one without adjusting the other, Share Price becomes wrong."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Net shares + net value (Recommended)"
+  }
+}

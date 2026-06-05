@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-8e4f1e0f-84044bffec4cbb4c",
+  "sig": "answer:rollout-8e4f1e0f:84044bffec4cbb4c",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 8e4f1e0f-c7e1-49fb-a9d4-6aa0d5347886.jsonl turn #47",
+  "input": {
+    "action": {
+      "session_id": "rollout-8e4f1e0f",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_016jWuP6iX3tAvw16fRokLs5",
+      "question": "The screenshot's allocation came from someone clicking 'register payment' on row 6 (April), which fills the named row first and only overflows to older rows. General repayments already cascade oldest-first. Which behavior do you want to change?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_013mPB1x8adkZ7eaxjajpNzU",
+        "description": "",
+        "questions": [
+          {
+            "question": "The screenshot's allocation came from someone clicking 'register payment' on row 6 (April), which fills the named row first and only overflows to older rows. General repayments already cascade oldest-first. Which behavior do you want to change?",
+            "header": "Which path",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "repayRow goes oldest-first too",
+                "description": "The 'register payment on row N' button stops treating N as the priority target \u2014 it just creates the REP and lets the oldest-first cascade place it. The row you clicked is then a hint, not a priority. Only the admin manual-split UI remains as an override."
+              },
+              {
+                "label": "Keep repayRow target-first",
+                "description": "If you click 'pay row 6', the system honors that and fills row 6 first (current behavior). Default for the general 'make a repayment' button is already oldest-first, so no code change needed \u2014 I just confirm and we move on."
+              },
+              {
+                "label": "repayRow asks before overflowing",
+                "description": "Keep target-first if the payment fits within the named row, but if it overflows (older rows still unpaid), prompt or warn before cascading newer-first. More UI work."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "lets do oldest first by default - if override is possible allow override. as long as the totals are still correct"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me find the allocation logic before changing anything."
+      },
+      {
+        "role": "assistant",
+        "text": "Default is already oldest-first by `due_date ASC` (PaymentAllocator.php:89). Let me read the actual file to understand why the screenshot shows non-oldest behavior \u2014 likely the `$targetRow` path."
+      },
+      {
+        "role": "assistant",
+        "text": "Default IS already oldest-first cascade. The screenshot must be coming from the `$targetRow` path. Let me find who passes `$targetRow`."
+      },
+      {
+        "role": "assistant",
+        "text": "Important finding \u2014 the default is already oldest-first. Let me check what the UI exposes so I understand which path produced the screenshot."
+      },
+      {
+        "role": "assistant",
+        "text": "Important context before I change anything \u2014 the default is already oldest-first.\n\nLooking at the code:\n- **General repayment** (`RepayService::repay`, AccountCreditLineControllerExt.php:475) \u2014 oldest-first cascade. \u2713\n- **Matcher-applied REPs** (`applyToSchedule`) \u2014 oldest-first cascade. \u2713\n- **Register payment against a specific row** (`RepayService::repayRow`, controller:538/640) \u2014 fills the **target row first**, then cascades overflow oldest-first. **This is what produced the screenshot**: payment #1215 (100 sh) was registered against row 6 (April) \u2192 row 6 filled (83.3333), overflow 16.6667 cascaded back to row 5.\n- **Admin manual re-allocate UI** (controller:833) \u2014 arbitrary per-row split (already an override mechanism).\n\nSo before I touch code, I need to confirm what you want, because \"default\" depends on which entry point you mean:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "repayRow goes oldest-first too"
+  }
+}

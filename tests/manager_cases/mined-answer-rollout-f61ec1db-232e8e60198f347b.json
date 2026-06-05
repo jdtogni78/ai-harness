@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f61ec1db-232e8e60198f347b",
+  "sig": "answer:rollout-f61ec1db:232e8e60198f347b",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f61ec1db-5c24-42d7-858f-86b8908611eb.jsonl turn #297",
+  "input": {
+    "action": {
+      "session_id": "rollout-f61ec1db",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_013XneiVcL77kUujQ1Xun4gU",
+      "question": "Pre-delivery cleanup decisions \u2014 each is independent. Which to apply?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01UUDg44iEUuCcVUaoewjwjr",
+        "description": "",
+        "questions": [
+          {
+            "question": "Pre-delivery cleanup decisions \u2014 each is independent. Which to apply?",
+            "header": "Cleanup",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Remove demos/poc-narrated/ (Recommended)",
+                "description": "Drop the original POC scaffold. narrate/ supersedes it and the Wikipedia YAML smoke-tests the same flow. Saves 235 LOC of dead code."
+              },
+              {
+                "label": "Add demos/.gitignore for out/",
+                "description": "So generated media artifacts (mp4/wav/webm/aiff) never get committed. Keeps the demo YAML versioned while the rendered output stays local."
+              },
+              {
+                "label": "File a retro tracking ticket on board #2",
+                "description": "Open an issue on the Remote Control board to record this work for history. Small thread, so genuinely optional."
+              }
+            ]
+          },
+          {
+            "question": "Verdict?",
+            "header": "Verdict",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "READY TO CLOSE \u2014 proceed to Phase 5 (Recommended)",
+                "description": "Apply cleanups above, single commit, merge --no-ff into main, push, switch worktree back to its bridge branch (don't remove). FF follow-up already filed."
+              },
+              {
+                "label": "NOT READY \u2014 something still to do",
+                "description": "You want to address something before merge."
+              },
+              {
+                "label": "HAND OFF instead of close",
+                "description": "Leave the worktree intact and write a handoff brief for a fresh session to pick up later (e.g. if you want to do FF integration in this same branch)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "[Request interrupted by user]"
+      },
+      {
+        "role": "user",
+        "text": "So after a lot of changes we've done to make it public, I'm sure it's not running very well. So we will have to start looking into, uh, what we need to do to run it. So let's pause the work. Let's issue a ticket to, um, fix f f runs, and, um, let's pause the work here by, uh, merging everything to main and calling a closed work."
+      },
+      {
+        "role": "assistant",
+        "text": "OK \u2014 filing the FF dev-env ticket, then I'll run /close-work to wrap up."
+      },
+      {
+        "role": "assistant",
+        "text": "Ticket filed: **jdtogni78/FamilyFund#1 \u2014 [FF] Restore mini dev-env runability after public-portfolio split** (added to *Trading & Fund* board #1). Now running /close-work to wrap up."
+      },
+      {
+        "role": "assistant",
+        "text": "Starting Phase 1 \u2014 review the work."
+      },
+      {
+        "role": "assistant",
+        "text": "**Phase 1 \u2014 Review**\n\n- **Where**: bridge worktree `bridge-cse_013XneiVcL77kUujQ1Xun4gU` on branch `worktree-bridge-cse_013XneiVcL77kUujQ1Xun4gU` (locked \u2014 per memory, do not `git worktree remove`)\n- **Vs `origin/main`**: 0 commits ahead \u2014 **nothing committed yet**, all work is untracked\n\n**What this thread produced** (will be staged in one commit):\n| Path | Files | LOC | Status |\n|---|---|---|---|\n| `narrate/` package | 11 | ~530 | NEW \u2014 Python pkg + install/wrapper |\n| `skills/narrate-demo/SKILL.md` | 1 | 131 | NEW |\n| `demos/wikipedia.demo.yaml` | 1 | 36 | NEW \u2014 smoke-test YAML |\n| `demos/poc-narrated/make_demo.py` | 1 | 235 | NEW \u2014 original POC, **superseded by `narrate/`** |\n\n**Flags to address before delivery**:\n1. **`demos/poc-narrated/`** \u2014 duplicate of what `narrate/` does. You said \"decide at review whether to keep or remove\" \u2192 recommend **remove** (narrate/ is the canonical version, smoke-tested from YAML)\n2. **`demos/out/` artifacts** (17 generated files: mp4, wav, aiff, webm, ~10MB) \u2014 should NOT be committed. Need a `demos/.gitignore` entry for `out/`\n3. **`.DS_Store`** in poc dir \u2014 drop\n4. **No tracking ticket** for this work \u2014 it was exploratory. Small enough that I'd skip a retro ticket, but I can file one if you want history\n5. **`narrate-demo` skill symlink** currently points at this worktree. After merge to main, you'll want `~/dev/ai-harness/skills/link.sh` re-run from main so it repoints\n\n**Phase 2 \u2014 Test gate**: N/A. No test files in the new package. The Wikipedia smoke render (`narrate render demos/wikipedia.demo.yaml`) ran end-to-end and produced a 27.74s mp4 with timing matching narration exactly \u2014 that's the only validation. Calling this out explicitly rather than claiming a green gate.\n\n**Phase 3 \u2014 TODO sweep**: re-reading the thread.\n\n- \u2705 POC done\n- \u2705 CLI + skill built and smoke-tested\n- \u23f8 **FF integration** \u2014 explicitly paused by you, ticket already filed (`jdtogni78/FamilyFund#1`)\n- No half-done in-flight work, no in-code TODOs added, no implicit asks I dropped"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Remove demos/poc-narrated/ (Recommended), READY TO CLOSE \u2014 proceed to Phase 5 (Recommended)"
+  }
+}

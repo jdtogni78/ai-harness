@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-af2a953b-020eae964e2a81ab",
+  "sig": "answer:rollout-af2a953b:020eae964e2a81ab",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from af2a953b-29ef-44c2-af30-3807b2582253.jsonl turn #196",
+  "input": {
+    "action": {
+      "session_id": "rollout-af2a953b",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01XtFhCtBTr4fEzBmXVUdFgj",
+      "question": "Which placeholder tokens should the prefix template support? (repo nickname is always the base; pick the others to wire up now)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_012jAPDWq75sLajDfkgk2bEG",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which placeholder tokens should the prefix template support? (repo nickname is always the base; pick the others to wire up now)",
+            "header": "Tokens",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "{host} \u2014 mini/note",
+                "description": "Host nickname, only filled for host-local bridge sessions (cloud sessions leave it empty). This is what you asked for first."
+              },
+              {
+                "label": "{branch} \u2014 git branch",
+                "description": "The worktree's git branch. Local bridge sessions only, and costs one git call per session during the monitor's self-heal pass."
+              },
+              {
+                "label": "{repo} \u2014 full repo name",
+                "description": "The full repo basename (e.g. FamilyFund) as an alternative token to the {nick} nickname (FF)."
+              },
+              {
+                "label": "{engine} \u2014 claude/codex",
+                "description": "The agent engine. Note: titled code-sessions are effectively always claude, so this is usually constant."
+              }
+            ]
+          },
+          {
+            "question": "Where should the template string be configured, and what default?",
+            "header": "Config",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Env + nicknames file (Recommended)",
+                "description": "SESSION_TITLE_FORMAT env var, overridable by a `format=...` header line in session-nicknames.txt. Default template: {repo}.{host}. Matches the existing nickname-config pattern."
+              },
+              {
+                "label": "Env var only",
+                "description": "Just SESSION_TITLE_FORMAT, default {repo}.{host}. Simplest; no file changes."
+              },
+              {
+                "label": "New dedicated config file",
+                "description": "A separate session-title-format.txt file at the repo root."
+              }
+            ]
+          },
+          {
+            "question": "When a token has no value (e.g. {host} on a cloud session), how should the template render?",
+            "header": "Empty tokens",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Collapse token + separator (Recommended)",
+                "description": "{repo}.{host} renders as `FF` (the empty {host} and its leading `.` are dropped); on a bridge session it's `FF.mini`. Keeps titles clean."
+              },
+              {
+                "label": "Leave blank",
+                "description": "{repo}.{host} renders as `FF.` on a cloud session (trailing separator kept). Simpler rule, uglier output."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now add a `HostLocalTest` class and a `composite_nickname` test after the existing `RepoDerivationTest`:"
+      },
+      {
+        "role": "assistant",
+        "text": "Now add host-suffix tests to `PlanRenamesTest`:"
+      },
+      {
+        "role": "assistant",
+        "text": "Now a `--self` test that verifies the host suffix end-to-end in `_run_set`:"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me run the test suite now to validate the code changes before updating docs:"
+      },
+      {
+        "role": "assistant",
+        "text": "One failure \u2014 `composite_nickname` is called even when `repo is None`. Let me guard it (matching the original structure):"
+      },
+      {
+        "role": "assistant",
+        "text": "All 463 tests pass. The rename (`macmini`\u2192`mini`, `macbook`\u2192`note`) and the initial `[FF.mini]`/`[FF.note]` host-suffix logic are working.\n\nNow, on your new direction \u2014 making the prefix a **template/replacement string** where tokens resolve from different sources (instead of the hardcoded `{repo}.{host}` I just wired in). That's a cleaner, more flexible design. A couple of decisions shape how I build it:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "repo nickname, session id, session short id, {host} \u2014 mini/note, {branch} \u2014 git branch, {repo} \u2014 full repo name, {engine} \u2014 claude/codex, Env + nicknames file (Recommended), Collapse token + separator (Recommended)"
+  }
+}

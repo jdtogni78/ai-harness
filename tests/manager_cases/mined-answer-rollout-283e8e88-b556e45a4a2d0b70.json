@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-283e8e88-b556e45a4a2d0b70",
+  "sig": "answer:rollout-283e8e88:b556e45a4a2d0b70",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 283e8e88-16ed-4ad7-af11-d7a886035bba.jsonl turn #79",
+  "input": {
+    "action": {
+      "session_id": "rollout-283e8e88",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01Hp45dbDtrHUjad4vbb9VTh",
+      "question": "How far should the \"replace data dumps with a synthetic seeder\" sub-item go in this pass?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_019D5Ds3nQGJzdhD4asyaeVd",
+        "description": "",
+        "questions": [
+          {
+            "question": "How far should the \"replace data dumps with a synthetic seeder\" sub-item go in this pass?",
+            "header": "Seeder scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Safe scope + follow-up ticket",
+                "description": "Untrack the dead PII dev dump (familyfund_dev_data.sql), wire pre-commit + pre-push gitleaks hooks + installer, tidy .gitignore. Leave the load-bearing test-baseline.sql.gz as-is and file a dedicated follow-up ticket for the synthetic test-baseline seeder (it touches all 1791 tests)."
+              },
+              {
+                "label": "Also build synthetic test-baseline",
+                "description": "In addition to the safe scope, attempt to replace test-baseline.sql.gz with a synthetic seeder now \u2014 a large, higher-risk change across the whole test suite and testpool/CI restore flow."
+              },
+              {
+                "label": "Hooks + gitignore only",
+                "description": "Just the pre-commit/pre-push hooks and .gitignore tidy. Leave both dumps (including the tracked-PII dev dump) untouched for a separate data-hygiene pass."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "I now have the full \u00a75 spec. Let me assess the current state of each sub-item: gitignore files, CI workflows, existing hooks, the data dumps, and existing seeders."
+      },
+      {
+        "role": "assistant",
+        "text": "There's already a `.gitleaks.toml` and substantial `.gitignore` hardening. Let me check what's already wired and what remains. Let me read the gitleaks config and the CI workflow, and check the tracked data dump situation."
+      },
+      {
+        "role": "assistant",
+        "text": "Good \u2014 this is partially done already. Let me map what exists vs. what remains. `.gitignore` hardening and CI gitleaks scanning are already on main; pre-commit/pre-push hooks are missing, and the real-PII dump `database/dev/familyfund_dev_data.sql` is **still tracked**. Let me understand the seeder/dump landscape before forming a plan."
+      },
+      {
+        "role": "assistant",
+        "text": "The tracked dump has real PII (1 gmail + 9 bcrypt hashes). Let me find what references it and the test-baseline before deciding how to handle them."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me pin down exactly how the loose dev dump is referenced (vs. the load-bearing test-baseline) so I can scope the seeder work correctly."
+      },
+      {
+        "role": "assistant",
+        "text": "I now have the full picture. Here's the state of \u00a75 (\"Prevent future leaks\"):\n\n| Sub-item | Status |\n|---|---|\n| Harden `.gitignore` (`.env*`, `*.sql.gz`, `*.ibd`, `*.frm`, datadirs) | \u2705 Already on main (root + app) \u2014 minor dedupe possible |\n| CI secret scanning (gitleaks) | \u2705 Already on main (`security-scan.yml` \u2192 \"Secret Scan\" job) |\n| `.gitleaks.toml` config + allowlists | \u2705 Already on main |\n| **Pre-commit** gitleaks/git-secrets hook | \u274c Missing (`.git/hooks` empty, no shared config) |\n| **Pre-push** diff scan hook | \u274c Missing |\n| **Replace data dumps with synthetic seeder** | \u26a0\ufe0f Partial \u2014 see below |\n\nOn the dumps: there are **two**, with very different coupling:\n- `database/dev/familyfund_dev_data.sql` \u2014 **still tracked**, contains real PII (1 gmail + 9 bcrypt hashes). It's gitignored but never untracked. **Nothing loads it** \u2014 only the security docs reference it; the canonical dev-load is `prod-to-dev.sh` (uses gitignored prod dumps). Safe to untrack now.\n- `app1/family-fund-app/database/test/test-baseline.sql.gz` (275 KB, ~62 emails) \u2014 **load-bearing**: CI `tests.yml` and `testpool.sh` both restore the whole suite from it. Replacing it with a synthetic seeder is an epic that touches all 1791 tests.\n\nThat last point is the one real fork in scope, so let me confirm direction before I build."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Safe scope + follow-up ticket"
+  }
+}

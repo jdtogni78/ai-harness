@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-1bcc38b4-3a73c596f38df652",
+  "sig": "answer:rollout-1bcc38b4:3a73c596f38df652",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 1bcc38b4-1100-4b97-84f0-7398acee1d97.jsonl turn #867",
+  "input": {
+    "action": {
+      "session_id": "rollout-1bcc38b4",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_019Mu4BpycnrjoFYBb7M4hni",
+      "question": "How do you want feedback to actually feed back in?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Xsx444cj3hoTatHzFLfLAK",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want feedback to actually feed back in?",
+            "header": "Use feedback",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Inject feedback into analysis",
+                "description": "When (re)analyzing a thread, include its saved feedback (and recent feedback on similar cases) in the claude -p prompt alongside the guidelines. Immediate, targeted effect \u2014 a Re-analyze instantly respects your note. Small change."
+              },
+              {
+                "label": "Build the guidelines writer",
+                "description": "The deferred #22 piece: a step that reads the whole feedback corpus and proposes edits to session-manager-cases.md (you review/accept), so lessons become durable policy for all threads. Bigger."
+              },
+              {
+                "label": "Both",
+                "description": "Inject feedback now for immediate effect, AND build the writer so feedback graduates into guidelines over time. Recommended end state."
+              },
+              {
+                "label": "Leave it manual",
+                "description": "Keep today's behavior: feedback is just a note for you; you hand-edit guidelines via the Edit-guidelines button when you want a lesson to stick."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Merging the 3-commit batch to main (close-work style), then pushing:"
+      },
+      {
+        "role": "assistant",
+        "text": "Merged as **`8303710`**, 381 green, pushed (`7c2b176..8303710`), worktree fast-forwarded. The running server is already on the merged code (it was started from this worktree, now == main).\n\nLet me update memory and note the evolution on #22:"
+      },
+      {
+        "role": "assistant",
+        "text": "Merged and wrapped up.\n\n## Done\n- **Merged \u2192 `main` as `8303710`** (`--no-ff`), **381 tests pass** on the merged tree, **pushed** (`7c2b176..8303710`). Worktree fast-forwarded back to main.\n- **Server still live** at **http://127.0.0.1:8765/** on the merged code \u2014 no restart needed.\n- **#22 updated** with the v2 summary; **memory** refreshed.\n\n## What landed in this batch (3 commits)\n- **Per-thread `claude -p` analysis** \u2014 recommendation + ~5-sentence analysis, **guideline-injected**, cached; triggers = background loop + Analyze/Re-analyze/Analyze-all.\n- **Feedback** (replaced accept/flag) + an **Edit-guidelines** button that writes `docs/session-manager-cases.md` live.\n- **Actionable model** \u2014 idle/waiting/disconnected are always actionable; grace became a `fresh` flag (auto-loop waits, you can act now); any session (incl. running) analyzable on request.\n- **Title + recent messages + worktree status** per row.\n\nEverything stays gated off from live submission \u2014 the AskUserQuestion submit-shape blocker is still the #1 open item on #22, alongside the guideline-doc *writer* (turning accumulated feedback into guideline edits) and the live REVIEW/RESCUE + service work.\n\nThe `manager-ui` background server (`bdoy90d7a`) keeps running for you; tell me if you'd like it stopped or moved to a LAN bind."
+      },
+      {
+        "role": "user",
+        "text": "I saved one feedback, how is the feedback used?"
+      },
+      {
+        "role": "assistant",
+        "text": "Good question \u2014 let me verify the actual wiring rather than describe the intent, so I give you a straight answer."
+      },
+      {
+        "role": "assistant",
+        "text": "Straight answer: **right now your feedback is saved and shown back to you, but nothing consumes it automatically yet.** Here's the actual wiring I just traced:\n\n- **Saved** \u2192 `logs/agent-manager-feedback.json`, keyed by the thread's signature. Your note is there:\n  > `review:cse_01H9L9\u2026` \u2192 *\"the recommendation here should be to write down notes, create a ticket with follow ups. Review that backup is good, than close thread.\"*\n- **Read** \u2192 only by `api_stuck` (to repopulate the textarea on refresh) and `save_feedback`. \n- **Analysis** \u2192 `investigator_prompt_advise` injects **guidelines only** (`read_guidelines`). `manager.py` never reads the feedback file.\n\nSo the only path from feedback to behavior today is **through you**:\n\n```\nanalysis \u2192 you write feedback \u2192 [YOU click \"Edit guidelines\", encode the lesson] \u2192 guidelines injected into every future analysis\n                                  \u2514\u2500 the automated feedback\u2192guidelines writer is NOT built yet (deferred on #22)\n```\n\nThat manual hop is the gap. There are two ways to close it \u2014 and your saved note is a perfect example (it's really a REVIEW-case guideline):"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Both"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-fbd6b665-ef03a15f7330a302",
+  "sig": "answer:rollout-fbd6b665:ef03a15f7330a302",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from fbd6b665-4afb-45fb-a556-89b203245b22.jsonl turn #534",
+  "input": {
+    "action": {
+      "session_id": "rollout-fbd6b665",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How should I move this WIP off main?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_016N8bTrTtrJFTTJAMbLA1Ek",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I move this WIP off main?",
+            "header": "Move WIP",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Branch in place: `git switch -c feature/session-preserve-toolkit`",
+                "description": "Keeps changes, just moves them off main. Simplest \u2014 no new directory, this session continues in the same cwd. main stays clean. Good if you trust this session's transcript to stay coherent."
+              },
+              {
+                "label": "New worktree: stash \u2192 add worktree \u2192 unstash there",
+                "description": "`git stash -u`, `git worktree add ../ai-harness-session-preserve feature/session-preserve-toolkit`, then unstash there. I keep working but in the new dir. Closer to the project convention but the transcript's cwd changes mid-session, which may confuse the fork tooling later."
+              },
+              {
+                "label": "Just branch now, leave the rest for me to decide",
+                "description": "Same as option 1 \u2014 minimum action. Skip the worktree question; commit + push happens later when YOU say so."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now **task #7**: the `scripts/supervisor-restart.sh` composer wrapping `launchctl kickstart -k`, using these primitives."
+      },
+      {
+        "role": "assistant",
+        "text": "Now update the **skill doc** so future you (and the user) reach for the wrapper instead of bare kickstart:"
+      },
+      {
+        "role": "assistant",
+        "text": "Now **task #5/#6**: tests for the pure helpers. Quickly cover the new logic."
+      },
+      {
+        "role": "assistant",
+        "text": "Now add focused tests for the new pure helpers + bulk-fork logic:"
+      },
+      {
+        "role": "assistant",
+        "text": "Now tests for `fork_all` (the per-id sequencing logic is the load-bearing bit) and `resume` (pure command rendering):"
+      },
+      {
+        "role": "assistant",
+        "text": "No \u2014 I'm on **main**, not a worktree. All changes are uncommitted:\n\n```\nM  remote_control/cli.py\nM  remote_control/manager.py\nM  remote_control/session_list.py\nM  remote_control/usage_limit/monitor.py\nM  skills/remote-control-dirs/SKILL.md\nM  tests/test_session_list.py\n?? remote_control/session_fork_all.py\n?? remote_control/session_resume.py\n?? scripts/supervisor-restart.sh\n?? tests/test_session_fork_all.py\n```\n\nThat's against the workflow convention (feature branch + worktree). Three ways to remediate, in increasing isolation:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "New worktree: stash \u2192 add worktree \u2192 unstash there"
+  }
+}

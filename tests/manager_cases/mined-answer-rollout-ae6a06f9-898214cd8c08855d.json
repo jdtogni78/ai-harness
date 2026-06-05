@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-ae6a06f9-898214cd8c08855d",
+  "sig": "answer:rollout-ae6a06f9:898214cd8c08855d",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from ae6a06f9-1045-4535-81a1-87522892aa8f.jsonl turn #57",
+  "input": {
+    "action": {
+      "session_id": "rollout-ae6a06f9",
+      "repo": "job-search",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/job-search/.claude/worktrees/bridge-cse_01HmuSk4HdrNjkQDN8qgMtNp",
+      "question": "How should I handle the LinkedIn referral tooling branch (01NKJUo7)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_011BV87aAeQSY8T61Wbg71qn",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I handle the LinkedIn referral tooling branch (01NKJUo7)?",
+            "header": "Referral tool",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Merge to main, remove worktree (Recommended)",
+                "description": "Merge c6bac83 into main (clean, no conflicts), then delete the branch + remove its stale-locked worktree."
+              },
+              {
+                "label": "Merge only, keep worktree",
+                "description": "Merge into main but leave the worktree in place for now."
+              },
+              {
+                "label": "Leave it alone",
+                "description": "Don't merge or remove \u2014 keep the branch and worktree as-is."
+              }
+            ]
+          },
+          {
+            "question": "How should I handle the website-specs branch (01WQeqP4)?",
+            "header": "Website specs",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Drop: delete branch + remove worktree (Recommended)",
+                "description": "Superseded by main's richer websites/ tree. Delete branch (reflog-recoverable) and remove the stale-locked worktree."
+              },
+              {
+                "label": "Show me the diff first",
+                "description": "Display the full content diff between the branch and main's current websites/ before I decide."
+              },
+              {
+                "label": "Leave it alone",
+                "description": "Keep the branch and worktree as-is for now."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Let me inspect both unmerged worktrees so you can make an informed call."
+      },
+      {
+        "role": "assistant",
+        "text": "Both are clean and each holds a distinct, self-contained piece of work. Let me look at the actual content so I can summarize what each does."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the website-specs branch:"
+      },
+      {
+        "role": "assistant",
+        "text": "Important finding: `websites/` already exists on `main` with a **much richer** structure than the branch has. Let me check whether the website-specs branch adds anything main doesn't already have, or if main has superseded it."
+      },
+      {
+        "role": "assistant",
+        "text": "Two things to resolve: whether the live merge actually conflicts, and whether those locked agents (pids) are still alive."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the full picture. Both worktree locks are **stale** (the agent pids are dead), so both are safe to act on.\n\n## Branch 1 \u2014 `01NKJUo7`: LinkedIn referral tooling \u2705 merge\n- **Commit:** `c6bac83` \"Add LinkedIn referral tooling (ToS-compliant, own-export based)\" (May 23)\n- **Adds:** `referrals.py` (258-line ranker \u2014 reads your *own* LinkedIn export, cross-references against `notes/target-companies.md`, ranks who can refer you), a SKILL.md section documenting it, `.gitignore` entries for the PII files, and `data/connections.example.csv`.\n- **Status:** `referrals.py` does **not** exist on main anywhere. **Merges clean** into current main. Aligns with the `notes/linkedin-connector.md` strategy that's already on main. \u2192 **Genuinely new value, worth merging.**\n\n## Branch 2 \u2014 `01WQeqP4`: website specs \u274c superseded\n- **Commits:** `621eed7` \"Add project website specs + security incident/rotation docs\" (May 22) + `ba7dbe4` removing the secret-rotation docs (May 23).\n- **Adds:** older/shorter drafts of `websites/README.md`, `websites/dstrader/README.md`, `websites/familyfund/README.md` (28/133/129 lines).\n- **Status:** Main has since grown a **much richer** `websites/` tree \u2014 19 files including `STATUS.md`, full `dstrader/docs/*` and `familyfund/docs/*`, and `websites/personal/`. The branch's 3 READMEs are *earlier drafts* of files main already has in fuller form. **Merging this would regress main's newer content.** \u2192 **Drop it.**\n\nMy recommendation: **merge `01NKJUo7`, drop `01WQeqP4`**, then remove both stale worktrees. Deleting a branch is reflog-recoverable, so dropping `01WQeqP4` isn't permanent. Let me confirm before I touch `main`:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Merge to main, remove worktree (Recommended), Drop: delete branch + remove worktree (Recommended)"
+  }
+}

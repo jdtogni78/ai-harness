@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-1ed74696-ee13cbf262ee0628",
+  "sig": "answer:rollout-1ed74696:ee13cbf262ee0628",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 1ed74696-73ba-4bea-8344-02ba21ceb232.jsonl turn #617",
+  "input": {
+    "action": {
+      "session_id": "rollout-1ed74696",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_012ZZj5YNPuB76JJdCViHEY6/app1/family-fund-app",
+      "question": "How should I close out the Phase 1 (#22) work?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01PPH3J2DeBWUPDf2mRqpVsx",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I close out the Phase 1 (#22) work?",
+            "header": "Close-out",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Full close (commit\u2192merge\u2192cleanup)",
+                "description": "Run the close-thread flow: commit on branch, merge to main, push, comment+close ticket #22, release testpool slot, remove worktree. Per the no-PR workflow."
+              },
+              {
+                "label": "Commit on branch only",
+                "description": "Commit the test changes on this branch and release the testpool slot, but don't merge to main or touch the ticket yet \u2014 you review first."
+              },
+              {
+                "label": "Leave everything as-is",
+                "description": "Don't commit or merge. Keep the worktree + slot so you can inspect the diff. I'll just release nothing and wait."
+              }
+            ]
+          },
+          {
+            "question": "File follow-up issues for the two findings?",
+            "header": "Follow-ups",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "transactionScheduleDue return-type bug",
+                "description": "Create issue: method declares `: TransactionExt` but returns null on missing entity \u2192 TypeError. Add to board #1."
+              },
+              {
+                "label": "Refresh test-baseline for FundTraitTest",
+                "description": "Create issue: committed test-baseline makes 11 FundTraitTest data-staleness tests fail (CASH-asset ordering)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Final run is progressing (no coverage instrumentation, so faster). I'll wait for it to complete and report the failure count."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll wait for the final run to complete \u2014 the background task will notify me."
+      },
+      {
+        "role": "assistant",
+        "text": "Back to **11 failures** (was 13). Let me confirm all 11 are the FundTrait baseline ones (no new failures from my changes)."
+      },
+      {
+        "role": "assistant",
+        "text": "**Final result: 11 failures \u2014 all `FundTraitTest` (the documented baseline-data issue), zero non-FundTrait failures.** My hardening fixes brought it back from 13\u219211, my 21 new tests are green (`soft failure when due handler returns null \u2713` etc.), and `read_transaction`/`validation_errors` no longer fail. 2146 passed, risky down 56\u219248.\n\nLet me update task status and clean up the scratch artifacts."
+      },
+      {
+        "role": "assistant",
+        "text": "Storage is clean. Let me update the `read_transaction` memory \u2014 that test is now fixed (so the \"ignore it\" guidance is stale)."
+      },
+      {
+        "role": "assistant",
+        "text": "Everything is done and verified. Let me give you the complete picture and confirm how to close out.\n\n## Phase 1 (#22) \u2014 complete\n\n**Coverage gains** (pcov, full suite, before \u2192 after):\n\n| Class | Before | After | \u0394 |\n|-------|-------:|------:|---:|\n| `ScheduledJobTrait` | 79.5% | **100.0%** | +20.5 |\n| `OperationsController` | 68.6% | **79.3%** | +10.6 |\n| `MatchingRuleControllerExt` | 92.5% | **98.5%** | +6.0 |\n| `TransactionControllerExt` | 91.6% | **97.0%** | +5.4 |\n| `ScheduledJobControllerExt` | 88.0% | **92.3%** | +4.2 |\n| `TransactionExt` | 87.6% | 88.4% | +0.7 |\n\n**Tests:** 21 new methods (all green), 8 previously-\"risky\" de-risked. Final full suite: **2146 passed, 11 failed, 48 risky, 1 skipped**. The 11 failures are all `FundTraitTest` data-staleness tests \u2014 pre-existing, identical to `main`, caused by the committed test-baseline (CASH asset dropped); unrelated to Phase 1.\n\n**Hardened 2 fragile tests** (you chose this): `read_transaction` (`setRelations([])` \u2014 was faker/observer-order-dependent) and `validation_errors` (removed a flaky case that relied on a random factory timestamp and contradicted the `nullable` rule). This brought the count back from 13 \u2192 11.\n\n**Files:** 2 new test files + 4 edited test suites + `test_coverage_plan.md` annotation. No application code changed.\n\n**Two findings worth follow-up tickets** (not fixed \u2014 out of Phase 1 scope):\n1. `TransactionTrait::transactionScheduleDue()` is declared `: TransactionExt` (non-nullable) but `return $newTran` is `null` when the entity is missing \u2192 throws `TypeError` (not caught by `catch (\\Exception)`). Latent bug.\n2. The committed `test-baseline.sql.gz` makes 11 `FundTraitTest` tests fail (CASH-asset ordering) \u2014 baseline refresh or test should seed a non-CASH asset.\n\nI haven't committed, merged, or posted anything yet, and I still hold testpool slot `test1`."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Full close (commit\u2192merge\u2192cleanup), transactionScheduleDue return-type bug, Refresh test-baseline for FundTraitTest"
+  }
+}

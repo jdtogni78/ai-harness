@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2ecc375c-4e63a48521b35974",
+  "sig": "answer:rollout-2ecc375c:4e63a48521b35974",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2ecc375c-896d-46b9-81ab-3e7b65a5d0ab.jsonl turn #41",
+  "input": {
+    "action": {
+      "session_id": "rollout-2ecc375c",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund",
+      "question": "Where should the new stage env live?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01NR19j5PF4xCN6ZpuEYKDHA",
+        "description": "",
+        "questions": [
+          {
+            "question": "Where should the new stage env live?",
+            "header": "Stage host",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Same host (spirit), separate stack",
+                "description": "New compose project on spirit with different ports/container names; cheapest, but a spirit-level compromise still hits both."
+              },
+              {
+                "label": "Different host entirely",
+                "description": "Stage on another machine (e.g., a separate VM or your Mac mini). True blast-radius isolation, but more infra to set up."
+              },
+              {
+                "label": "Cloud VM (AWS/Hetzner/etc.)",
+                "description": "Most isolated and closest to a real decom story (prod just disappears), but biggest cost/setup lift."
+              }
+            ]
+          },
+          {
+            "question": "What DB does stage start from?",
+            "header": "Stage DB",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Latest prod dump, AS-IS (real data)",
+                "description": "Maximum fidelity for the parallel-run test. Stage holds real PII \u2014 same protection level as prod required."
+              },
+              {
+                "label": "Prod dump anonymized via prod_to_dev.sql",
+                "description": "Lower exposure if stage creds leak. But you're then NOT testing on prod-equivalent data, which weakens the parallel-run signal."
+              },
+              {
+                "label": "Fresh DB, replay-from-prod later",
+                "description": "Stage runs empty until cutover day; replay/dump-restore happens at swap time. Cleaner secrets boundary but less parallel-run value."
+              }
+            ]
+          },
+          {
+            "question": "What's the gate for \"100% working\" before cutover?",
+            "header": "Cutover gate",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Full nightly test suite green on stage + manual smoke",
+                "description": "Tight, objective. Doesn't catch real-user usage gaps."
+              },
+              {
+                "label": "N days of parallel use, both envs writable",
+                "description": "Catches usage gaps, but you now have two divergent DBs to reconcile at cutover. Hardest."
+              },
+              {
+                "label": "N days parallel, stage read-only-mirror of prod",
+                "description": "Stage replays prod, users still write to prod. No reconciliation; clean swap when ready. Recommended."
+              },
+              {
+                "label": "Decide later in the plan doc",
+                "description": "Defer this; I'll just sketch the structure and you fill in the criteria as it firms up."
+              }
+            ]
+          },
+          {
+            "question": "What do you want me to do right now?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Draft a new master tracker comment on #36",
+                "description": "Edit #36 to reflect the new plan, mark #20/#34 as superseded, open a placeholder for the stage-build epic. Minimal commits."
+              },
+              {
+                "label": "Open a new epic ticket + close superseded ones",
+                "description": "File a fresh \"stage-mirror-then-decom-prod\" epic, link from #36, close/won't-do #20 #34. Cleaner board, more churn."
+              },
+              {
+                "label": "Just sketch the plan in this chat",
+                "description": "No ticket edits yet; we iterate here first, then I update the board once shape is clear."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "what is the origin? have we moved to the public repo? what else we need to do to move to the public repo? check tickets and md files"
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the state of the go-public migration:\n\n## Origin\n- `origin` = **https://github.com/jdtogni78/FamilyFund.git** \u2014 this is the **new clean repo** (id 1249642759, created 2026-05-25) that replaced the old dirty one. Old one is now `FamilyFund-archive` (kept PRIVATE).\n- \u26a0\ufe0f **Repo is still PRIVATE** \u2014 the flip has NOT happened yet.\n\n## What's left (master tracker: [#36](https://github.com/jdtogni78/FamilyFund/issues/36))\n\n**\ud83d\udd34 Hard gates before flipping:**\n- [#20](https://github.com/jdtogni78/FamilyFund/issues/20) \u2014 Prod APP_KEY check + any remaining secret rotation on `spirit`. Only two boxes left there:\n  - Stage APP_KEY rotation (dormant \u2014 no running stage env)\n  - **Prod APP_KEY check** (human-only) \u2014 confirm prod `.env` APP_KEY \u2260 leaked dev key; rotate only if it matches\n\n**\ud83d\udd34 The flip itself + immediate after:**\n- [#10](https://github.com/jdtogni78/FamilyFund/issues/10) \u2014 `gh repo edit --visibility public` (human-only, irreversible)\n- [#11](https://github.com/jdtogni78/FamilyFund/issues/11) \u2014 re-enable code scanning + restore SARIF uploads + JS/TS CodeQL (only works once public)\n\n**\ud83d\udfe2 Independent (not gates):**\n- [#18](https://github.com/jdtogni78/FamilyFund/issues/18) \u2014 DEV/STAGE bulk user password reset\n- [#34](https://github.com/jdtogni78/FamilyFund/issues/34) \u2014 PROD bulk user password reset (only if #20's APP_KEY check shows drift, else close as won't-do)\n- [#1](https://github.com/jdtogni78/FamilyFund/issues/1) \u2014 pre-publish data hygiene (3/5 ticked; remainder folded into #66/#16/#80)\n\n**\ud83d\udfe1 Out-of-band cleanup (no tickets):**\n- Delete `FamilyFund-r1-interim` repo via UI (subset of archive)\n- Update macbook host: re-clone `FamilyFund` + clone `familyfund-secrets` next to it + drop in age key\n\n## \u2705 Already done\nHistory purge + repo swap (#66), secrets moved to private `familyfund-secrets` (#16), synthetic test-baseline (#78) + `prod_to_dev` scrub (#79), source-tree scrub round 2, runbooks moved off-repo, pre-commit gitleaks (#37) + CI Secret Scan + ACL matrix gate (#12/#44), README/docs final grep (0 hits), screenshots/PDFs audited synthetic.\n\n## Bottom line\nYou're one human-only gate away: **#20's prod APP_KEY check on `spirit`**. Once that's signed off, #10 (the flip) and #11 (re-enable scanning) are the last two clicks. Everything an agent can do has already landed."
+      },
+      {
+        "role": "user",
+        "text": "I want to change the plan to duplicate the prod env as stage but all things like prod (duplicate db and etc).\nWe should bring stage to 100% working, run them in parallel, than decomm prod"
+      },
+      {
+        "role": "assistant",
+        "text": "That's a significantly safer cutover \u2014 no in-place secret rotation on prod, and you get to test the full stack on a real prod-equivalent DB before flipping users.\n\nThe plan change collapses several open tickets:\n- **#20** \"Prod APP_KEY check + rotate-if-match\" \u2192 moot. Fresh stage gets fresh secrets; old prod APP_KEY just dies with the host.\n- **#34** \"PROD bulk password reset\" \u2192 moot for the same reason; the leaked-key concern is decommissioned, not patched.\n- **#10** \"make repo public\" \u2014 unblocked sooner; stage doesn't need to exist before the flip (the repo audit was the actual gate, not the prod rotation).\n\nWhat this **adds** as new work (no ticket today):\n1. Stand up `stage` on a separate host (or separate compose stack on `spirit`?) mirroring prod's Dockerfile/compose\n2. Restore latest prod DB dump \u2192 stage DB (with or without anonymization? prod-equivalent suggests **with** real data, behind auth)\n3. Fresh `.env.stage` (new APP_KEY, new DB pw, vaulted via SOPS) committed as `.env.stage.sops`\n4. Parallel-run window: define what \"100% working\" means (smoke test? full Dusk? user-driven acceptance for N days?)\n5. Cutover: DNS/port swap or hostname swap; freeze writes on old prod during the swap\n6. Decom plan: prod-down checklist, retain DB snapshot, revoke creds, archive container\n\nA few decisions I'd want from you before drafting tickets:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Same host (spirit), separate stack, Latest prod dump, AS-IS (real data), N days of parallel use, both envs writable, Draft a new master tracker comment on #36"
+  }
+}

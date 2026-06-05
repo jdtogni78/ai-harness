@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2fb2cf35-8744db04902c8bba",
+  "sig": "answer:rollout-2fb2cf35:8744db04902c8bba",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2fb2cf35-1e06-4ccf-8f19-661200f9ebeb.jsonl turn #151",
+  "input": {
+    "action": {
+      "session_id": "rollout-2fb2cf35",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_0143BLSi72cXwwaoR5TWBJAa",
+      "question": "Re-spec #29 around 'auto-resume = spawn Terminal.app with `claude -r <uuid>` per forked session'?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_014QxDgzFdSaUjSRwD55XTyH",
+        "description": "",
+        "questions": [
+          {
+            "question": "Re-spec #29 around 'auto-resume = spawn Terminal.app with `claude -r <uuid>` per forked session'?",
+            "header": "Auto-resume mech",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, open-terminal default",
+                "description": "Auto-spawn one Terminal.app window per recovered session on boot. Most aggressive. Add RESUME_ON_RESTART knob (open-terminal | open-app | print | off) defaulting to open-terminal."
+              },
+              {
+                "label": "Yes, open-app default",
+                "description": "Auto-bring Claude.app forward at each cwd; user picks the fork from /resume. Less noisy. Same knob, default open-app."
+              },
+              {
+                "label": "Different approach",
+                "description": "I have a different mechanism in mind \u2014 let me describe it."
+              },
+              {
+                "label": "Stay with manual pickup",
+                "description": "Keep the current spec (fork + surface via resume-work picker). Don't auto-spawn anything."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Reply delivered. Now updating issue #29 to match the decision. Let me draft the diff, then push it after your OK."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the delta:\n\n- **Update note at top** explains why the design changed (worker found the CLI gap)\n- **Goal**: drop \"Allowlisted dirs may auto-resume\"\n- **Part A step 4** (auto-resume via `--resume <uuid>`): removed\n- **Part B step 1**: drop `auto_resume` field from checkpoint\n- **AC**: drop the two auto-resume bullets\n- **Tradeoffs**: drop the auto-resume tradeoff\n- **Out of scope**: add the auto-resume gap as a deferred item"
+      },
+      {
+        "role": "assistant",
+        "text": "Body updated. Worker has the green light on option A and is continuing on the orphan walk, TTL, archived marker, idempotency, oneoff checkpoints, and sweep. I'll be auto-invoked when they ping back."
+      },
+      {
+        "role": "user",
+        "text": "1) I want all local sessions on a given computer to auto resume\n2) what is the conterpart session name?"
+      },
+      {
+        "role": "assistant",
+        "text": "Quick on (2), then I need to check one thing before answering (1) cleanly.\n\n**(2) Counterpart session**: it's `oneoff-mini-1c561b44` \u2014 picker title `[AH] oneoff-mini-1c561b44`, `cse_0194L9v2amdPMtmc8Wn1rChC`, worker=running, anchored at `~/dev/ai-harness`. That's the only one I spawned.\n\nOn (1) \u2014 \"all local sessions auto-resume\" \u2014 I want to check exactly what `session_resume.py` and `claude -r` can actually do today before I tell the worker to course-correct, since the original auto-resume mechanism I spec'd (preloading a transcript at `mm-*` server spawn) was the part the CLI doesn't support."
+      },
+      {
+        "role": "assistant",
+        "text": "There's a hard constraint to surface before we re-spec, with a concrete proposal:\n\n**The constraint.** Per the docstring in `session_resume.py:5-10`, there's no public API to \"promote a local uuid into a fresh `cse_`\" \u2014 the cloud Claude Code service has no endpoint to seed a new session from a stored transcript. So **auto-resuming back into the desktop/mobile picker row is not achievable** with today's APIs. The picker rows for prior sessions stay dead after reboot.\n\n**What IS achievable** for \"auto-resume on this computer\": `session_resume.py:70-74` already has `terminal_open_argv()` \u2014 it spawns `open -na Terminal.app --args zsh -lc \"cd <cwd> && claude -r <uuid>\"` per forked uuid. So the realistic mechanism is: after the supervisor-startup sweep forks every orphan, it also calls `--open-terminal` on each, giving you **one Terminal.app window per recovered session, each with `claude -r <uuid>` running and the transcript pre-loaded**. Local CLI, not the cloud picker. This covers both supervisor-managed dirs and one-offs uniformly.\n\n**The tradeoff.** On a reboot of a host with 8 prior sessions, that's 8 Terminal windows that pop up at login. TTL (24h default) filters stale ones, and the `archived` marker skips intentionally-closed sessions \u2014 but it's still noisy. Mitigation knobs: `RESUME_ON_RESTART=open-terminal|open-app|print|off` (default `open-terminal`), where `open-app` is \"just bring Claude.app forward at the cwds and let the user pick\", and `print` is \"log the resume commands but don't spawn anything.\""
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "I see sessions being created on new session without any UI. how are we doing those?  I dont see any term window with anything related"
+  }
+}

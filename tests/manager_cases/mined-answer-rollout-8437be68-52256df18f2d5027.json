@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-8437be68-52256df18f2d5027",
+  "sig": "answer:rollout-8437be68:52256df18f2d5027",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 8437be68-aa03-4230-9133-7fb7f1754333.jsonl turn #55",
+  "input": {
+    "action": {
+      "session_id": "rollout-8437be68",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control/.claude/worktrees/bridge-cse_01FHeo16QLs2JcCt3GXN3SaQ",
+      "question": "How far do you want me to take this now?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_0128vUnH4vVacZKf54jF3QGF",
+        "description": "",
+        "questions": [
+          {
+            "question": "How far do you want me to take this now?",
+            "header": "Scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Just the detector now",
+                "description": "Productionize the read-only Codex detector into remote_control/ (CodexProvider.detect + tests, no resume firing). Lowest risk, proves the pipeline end to end."
+              },
+              {
+                "label": "Detector + dry-run resume",
+                "description": "Add CodexProvider.resume but keep USAGE_LIMIT_DRY_RUN on, so it logs 'would resume codex <uuid>' without spawning anything. Validate timing/backoff safely."
+              },
+              {
+                "label": "Full live implementation",
+                "description": "Build detect + resume + launchd wiring and enable live Codex resume (allowlisted cwds only). Spawns real codex exec processes that edit repos."
+              },
+              {
+                "label": "Plan only for now",
+                "description": "Stop here with the plan; don't write code yet."
+              }
+            ]
+          },
+          {
+            "question": "How should auto-resume decide which Codex sessions are eligible?",
+            "header": "Resume gate",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "cwd allowlist (opt-in)",
+                "description": "Only resume sessions whose recorded cwd is in an allowlist (like active-dirs.txt). Safest; you control which repos can be auto-driven."
+              },
+              {
+                "label": "Any blocked session",
+                "description": "Resume any session that hit a limit and went quiet, regardless of repo. Broadest reach, highest blast radius."
+              },
+              {
+                "label": "Notify-only, no auto-resume",
+                "description": "Detect and push a notification when a Codex session is limit-blocked, but never spawn a resume automatically \u2014 you trigger it manually."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Let me check the local machine for OpenAI Codex CLI and its session storage \u2014 that determines whether a POC is even feasible, since (unlike Claude Code's cloud `cse_` sessions) Codex runs locally."
+      },
+      {
+        "role": "assistant",
+        "text": "Codex CLI isn't on PATH, but there's a substantial `~/.codex/` with `rollout-*.jsonl` session files. Let me find the binary and inspect the session/rate-limit format \u2014 these determine how a POC would work."
+      },
+      {
+        "role": "assistant",
+        "text": "This is **OpenAI Codex Desktop** (app at `/Applications/Codex.app`, codex binary inside it, v0.133.0-alpha.1), storing sessions as rollout JSONL. Now I need the two things that decide POC feasibility: how rate/usage limits appear in the logs, and what resume surface the binary exposes."
+      },
+      {
+        "role": "assistant",
+        "text": "`codex resume <uuid>` and `codex exec resume` exist, and rate-limit data lives in `token_count` events. Let me see the exact rate-limit structure, what a `turn_aborted` looks like, and the session index format \u2014 these are the detection signals."
+      },
+      {
+        "role": "assistant",
+        "text": "I now have everything I need to answer the feasibility question concretely. Let me run a **read-only detection POC** against your actual Codex rollouts to prove detection works (this fires nothing \u2014 it only reads logs)."
+      },
+      {
+        "role": "assistant",
+        "text": "The POC works \u2014 that table is generated purely from reading your Codex rollout logs, nothing fired. Here's where things stand.\n\n## Direct answers\n\n**Today we can only resume Claude Code, not Codex.** The existing monitor (`remote_control/usage_limit/`) is hardwired to Anthropic's cloud `/v1/code/sessions` API and the `cse_` session model. It knows nothing about Codex. (The retired \"codex-relay\" was unrelated \u2014 a mobile QR-pairing relay, not OpenAI Codex.)\n\n**Detection of Codex limits is feasible \u2014 just proven above.** Your Codex Desktop (`/Applications/Codex.app`, codex `v0.133.0-alpha.1`) writes per-session rollout logs to `~/.codex/sessions/YYYY/MM/DD/rollout-<ts>-<uuid>.jsonl`, and every `token_count` event carries a `rate_limits` block:\n\n```json\n{ \"limit_id\":\"codex\", \"plan_type\":\"plus\",\n  \"primary\":   {\"used_percent\":90, \"window_minutes\":300,   \"resets_at\":1779433580},\n  \"secondary\": {\"used_percent\":48, \"window_minutes\":10080, \"resets_at\":1779871017},\n  \"rate_limit_reached_type\": null }\n```\n\nSo per session we get the 5h + weekly usage %, exact `resets_at`, and `rate_limit_reached_type` (the field that flips non-null when a limit is actually hit). Right now your worst window is 90% (5h) \u2014 nothing blocked.\n\n**Sending the resume is also feasible, but architecturally different from Claude.** The codex binary exposes `codex exec resume <uuid> \"<prompt>\"` (non-interactive) and `codex resume`. Auth is automatic via `~/.codex/auth.json` \u2014 no keychain dance like Claude.\n\n## The one big difference to flag\n\nClaude `cse_` sessions live in the cloud, so \"resume\" is just POSTing a `continue` event into a session that's still sitting there idle. **Codex sessions are local** \u2014 there's no server-side \"paused & idle\" session waiting. A Codex turn that hits a limit just ends; the rollout file goes quiet. So:\n\n- **Resume = spawning a real local process** (`codex exec resume <uuid> \"continue\"`) in the session's recorded `cwd`. That process autonomously edits files / runs commands in a real repo (e.g. `/Users/claudio1/dev/FamilyFund`). That's a much bigger blast radius than injecting a cloud event.\n- **\"Should this be resumed?\" is a heuristic, not a server fact.** We have to infer it from the rollout tail (limit hit, turn not user-interrupted, nothing continued since) rather than reading an authoritative `failed` flag.\n\n## Proposed implementation plan\n\nReuse the existing monitor scaffolding (loop, state file, backoff, dry-run, launchd) and add a provider abstraction:\n\n1. **Refactor** `usage_limit/` into a small provider interface: `detect() -> [PausedSession]`, `resume(session)`. Move the current Anthropic logic behind a `ClaudeProvider`. (Keeps all current behavior; tests stay green.)\n2. **`CodexProvider.detect()`** \u2014 scan `~/.codex/sessions/**/rollout-*.jsonl`, take each session's last `rate_limits`, emit a paused-session when blocked (`rate_limit_reached_type` set, or `used_percent>=99`), carrying `uuid`, `cwd`, `resets_at`, title (from `session_index.jsonl`). This is the POC code above, productionized.\n3. **`CodexProvider.resume()`** \u2014 `subprocess` `codex exec resume <uuid> \"continue\"` with `cwd` set, gated until `resets_at` passes, behind the existing dry-run + backoff. Capture output to a log.\n4. **Safety gate** \u2014 a cwd allowlist (reuse the `active-dirs.txt` pattern) so we only ever auto-resume Codex in repos you've opted in, plus a push notification on each resume.\n5. **Tests + plist** \u2014 fixture-based detection tests mirroring `test_usage_detect.py`; extend the launchd monitor to run both providers.\n\nTwo things I'd validate in a phase-2 POC before trusting it: whether `codex exec resume` (headless) is the resume path you want vs. the `codex remote-control` app-server daemon (would keep the Desktop session coherent), and confirming a real limit-abort's rollout tail so detection matches reality (none of your 25 logs actually hit the wall \u2014 all `reached: None`).\n\nBefore I write any of it, two scope decisions:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Full live implementation, Any blocked session"
+  }
+}

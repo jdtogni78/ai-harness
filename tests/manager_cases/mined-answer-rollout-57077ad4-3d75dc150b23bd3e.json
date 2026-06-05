@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-57077ad4-3d75dc150b23bd3e",
+  "sig": "answer:rollout-57077ad4:3d75dc150b23bd3e",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 57077ad4-f6fa-40ab-8b23-f7ff36165e82.jsonl turn #268",
+  "input": {
+    "action": {
+      "session_id": "rollout-57077ad4",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01DsLNkLoSBoGQAkayWZobci/app1/family-fund-app",
+      "question": "Which ACL-matrix slice should run on every standard run (full 151-route \u00d7 6-role sweep stays nightly)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01NcfeJqK3tmwFrTZ5A6bfYq",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which ACL-matrix slice should run on every standard run (full 151-route \u00d7 6-role sweep stays nightly)?",
+            "header": "ACL slice",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Critical routes \u00d7 all roles",
+                "description": "A curated allowlist of the most sensitive routes (admin, users, id_documents, cashDeposits/depositRequests, credit-lines, operations) checked across all 6 roles. ~20s. Best at catching privilege-escalation regressions (a sensitive route opening up to a low-priv role). Recommended."
+              },
+              {
+                "label": "All routes \u00d7 anonymous only",
+                "description": "Every auth route must reject the unauthenticated user (302/403), checked every run. ~70s. Proves nothing is publicly reachable, but only the unauthenticated dimension and adds notable time."
+              },
+              {
+                "label": "Critical routes, anon + beneficiary",
+                "description": "Curated sensitive routes checked against just the two lowest-privilege actors (anonymous + beneficiary). ~10s, fastest. Narrower role coverage than option 1."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Done. Here's what I changed and verified.\n\n## What I did\n\nI measured the suite first (full run with JUnit timing in an isolated test slot), and the data was decisive \u2014 **~17 min sequential, with 4 classes accounting for 60% of it**. You picked the \u226550s cut, so those 4 are now the nightly group.\n\n**Tagged `@group nightly`** (matching the repo's existing docblock convention):\n| Class | Time |\n|---|---|\n| `AclMatrixTest` | 423s (full route\u00d7role sweep) |\n| `PDFTest` | 82s |\n| `SmokeTest` | 63s |\n| `OperationsControllerTest` | 54s |\n\n**Wired it up:**\n- `phpunit.xml` \u2014 added `<group>nightly</group>` to the `<exclude>` block, so the default `php artisan test` / `bin/test.sh` skips them.\n- `bin/test-nightly.sh` (new) \u2014 runs `--group=nightly`, which overrides the config exclude. Delegates to `test.sh` so it reuses the Vite-build refresh + container autodetection.\n- `CLAUDE.md` \u2014 documented the split and how to re-rank slow tests.\n\n## Verified (via `php artisan test`, not just raw phpunit)\n- **Default run** \u2192 2186 tests (nightly excluded). `--filter=PDFTest` reports *\"No tests found\"* \u2713\n- **`--group=nightly`** \u2192 exactly the 4 classes (119 tests); ran PDFTest's 36 \u2192 all pass \u2713\n- `2186 + 119 = 2305`, and the full suite was green in the measurement run.\n\n## Two things worth knowing\n1. **There was a real bug in my first attempt**: PHPUnit treats the *entire line* after `@group` as the group name, so `@group nightly Slow (...)` registered a group literally named `\"nightly Slow (...)\"` and matched nothing. I moved the prose to a separate line \u2014 `@group nightly` now stands alone. (Worth remembering if anyone tags more.)\n2. **Deprecation**: PHPUnit 11.5 honors `@group` docblocks but warns they go away in PHPUnit 12 (this already affects the repo's existing `QaBugs20260520Test`). I kept docblocks to match convention; migrating all `@group` usage to `#[Group(...)]` attributes is a separate cleanup if you want it.\n\nChanges are staged in the worktree, not committed. Want me to commit, or adjust the threshold?"
+      },
+      {
+        "role": "user",
+        "text": "can we keep some cases for the acl matrix on std..."
+      },
+      {
+        "role": "assistant",
+        "text": "Makes sense \u2014 `AclMatrixTest` is the big one (423s) and it's a security guard, so losing it from every-run feedback is the real cost. The catch is it's currently a *single* test that sweeps every route \u00d7 role. To keep \"some cases\" on the standard run, I need to understand its structure so I can carve out a fast subset. Let me read it:"
+      },
+      {
+        "role": "assistant",
+        "text": "Now I understand it \u2014 it's a single test that walks every `auth` GET route \u00d7 6 roles and diffs the whole matrix against a golden file. There's no per-case granularity today; \"keeping some cases on standard\" means carving a fast subset out of the one giant test.\n\nLet me check the golden file to see the route surface and how a subset could be defined:"
+      },
+      {
+        "role": "assistant",
+        "text": "151 routes \u00d7 6 roles = 906 requests \u2248 0.47s each \u2014 that's the 423s. So the subset's size directly sets its runtime. The decision that drives implementation is *which slice* stays on the standard run. Let me look at the route groups so the options are concrete:"
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the core tradeoff: keeping a slice on the standard run costs ~0.47s/request, so a *fast* subset has to be small (~40 requests to stay under ~20s). The two meaningfully different \"slices\" are different security invariants, so I want your call on which to keep every-run:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Critical routes \u00d7 all roles"
+  }
+}

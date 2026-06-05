@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-fbd6b665-93b271b059fbc8df",
+  "sig": "answer:rollout-fbd6b665:93b271b059fbc8df",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from fbd6b665-4afb-45fb-a556-89b203245b22.jsonl turn #648",
+  "input": {
+    "action": {
+      "session_id": "rollout-fbd6b665",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How should the 5 forks be \"started\" on this machine?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01QRDzazjR7z7eV2JuC6RgvG",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the 5 forks be \"started\" on this machine?",
+            "header": "Start mode",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "--open-app: surface Claude.app at cwd, you pick each from /resume",
+                "description": "Runs `open -a Claude.app ~/dev/ai-harness`. The forks are already in the app's local /resume picker for that cwd \u2014 you pick the 5 manually (5 clicks). Cleanest, no terminals spawn."
+              },
+              {
+                "label": "--open-terminal: spawn 5 Terminal.app windows running `claude -r <uuid>`",
+                "description": "Each becomes an interactive CLI session immediately, but in Terminal rather than the desktop app. 5 new windows; you can close them later."
+              },
+              {
+                "label": "Both: --open-app AND --open-terminal",
+                "description": "Surfaces the desktop app AND spawns 5 terminals. Probably overkill."
+              },
+              {
+                "label": "Send each a wake prompt headlessly first, THEN --open-app",
+                "description": "Run `claude -r <uuid> -p \"continue where you left off; await my next instruction\"` for each in the background to advance the transcript, then open the app. Each will show fresh content when you pick it from /resume. (Each headless call is one billable turn.)"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "All 532 tests pass."
+      },
+      {
+        "role": "assistant",
+        "text": "Everything is on `feature/session-preserve-toolkit` at `/Users/claudio1/dev/ai-harness-session-preserve`, main is clean, and the test suite is green (532/532).\n\n**Summary of what's now live in the worktree:**\n\n| Piece | What it does |\n|---|---|\n| `monitor.archive_session()` | `POST /sessions/{id}/archive` \u2014 verified live |\n| `sessions archive <cse>\u2026` | CLI utility for direct archival |\n| `sessions --stale [--older-than DUR] [--disconnected] [--location LOC] [--ids-only]` | Filter + clean piping into fork-all |\n| `fork-all --ids cse_a cse_b \u2026 [--into-main] [--archive] [--dry-run]` | Bulk fork, per-id failure-tolerant; archive only after fork succeeds |\n| `resume <uuid>\u2026 [--open-app] [--open-terminal]` | Surface local forks |\n| `scripts/supervisor-restart.sh` | Composes: snapshot \u2192 kickstart \u2192 wait \u2192 fork-all \u2192 resume; `--dry-run` / `--archive` / `--open-app` flags |\n| `manager.archive_request()` | Fixed to POST /archive (was stale PUT) |\n| `skills/remote-control-dirs/SKILL.md` | Replaced bare kickstart with the safe wrapper; documented primitives |\n| Tests | 7 new for `parse_duration` / `is_stale` / location filter; 7 for fork_all sequencing; 1 fix to manager archive_request shape |\n\n**Next decisions for you** (I'll wait before doing any of these):\n1. Commit + push the branch? PR vs. just merge to main locally?\n2. Actually run `scripts/supervisor-restart.sh --dry-run` (and then real) on mini to verify end-to-end against live state?\n3. The `resume` ergonomic with `--open-app` does just `open -a Claude.app <cwd>`. Once you confirm forks show up in the app's /resume picker as expected, we can decide whether that's enough or we want to chase the cloud-promotion thing further."
+      },
+      {
+        "role": "user",
+        "text": "commit, merge to main\nI need you to start sessions/prompts on claude code app"
+      },
+      {
+        "role": "assistant",
+        "text": "Main dir is on `main` and clean \u2014 good. Saving that rule as feedback:"
+      },
+      {
+        "role": "assistant",
+        "text": "Now merging the feature branch into main:"
+      },
+      {
+        "role": "assistant",
+        "text": "Merged. Now to start the 5 fork sessions in the Claude Code app. The honest answer is the desktop app has no API to \"open session X\" directly \u2014 but two ways to actually start them are possible:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "--open-app: surface Claude.app at cwd, you pick each from /resume"
+  }
+}

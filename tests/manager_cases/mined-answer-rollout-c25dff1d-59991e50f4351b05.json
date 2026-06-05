@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-c25dff1d-59991e50f4351b05",
+  "sig": "answer:rollout-c25dff1d:59991e50f4351b05",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from c25dff1d-bd05-4611-9dc2-a042228b016d.jsonl turn #90",
+  "input": {
+    "action": {
+      "session_id": "rollout-c25dff1d",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_0168MbAHQshRNG8onfT6Egfh",
+      "question": "Which board corrections should I make?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01K8iZsBnsdVfFBBJNDyr9Dk",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which board corrections should I make?",
+            "header": "Resets",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "#49 \u2192 Done",
+                "description": "Closed + merged (767600cd) but still In Progress. Move to Done. Safe, clearly stale."
+              },
+              {
+                "label": "#6 \u2192 Todo",
+                "description": "Open dstrader-aws bug with no live session. Move back to Todo so it's pickable. Leaves #70/#74 as-is."
+              },
+              {
+                "label": "Leave #70/#74",
+                "description": "Both have running sessions \u2014 confirm they stay In Progress (no change)."
+              },
+              {
+                "label": "Investigate cse_01PoRk",
+                "description": "Look into the stuck 'Security automations history' session (requires_action, untracked) before deciding."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Board #1 (FamilyFund) has **zero In Progress** \u2014 only Todo (9) and Done (21). So the \"In Progress\" tickets you mean must be on the other boards (#2 Remote Control, #3 Job Search). Let me check those, and figure out how to enumerate the actually-running sessions."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me verify boards #2/#3 have items at all, and pull the actually-running work (sessions + in-flight work across engines)."
+      },
+      {
+        "role": "assistant",
+        "text": "The session list is the key. There are 6 live sessions, and critically \u2014 my board query hit the default **30-item limit** (exactly 9 Todo + 21 Done = 30), so I missed In Progress tickets. Let me refetch all boards with a high limit and cross-reference against the running sessions."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the picture is clear. **4 In Progress tickets** vs **6 live sessions**. Let me map them and verify the suspicious ones (my memory says #49 was already merged/DONE)."
+      },
+      {
+        "role": "assistant",
+        "text": "I now have everything I need to compare. Let me confirm the active session host scope and check the agent-claims ledger to map the remaining sessions to tickets."
+      },
+      {
+        "role": "assistant",
+        "text": "I've got the full comparison now. Here's what I found.\n\n## In Progress tickets vs. actually-running sessions\n\n**6 live Claude Code sessions** (all on macmini, none in cloud sandboxes):\n\n| Session | Title | Repo | State |\n|---|---|---|---|\n| cse_0168\u2026 | \"Work session\" (this one) | FamilyFund | running |\n| cse_01FSwp\u2026 | **#70** beneficiary 500s\u2192403/404 | FamilyFund | active |\n| cse_01Mn3S\u2026 | **#74** empty-closure scope leak | FamilyFund | running |\n| cse_01PoRk\u2026 | \"Security automations history\" | FamilyFund | **requires_action** (stuck) |\n| cse_01S28B\u2026 | Resume + LinkedIn rewrite | job-search | idle |\n| cse_012U47\u2026 | Secret mgmt standard | ai-harness | idle |\n\n**4 In Progress tickets on board #1**, verified against issue state + git:\n\n| Ticket | Repo | Issue | Merged? | Live session? | Verdict |\n|---|---|---|---|---|---|\n| **#49** API object-level scoping | FamilyFund | **CLOSED** | \u2705 `767600cd` | none | \u274c **STALE \u2192 should be Done** |\n| **#6** Daily DSTrader run not firing | dstrader-aws | OPEN | no | **none** | \u26a0\ufe0f real bug, but nobody working it |\n| #70 beneficiary 500s | FamilyFund | OPEN | no | \u2705 cse_01FSwp | \u2713 correct |\n| #74 empty-closure leak | FamilyFund | OPEN | no | \u2705 cse_01Mn3S | \u2713 correct |\n\n**Your instinct was right, partly:**\n- **#49** is the clear stale one \u2014 issue is closed *and* merged to main, yet still sits in In Progress. Should be **Done**.\n- **#6** (dstrader-aws) is a genuine open bug but has **no live session** \u2014 it's parked in In Progress with nobody on it. Candidate to move back to **Todo**.\n- **#70** and **#74** are legitimately In Progress (both have running sessions). Leave them.\n\n**One inverse mismatch worth flagging:** session `cse_01PoRk` \"[FF] Security automations history\" is doing FamilyFund work, is **stuck in `requires_action`** (waiting on user input), and has **no In Progress ticket** tracking it.\n\nWhich fixes should I apply?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Investigate cse_01PoRk, #6 \u2192 Todo, Leave #70/#74, #49 \u2192 Done"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b2ec1f9a-a908d5b5a962d031",
+  "sig": "answer:rollout-b2ec1f9a:a908d5b5a962d031",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b2ec1f9a-57e6-48f5-ad57-30cfc5dc815d.jsonl turn #115",
+  "input": {
+    "action": {
+      "session_id": "rollout-b2ec1f9a",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control/logs",
+      "question": "Approve the supervisor rewrite, and how should hung-but-alive servers be handled?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01EqdknxGGvbrvQpmzmx9Ero",
+        "description": "",
+        "questions": [
+          {
+            "question": "Approve the supervisor rewrite, and how should hung-but-alive servers be handled?",
+            "header": "Approach",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Supervisor + no hung handling",
+                "description": "Rewrite to a launchd-supervised supervisor (fast crash restart + clean SIGTERM deregister on reboot). Leave 'hung but alive' alone since it can't be reliably detected. Safest; directly targets the reboot-ghost pain."
+              },
+              {
+                "label": "Supervisor + idle recycle",
+                "description": "Same supervisor, plus recycle a server only if it has 0 active sessions AND no activity for N hours. Catches some hung cases without killing in-flight work. Heuristic, not guaranteed."
+              },
+              {
+                "label": "Supervisor + scheduled recycle",
+                "description": "Same supervisor, plus force-restart every server on a fixed schedule (e.g. nightly 4am). Bounds hang duration but will interrupt any session running at that time."
+              },
+              {
+                "label": "Just document, don't rewrite",
+                "description": "Don't change the autostart model. I'll write up the findings/limitations and the manual recovery steps only."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Good news: this is already largely covered. `~/.claude/settings.json` already has `Read/Edit/Write(**/.claude/**)` which matches any `.claude` directory, including `~/.claude`. I'll add **explicit absolute-path rules** for `~/.claude` too, so it's unambiguous and not dependent on glob edge-cases:"
+      },
+      {
+        "role": "assistant",
+        "text": "Settings done \u2014 `~/.claude/settings.json` now has explicit `Read/Edit/Write(/Users/claudio1/.claude/**)` rules (validated, JSON intact). Note these are in the **global** user settings, so they apply across all projects.\n\nNow your two clarifications change the resume picture significantly:\n- Restore/auto-start the previous sessions **in the Claude desktop app**\n- **Close** the stale dead sessions left behind when a server went down\n\nLet me ground this in the actual autostart setup before I answer:"
+      },
+      {
+        "role": "assistant",
+        "text": "I've now traced the full stack (CLI flags, the plist, the startup script). Here's the honest answer, because it changes what's worth building.\n\n## The literal asks aren't exposed by the product\n\n**Restoring previous sessions into the Claude desktop app, and closing stale ones from that list \u2014 neither is controllable locally.** Here's why:\n\n- The remote-control server registers with Anthropic's **cloud**; the desktop app talks to the cloud, which relays to your local server. The session list you see is **cloud-side state**.\n- The server only ever **spawns fresh sessions**. There is no flag, command, or env var to re-register a prior session UUID as a live, controllable session in the app. `--resume` exists only for local interactive `claude`, and that produces a local session \u2014 it does *not* show up under that server in the desktop app.\n- When a server dies, evicting/closing its now-stale session entries is done by **Anthropic's backend** on heartbeat timeout \u2014 there's no local \"close stale session\" command to script.\n\nSo a script that auto-restores old chats into the desktop app and prunes the dead ones from it **can't be built** with today's `claude` surface. I'd rather tell you that than ship something that silently does nothing.\n\n## What actually fixes the problem: stop servers from going down\n\nStale sessions only appear *because a server went down*. That root cause **is** fixable, and it's the highest-leverage change:\n\nToday's plist is `RunAtLoad` + `StartInterval 300` with **no supervision** \u2014 each server is a bare `nohup \u2026 &`. If one crashes, its sessions sit stale in the app for **up to 5 minutes** until the next tick respawns it (as a fresh session, losing the old one).\n\nConcrete improvements I can make to this repo:\n\n1. **Per-server supervisor** \u2014 wrap each `claude remote-control` in a small respawn loop so a crashed server restarts in **~seconds**, collapsing the stale-session window from minutes to near-zero. Same conversation continuity isn't preserved (the CLI can't), but the server is back fast and the cloud drops the dead entries quickly.\n2. **Tighten `StartInterval`** (300 \u2192 60s) as a cheap backstop \u2014 faster detection of a fully-dead server with negligible cost (just `pgrep` checks).\n3. **Graceful continue path** (documented, not automatic): from the app, connect to the live server \u2192 new session \u2192 run `/resume-work`, which rebuilds context from the on-disk transcript. This is the *only* supported way to pick up a prior chat from the app, and it can't be auto-injected into the session list.\n\n#1 + #2 directly minimize both symptoms you described (stale sessions appearing, and old work being lost), within what's actually possible.\n\nWant me to implement #1 + #2 in `remote-control-startup.sh` / the plist, and add #3 to the README? That's the realistic version of what you're after \u2014 confirm and I'll build it."
+      },
+      {
+        "role": "user",
+        "text": "Server may be also unresponsive, not only fully down. But, yeah, it did happen that when I rebooted the computer, the previous sessions were hanging and wished I had to manually delete each one of them."
+      },
+      {
+        "role": "assistant",
+        "text": "That's the key detail \u2014 and \"unresponsive but not down\" plus \"ghost sessions hanging after reboot that I deleted by hand\" point to a specific mechanism. Let me verify what the server actually logs (heartbeats? graceful deregister on signal?) before I propose something I can't back up."
+      },
+      {
+        "role": "assistant",
+        "text": "That tail is the smoking gun. Two concrete findings:\n\n1. **The per-server log is just a repainting TUI** \u2014 \"Connected \u00b7 dstrader \u2026 Capacity 1/32\" reprints on a render loop regardless of whether the cloud link is actually alive. There are **no heartbeat/register/shutdown log lines**. So a hung-but-alive server looks identical to a healthy one from the outside. Reliable \"unresponsive\" detection isn't possible without a health endpoint the CLI doesn't expose \u2014 I won't pretend otherwise.\n\n2. **This confirms your \"unresponsive, not down\" case is a real gap.** The idempotency check is purely `pgrep -f \"name \u2026 --spawn\"` \u2014 *process exists* \u2192 logs `ok: already running` forever. A hung server is never recycled.\n\nAnd the reboot-ghost pain has a likely root cause I can address: the plist uses `AbandonProcessGroup` + `nohup \u2026 &`, so servers are **fully detached from launchd**. At reboot they're hard-killed (SIGKILL) with no chance to deregister from Anthropic's cloud \u2192 the cloud keeps showing them \u2192 you delete each by hand. (Cloud-side session entries can't be deleted by any local command \u2014 that part stays a product limitation.)\n\nThe architecturally honest fix is to **replace the \"wrapper spawns N detached servers\" model with a single long-lived supervisor under launchd**:\n\n- Restarts a crashed server in **seconds** (not the 5-min tick).\n- On logout/reboot, launchd sends it SIGTERM \u2192 it forwards SIGTERM to every server so they **deregister cleanly** \u2192 far fewer/no ghost sessions to delete by hand. *(I should flag: that the server deregisters cleanly on SIGTERM is a strong hypothesis from the architecture, but I can't 100% verify it without a controlled reboot test \u2014 I'll note that in the README rather than overclaim.)*\n- Still rescans `~/dev` for new dirs.\n\nThe one thing that stays genuinely hard is **\"hung but alive\"** \u2014 with no health signal, the only honest options are leave-it or a blunt periodic recycle (which would kill in-flight work on a timer). That trade-off is a real decision:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Supervisor + idle recycle"
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-fc33596b-1f7af918197b46e5",
+  "sig": "answer:rollout-fc33596b:1f7af918197b46e5",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from fc33596b-b115-4456-9a63-51a098938798.jsonl turn #101",
+  "input": {
+    "action": {
+      "session_id": "rollout-fc33596b",
+      "repo": "dstrader",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/dstrader/.claude/worktrees/bridge-cse_01XD2LdU8U4asDjhpA81y4wB",
+      "question": "Where on dstrader.html should the new video go? The page currently has a 'Video walkthroughs' section with the rebalancing video.",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01F1d2XqV1CWeQJQdPbD5r5J",
+        "description": "",
+        "questions": [
+          {
+            "question": "Where on dstrader.html should the new video go? The page currently has a 'Video walkthroughs' section with the rebalancing video.",
+            "header": "Site placement",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Rename 'Video walkthroughs' \u2192 'Investment strategies', add new video first",
+                "description": "Single section grouping both demos. New 'overall strategy' video plays first, then 'rebalancing strategy' as the linked-from follow-up. Cleanest IA, matches the scene-9 hand-off."
+              },
+              {
+                "label": "Keep 'Video walkthroughs', add separate 'Investment strategy' section above it",
+                "description": "New section sits above Strategies/Walkthroughs as a thesis intro; rebalancing stays under its existing walkthroughs heading"
+              },
+              {
+                "label": "Add the new video as a 2nd figure inside the existing 'Video walkthroughs'",
+                "description": "Smallest change \u2014 just another <figure class='shot'> next to the rebalancing one, no section restructuring"
+              }
+            ]
+          },
+          {
+            "question": "Demo filename slug?",
+            "header": "Filename",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "investment-strategy",
+                "description": "Matches the website section name; broad framing"
+              },
+              {
+                "label": "leveraged-protection-strategy",
+                "description": "Emphasizes the headline 3x-as-protection thesis; parallels 'rebalancing-strategy'"
+              },
+              {
+                "label": "growth-stability-crypto",
+                "description": "Names the three buckets; more descriptive but longer"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Locked in. Now let me look at the rebalancing demo so this one matches the established structure and voice, and find where the website lives."
+      },
+      {
+        "role": "assistant",
+        "text": "Added \u2014 **rebalancing tie-in**: don't let positions run away; rebalance the buckets at ~3\u20136 month cadence. Nice bridge to the existing rebalancing demo \u2014 this new one can naturally hand off to it.\n\nReading the existing rebalancing demo + the long-form investment thesis you already have, so this new demo matches voice and doesn't re-invent what's already written."
+      },
+      {
+        "role": "assistant",
+        "text": "Excellent \u2014 `docs/Investments.md` already has the *entire* thesis written up, including the live 40/45/15 weights (Growth / Stability / Crypto), the protection math (lines 56\u201362, almost verbatim what you dictated), the All Seasons inspiration, the sector-tilt rationale, the decay caveats, and the 3-month rebalance cadence. So I have a complete source of truth and don't need you to keep dictating \u2014 your spoken points all align with what's already documented.\n\nLet me quickly check if there's a separate website repo or if \"website\" means something in this repo."
+      },
+      {
+        "role": "assistant",
+        "text": "Found it \u2014 `~/dev/jdtogni-site` is the website. Let me see how it's structured and whether the rebalancing demo is already hosted there."
+      },
+      {
+        "role": "assistant",
+        "text": "I have the full picture now. The website is `~/dev/jdtogni-site`; `dstrader.html` already embeds the rebalancing-strategy.mp4 under a \"Video walkthroughs\" section. I'll present a complete plan and get your sign-off before drafting.\n\nLet me load the task tool so I can track this properly."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the full plan \u2014 sign off before I start drafting.\n\n## Deliverables\n\n| File | What |\n|---|---|\n| `demos/investment-strategy-explainer.html` | Self-contained explainer (one full-viewport `<section id=\"\u2026\">` per scene, synthetic Chart.js charts) \u2014 mirrors `rebalancing-explainer.html` |\n| `demos/investment-strategy.demo.yaml` | Narration script (`say:`/`do:` steps), test-voice first then onyx for final |\n| `demos/out/investment-strategy.mp4` | Rendered output (gitignored) |\n| `~/dev/jdtogni-site/assets/dstrader-demos/investment-strategy.mp4` | Site asset (final render copied over) |\n| `~/dev/jdtogni-site/dstrader.html` | New \"Investment strategy\" section embedding the video |\n\n## Scene plan (~5 min, 10 scenes)\n\n1. **Hook** \u2014 Most people pick individual stocks (Tesla, Nvidia) and concentrate risk into one name.\n2. **Why the index is the standard answer** \u2014 Even most pros don't beat S&P 500.\n3. **The 3x twist** \u2014 Leveraged ETFs aren't only a casino; reframed, they're a *capital-efficiency* tool.\n4. **The math worked on screen** \u2014 $100 in SPY vs $33 in UPRO: roughly the same equity P&L, $67 freed.\n5. **Honest caveat: decay & path dependency** \u2014 Daily-reset means $33 in UPRO \u2260 $100 in SPY over years; vol-drag is real.\n6. **All Seasons inspiration \u2192 DSTrader buckets** \u2014 Growth 40% / Stability 45% / Crypto 15% (from `docs/Investments.md`).\n7. **Within growth, sector tilt** \u2014 3x SPY + 3x semis + 3x tech, conviction overweight.\n8. **The aggressive/defensive dial** \u2014 Knob = % in leveraged sleeve; >1/3 leans aggressive, <1/3 defensive.\n9. **Rebalancing is what makes it work** \u2014 Every 3 months: trims the runaway leverage winners, refills stability, neutralizes decay drift. Hands off to the rebalancing demo.\n10. **Close** \u2014 One sentence + \"watch the rebalancing strategy next.\"\n\n**Voice / framing**: matches rebalancing demo \u2014 \"warm, calm, professional product-demo narrator. Measured pace, gentle enthusiasm.\" Same \"we don't predict the market, we just stay honest to a decision you already made\" register. Will explicitly preserve the rules-based / no-returns-claims framing already in `dstrader.html` (line 37\u201341).\n\n**Source of truth**: I'll pull the bucket weights and prose framing from `docs/Investments.md` so the demo and the doc stay aligned. Not fetching live FamilyFund numbers \u2014 the doc's 40/45/15 stands as the published thesis, and live drift can be checked in FamilyFund itself.\n\nOne placement question for the website:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Keep 'Video walkthroughs', add separate 'Investment strategy' section above it, investment-strategy"
+  }
+}

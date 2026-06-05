@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f8eb8803-62c97ad7d22ceede",
+  "sig": "answer:rollout-f8eb8803:62c97ad7d22ceede",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f8eb8803-11f7-477b-98a5-3ae1653d1d8f.jsonl turn #211",
+  "input": {
+    "action": {
+      "session_id": "rollout-f8eb8803",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01RYTfST7aAo1xGyWGY7YxZ8",
+      "question": "Main checkout (~/dev/ai-harness) has unrelated uncommitted edits (extracting CLAUDE_BIN constant in config.py, supervisor.py + their tests). My fix is already committed on the bridge branch and rebased onto local main. How should I land it without touching those dirty files?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Rz4dQXbVP6PzatkB8SbFJZ",
+        "description": "",
+        "questions": [
+          {
+            "question": "Main checkout (~/dev/ai-harness) has unrelated uncommitted edits (extracting CLAUDE_BIN constant in config.py, supervisor.py + their tests). My fix is already committed on the bridge branch and rebased onto local main. How should I land it without touching those dirty files?",
+            "header": "Landing strategy",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Push branch to origin/main directly",
+                "description": "`git push origin worktree-bridge-cse_01RY...:main` from this worktree. origin/main fast-forwards to include the 2 prior local commits + my fix. The main checkout stays untouched (its local main lags origin/main by 1, but its dirty files are intact). Daemon-on-disk still old until someone refreshes; I can then overlay just my 2 files into the working dir with `git show origin/main:path > path` and restart the daemon, leaving the dirty 4 files alone."
+              },
+              {
+                "label": "Stash dirty work, FF merge in main, pop stash",
+                "description": "From main checkout: `git stash -u` \u2192 `git merge --ff-only` the bridge branch \u2192 `git push` \u2192 `git stash pop`. Standard flow but momentarily disturbs the parallel session's working state, and the pop could conflict if that session is mid-write."
+              },
+              {
+                "label": "Ask the other session first",
+                "description": "Stop here; surface that there's a parallel CLAUDE_BIN refactor in flight and let you coordinate with that session before I touch main."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Let me check whether this branch has other commits beyond main that would tag along in the merge:"
+      },
+      {
+        "role": "assistant",
+        "text": "Both 2-commit-ahead-of-origin commits on local main are from today by you on this mini \u2014 a parallel session that merged but didn't push. Pushing will publish those too; that's consistent with what you accepted. Let me commit, rebase, merge, push."
+      },
+      {
+        "role": "assistant",
+        "text": "Pause \u2014 the main checkout (`~/dev/ai-harness`) has uncommitted changes in `config.py`, `supervisor.py`, and two test files, and `git status` says it's actually up-to-date with `origin/main`. That contradicts what I saw from the worktree (2 commits ahead). Let me re-check."
+      },
+      {
+        "role": "assistant",
+        "text": "Saving that feedback now, then addressing the dirty main checkout."
+      },
+      {
+        "role": "assistant",
+        "text": "Now back to the merge. The main checkout has uncommitted edits in 4 files (config.py, supervisor.py, test_config.py, test_supervisor_decisions.py) that aren't mine \u2014 probably from a parallel session. Let me see what they are before touching anything:"
+      },
+      {
+        "role": "assistant",
+        "text": "The main checkout has someone else's in-progress refactor (extracting `CLAUDE_BIN`) in 4 files \u2014 they're not mine to clean up. To land my fix without disturbing that work, I have a few options:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Push branch to origin/main directly"
+  }
+}

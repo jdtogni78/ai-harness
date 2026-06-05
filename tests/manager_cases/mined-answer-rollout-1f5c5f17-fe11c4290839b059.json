@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-1f5c5f17-fe11c4290839b059",
+  "sig": "answer:rollout-1f5c5f17:fe11c4290839b059",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 1f5c5f17-eeff-47cd-8d3e-8d31beb98c97.jsonl turn #322",
+  "input": {
+    "action": {
+      "session_id": "rollout-1f5c5f17",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01ETDaVDLFpSTGwSAFXbAQ1z",
+      "question": "File the narrow-gh-allow-pattern observation as a Remote Control issue?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_017Kmx1jLct4thFrYykaNNbS",
+        "description": "",
+        "questions": [
+          {
+            "question": "File the narrow-gh-allow-pattern observation as a Remote Control issue?",
+            "header": "Follow-up",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Leave it \u2014 not biting today (Recommended)",
+                "description": "Static-only enforce makes it harmless right now; revisit if/when PERM_GATE_ENFORCE_AI flips on. No issue filed."
+              },
+              {
+                "label": "File a low-priority issue on Remote Control #2",
+                "description": "Create an ai-harness issue noting the narrow gh allow pattern and the ENFORCE_AI tripwire, link it to the board so it surfaces next time perm-gate tuning comes up."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Local main is 2 commits ahead of origin, 0 behind, post-merge tests green. Ready to push."
+      },
+      {
+        "role": "assistant",
+        "text": "Pushed: `09a7be7..87ba1ef main -> main`. Now wrapping up the bridge worktree per [[project-bridge-worktree-close]]."
+      },
+      {
+        "role": "assistant",
+        "text": "All clear: no pool leases, no agent claim, no tracking ticket, bridge worktree stays in place per [[project-bridge-worktree-close]]. One memory worth updating \u2014 this thread's path mistake is exactly what [[feedback_main_dir_on_main]] guards against, and the Edit-tool angle is new."
+      },
+      {
+        "role": "assistant",
+        "text": "## Closed.\n\n**Delivered:** `be7ce47` (fix) + `87ba1ef` (merge) on `origin/main`.\n\n**Path taken:**\n1. Diagnosed the original \"why are gh commands prompting?\" question \u2014 your settings already allow `Bash(gh *)`; the perm-gate hook was matching ASK patterns inside `--body`/`-m` quoted strings.\n2. Added `strip_inert_strings()` to `remote_control/perm_gate.py` + 10 unit tests in `tests/test_perm_gate.py`. DENY still sees the full subject; only ASK is gated on the stripped version.\n3. Caught a thread-local mistake at close-work: I'd edited the **primary checkout** instead of this worktree, leaving `main` dirty. Relocated via `git diff > patch / git checkout -- / git apply` into the worktree.\n4. Committed on the bridge branch, merged `--no-ff` into main from the primary checkout, pushed.\n5. Bridge worktree left in place (per [[project-bridge-worktree-close]]); no pool leases, no agent claim, no tracking ticket to close.\n\n**Memory updated:** [[feedback_main_dir_on_main]] now also flags the Edit-tool path-discipline angle so I don't repeat the mistake.\n\n**Live impact:** the perm-gate hook re-execs `python3 -m remote_control perm-gate` per call, so the next `gh issue edit/create` (or `git commit -m \"fix .env loading\"`) will already use the fixed code \u2014 no supervisor restart needed."
+      },
+      {
+        "role": "assistant",
+        "text": "Running close-work again. Let me check current state \u2014 last invocation delivered `be7ce47` + `87ba1ef`, so the tree should be clean."
+      },
+      {
+        "role": "assistant",
+        "text": "## Already closed.\n\nThis thread's delivery (`be7ce47` fix + `87ba1ef` merge) is on `origin/main`, both checkouts are clean, no pool leases, no agent claim, no tracking ticket. Per the skill's \"Already merged\" edge case, there's nothing left to do.\n\n**State check:**\n- Worktree: on `worktree-bridge-cse_01ETDaVDLFpSTGwSAFXbAQ1z`, clean, fully reflected on `origin/main`\n- Main checkout: on `main`, clean, at `87ba1ef` (= origin/main)\n- Bridge worktree stays in place per [[project-bridge-worktree-close]]\n\n**One unaddressed follow-up from the thread** (mentioned but explicitly set aside earlier \u2014 not biting today): the perm-gate static-allow for `gh` only covers `pr|issue|project view|list|status`. Anything richer falls into `no-rule` and currently passes through to your user-level `Bash(gh *)` allow-list, so it's not visible. If you ever flip `PERM_GATE_ENFORCE_AI=1`, the no-rule path will start binding to ASK \u2014 at that point this matters. Want me to file it as a Remote Control issue, or leave it?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Leave it \u2014 not biting today (Recommended)"
+  }
+}

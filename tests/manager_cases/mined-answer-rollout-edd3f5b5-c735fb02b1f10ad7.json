@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-edd3f5b5-c735fb02b1f10ad7",
+  "sig": "answer:rollout-edd3f5b5:c735fb02b1f10ad7",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from edd3f5b5-95ce-470e-a040-f3d251664701.jsonl turn #48",
+  "input": {
+    "action": {
+      "session_id": "rollout-edd3f5b5",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_018GNryXAUnHyZ5qRAWSpyDG",
+      "question": "Where should the permission gate apply?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01TT67mZMkBPGbBU9bXS6xJe",
+        "description": "",
+        "questions": [
+          {
+            "question": "Where should the permission gate apply?",
+            "header": "Scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Bridge sessions only",
+                "description": "Supervisor injects the hook only into harness-managed bridge sessions at launch. Manual/interactive sessions stay untouched. Matches #22 comment #3's framing and is the lowest-blast-radius place to prove it out."
+              },
+              {
+                "label": "All local sessions",
+                "description": "Register the hook in global ~/.claude/settings.json so every Claude Code session on this machine is gated. Broader reach, but it affects your own interactive sessions too."
+              }
+            ]
+          },
+          {
+            "question": "How should the allow/deny decision be made?",
+            "header": "Decision model",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Tiered (static + AI)",
+                "description": "Static fast-path for obvious allow/deny, AI only for the ambiguous middle. Fast and cheap on common calls, smart where stakes are unclear. Matches your 'AI prompt under it' intent."
+              },
+              {
+                "label": "AI-only",
+                "description": "Every gated tool call goes to the model with the policy. Simplest mental model, fully policy-driven, but adds an LLM round-trip to every gated call."
+              },
+              {
+                "label": "Static-only first",
+                "description": "Ship just the allow/deny pattern lists now (no LLM), add the AI tier in a follow-up. Fastest to land, defers the interesting part."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Okay. I want to implement a a permission evaluation, uh, system. Like, I... is there a way to add a hook to Claude code that delegate the permission allowing or not allowing to, uh, script or something we could put an AI prompt under it?"
+      },
+      {
+        "role": "assistant",
+        "text": "Yes \u2014 this is exactly what the **`PreToolUse` hook** is for. It's the one hook type that can *return a permission verdict*, so Claude Code will honor whatever your script decides (allow / deny / ask) instead of using its built-in allow-rules.\n\n## How the contract works\n\nYou register a command hook in `settings.json`, matched to the tools you care about:\n\n```json\n{\n  \"hooks\": {\n    \"PreToolUse\": [\n      {\n        \"matcher\": \"Bash\",\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"/abs/path/to/eval-permission.py\" }\n        ]\n      }\n    ]\n  }\n}\n```\n\n(`matcher` is a regex over tool names \u2014 `\"Bash\"`, `\"Edit|Write\"`, or `\".*\"` for everything.)\n\nYour script gets the call **on stdin as JSON**:\n\n```json\n{\n  \"session_id\": \"...\",\n  \"transcript_path\": \"/path/to/transcript.jsonl\",\n  \"cwd\": \"/repo\",\n  \"hook_event_name\": \"PreToolUse\",\n  \"tool_name\": \"Bash\",\n  \"tool_input\": { \"command\": \"rm -rf build/\", \"description\": \"...\" }\n}\n```\n\n\u2026and it answers **on stdout as JSON**:\n\n```json\n{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"PreToolUse\",\n    \"permissionDecision\": \"deny\",\n    \"permissionDecisionReason\": \"Destructive recursive delete outside a scratch dir.\"\n  }\n}\n```\n\n`permissionDecision` is `\"allow\"` (skips the normal prompt), `\"deny\"` (blocks, reason goes back to the model), or `\"ask\"` (fall through to the normal interactive prompt). That's the whole hinge \u2014 and yes, nothing stops the script from building a prompt and asking an LLM to make that call.\n\n## The AI-under-the-hook part\n\nA sketch of `eval-permission.py` that delegates to a model:\n\n```python\n#!/usr/bin/env python3\nimport sys, json, os\nfrom anthropic import Anthropic\n\ndef out(decision, reason):\n    print(json.dumps({\"hookSpecificOutput\": {\n        \"hookEventName\": \"PreToolUse\",\n        \"permissionDecision\": decision,\n        \"permissionDecisionReason\": reason,\n    }}))\n    sys.exit(0)\n\ntry:\n    ev = json.load(sys.stdin)\n    cmd = ev.get(\"tool_input\", {}).get(\"command\", \"\")\n\n    # fast-path obvious cases so you don't pay an LLM round-trip every time\n    if cmd.startswith((\"ls \", \"git status\", \"cat \")):\n        out(\"allow\", \"read-only fast-path\")\n\n    msg = Anthropic().messages.create(\n        model=\"claude-haiku-4-5-20251001\",   # cheap+fast for a gatekeeper\n        max_tokens=200,\n        system=\"You are a permission gate. Reply ONLY with JSON \"\n               '{\"decision\":\"allow|deny|ask\",\"reason\":\"...\"}',\n        messages=[{\"role\": \"user\",\n                   \"content\": f\"cwd={ev.get('cwd')}\\ncommand:\\n{cmd}\"}],\n    )\n    verdict = json.loads(msg.content[0].text)\n    out(verdict[\"decision\"], verdict[\"reason\"])\nexcept Exception as e:\n    out(\"ask\", f\"evaluator error, falling back to manual: {e}\")   # fail-safe\n```\n\n## Caveats worth designing around\n\n- **Latency & cost** \u2014 the hook runs on *every* matched tool call and blocks it. Fast-path the obvious allow/deny cases (prefix/regex rules) and only escalate ambiguous ones to the model. A small model (Haiku) as the gate is plenty.\n- **Recursion** \u2014 make the evaluator hit the **API directly** (as above), not `claude -p`, or a `claude -p` gate would itself fire hooks. You already do guideline-injected `claude -p` analysis in the manager, so the API-direct path keeps this from eating itself.\n- **Fail-safe, not fail-open** \u2014 on any parse/network error, return `\"ask\"` (or `\"deny\"`) so a broken evaluator never silently auto-approves.\n- **Scope** \u2014 `permissionDecision: \"allow\"` bypasses the normal prompt entirely, so be conservative about what you auto-allow.\n\nThis is genuinely a good fit for your harness \u2014 a model-driven gate that could read your guidelines and the transcript path to make context-aware calls, the same shape as the manager's analysis loop.\n\nWant me to wire it up? I'd use the `update-config` skill to add the hook, and I can scaffold the evaluator script. Two things to pin down: **which settings file** (this repo's `.claude/settings.json`, or your global `~/.claude/settings.json`) and **which tools** to gate (just `Bash`, or also `Edit`/`Write`)?"
+      },
+      {
+        "role": "user",
+        "text": "Take a look at ticket twenty two, see what that is related to, because I think that there was... that... in order to... because that may be related to this. So, yeah, to the plan over here. So let's first create a plan, create a ticket for it, and, uh, then we start trying to build it."
+      },
+      {
+        "role": "assistant",
+        "text": "This is a great connection to make. Ticket **#22** is the **Manager session-shepherd**, and its **third comment is literally about permissions**. Let me ground myself in the relevant code before writing the plan."
+      },
+      {
+        "role": "assistant",
+        "text": "Now let me see how the `claude -p` investigator is actually built (the pattern I'd reuse for the gate) and the rest of the guidelines doc."
+      },
+      {
+        "role": "assistant",
+        "text": "I dug into **#22** \u2014 here's the connection, and it's a strong one.\n\n## What #22 is, and why it's the same problem\n\n#22 is the **Manager session-shepherd**. The key thing: it already implements *exactly the shape you're describing*, just aimed at a different blocking point.\n\n- `remote_control/manager.py` already runs a **guideline-injected `claude -p` evaluator** (`investigator_command` + `investigator_prompt_advise` \u2192 `read_guidelines()` injects *\"CURRENT GUIDELINES (the policy to follow \u2014 weigh these heavily)\"*).\n- `docs/session-manager-cases.md` is the **policy doc** \u2014 and it's literally a permission policy. It has a **stakes table** (reversible / medium / high / destructive / prod) with `GUIDELINE:` placeholders: *\"auto-pick allowed only when\u2026 always require a human for destructive / merge-to-main / push / prod.\"*\n- #22's \"Open questions\" has this exact bullet: **\"Permission prompts (not yet seen). `requires_action` could also be a tool permission approval\u2026 Needs its own detection + an approve/deny submission. Guideline + shape both TBD.\"**\n- And **comment #3 on #22** is titled *\"Permissions: limitation + follow-up\"* \u2014 (1) perm-blocked sessions **don't even surface in the API** (they read as `worker_status: running`, not `requires_action`), so the manager *can't* detect/answer them remotely; (2) recurring prompts that should already be granted \u2192 wants a curated allow-list, keep risky ops gated.\n\n**Your hook idea is the better fix for that whole branch.** Since perm prompts never appear in the API, trying to answer them out-of-band is a dead end. A `PreToolUse` hook instead **prevents the block in-process** for routine-safe ops and enforces policy locally \u2014 no API round-trip, no deadlock. And the punchline: it can reuse **the same `session-manager-cases.md` stakes policy** the manager already evaluates against. One policy, two enforcement points \u2014 the out-of-band manager *and* the in-session gate.\n\n## Draft plan\n\n**AI permission gate (`PreToolUse` hook).** Tiered, fail-safe, shadow-first \u2014 mirroring how the manager itself shipped:\n\n1. **Static fast-path (no LLM):** allowlist (reads, `git status`, build/test) \u2192 `allow`; denylist (force-push, `rm -rf`, prod/deploy, history-rewrite) \u2192 `deny`/`ask`. Instant, deterministic, covers the bulk.\n2. **AI tier (ambiguous middle):** one-shot model call (Haiku) given `tool_input` + the stakes policy from `session-manager-cases.md` \u2192 `{decision, reason}`. Reuses the manager's exact guideline-injection pattern, but via the **Anthropic SDK directly** (not `claude -p`) to avoid hook recursion + latency.\n3. **Fail-safe:** any error/timeout \u2192 `ask` (never silent-allow).\n4. **Shadow mode first** (`PERM_GATE_ENFORCE=0`): logs its verdict to `logs/perm-gate-decisions.jsonl`, returns `ask` (no behavior change) until the verdicts look trustworthy \u2014 same shadow\u2192review\u2192flip path the manager took.\n\nNew `remote_control/perm_gate.py` (pure helpers + thin `python3 -m remote_control perm-gate` hook entrypoint reading stdin/writing `hookSpecificOutput`), config in `config.py`, tests mirroring the manager's 3 layers (deterministic static rules / AI replay corpus / hook-contract).\n\nTwo forks genuinely change the design, so before I write the ticket:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "All local sessions, Tiered (static + AI)"
+  }
+}

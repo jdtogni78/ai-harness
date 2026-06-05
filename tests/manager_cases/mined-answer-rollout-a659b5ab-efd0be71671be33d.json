@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a659b5ab-efd0be71671be33d",
+  "sig": "answer:rollout-a659b5ab:efd0be71671be33d",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a659b5ab-d80b-449a-ab68-8415fad7a22a.jsonl turn #346",
+  "input": {
+    "action": {
+      "session_id": "rollout-a659b5ab",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01PuV1r2e7MGjHW8BtvKtPmM",
+      "question": "Want me to set up a recurring reminder for the quarterly dev rotation, per the runbook's cadence?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01CTP8BTu5eqUmjmsDi69D1V",
+        "description": "",
+        "questions": [
+          {
+            "question": "Want me to set up a recurring reminder for the quarterly dev rotation, per the runbook's cadence?",
+            "header": "Schedule",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, /schedule ~2026-08-22",
+                "description": "Create a quarterly /schedule routine (first run ~2026-08-22) that reminds you to run the rotation runbook. A reminder, not an auto-run \u2014 the runbook says to automate the actual run only once the script is trusted."
+              },
+              {
+                "label": "Not yet",
+                "description": "Skip scheduling for now; the quarterly cadence is documented in the runbook and you'll trigger it manually."
+              }
+            ]
+          },
+          {
+            "question": "Want me to start the automation now by building the lowest-risk piece?",
+            "header": "Automate",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Build the APP_KEY step",
+                "description": "Write bin/rotate-dev-secrets.sh covering just the APP_KEY rotation + verification (no DB downtime) as the first automated piece, with the pre-flight lease gate."
+              },
+              {
+                "label": "Leave automation for later",
+                "description": "Keep the roadmap documented only; build the script in a future session."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Merging to main + pushing. First I'll check whether `main` has moved since I branched (to choose a clean fast-forward vs. a real merge without disturbing the on-disk rotated `.env.dev`)."
+      },
+      {
+        "role": "assistant",
+        "text": "Clean fast-forward (main is 0 ahead, my branch is 3 ahead). Let me fetch to confirm the remote hasn't diverged, then fast-forward main, switch back, verify the on-disk rotated `.env.dev` survived, and push."
+      },
+      {
+        "role": "assistant",
+        "text": "Delivered \u2014 `main` fast-forwarded to the 3 rotation commits and **pushed to the private origin** (`a76e4cdf..06dc74e5`), main repo back on `main`, on-disk `.env.dev` confirmed still holding the rotated values and no longer tracked.\n\nNow to your follow-up: capturing all the learnings into a **repeatable rotation runbook** (and an automation roadmap). Let me write that up."
+      },
+      {
+        "role": "assistant",
+        "text": "Now committing and pushing the runbook to the private origin."
+      },
+      {
+        "role": "assistant",
+        "text": "Pushed (`6505efb6`). Let me add a pointer to the runbook in memory so future sessions find the repeatable procedure."
+      },
+      {
+        "role": "assistant",
+        "text": "All done. Here's the wrap-up.\n\n## Secret rotation \u2014 complete \u2705\n- **Executed & verified** the full dev rotation (`APP_KEY` + DB root/`famfun_dev` passwords), removed the leaked `.env.dev` and hardcoded DB password from the repo HEAD, invalidated sessions/tokens, and confirmed all four live stacks (`app1` :3001, `pool0` :3020, `pool1` :3021, `test0` :3010) working with the new credentials.\n- **Delivered:** 4 commits fast-forwarded to `main` and **pushed to private origin** (`a76e4cdf..6505efb6`).\n\n## Learnings captured \u2192 `docs/security/SECRET-ROTATION-RUNBOOK.md` (pushed)\nA standing, repeatable procedure so this is routine, not archaeology:\n- **Cadence:** quarterly for dev/stage; prod is analyze-only on its own window.\n- **Exact commands** for the APP_KEY step (no downtime) and the DB step (with the minimal-downtime ALTER \u2192 recreate sequence).\n- **The gotchas that bit us**, written down so they don't recur: the real DB password now lives only in git-ignored `app1/.env` (else compose uses `changeme` and fails); running containers read `DB_PASSWORD` from compose-injected env (must recreate, not just edit); pools recreate **only** via `./launch_docker.sh <slot>` (bare `docker compose` collides on `familyfund-dev`); never rotate the testpool DB while a `testN` slot is leased; APP_KEY-vs-encrypted-columns pre-check.\n- **Automation roadmap:** a staged path to `bin/rotate-dev-secrets.sh` \u2014 pre-flight lease gate \u2192 APP_KEY step first (lowest risk) \u2192 DB step driven off the live lease table \u2192 a pass/fail verification harness \u2192 CI gitleaks \u2192 finally schedule it once the script is trusted.\n\n## Still open (documented, not done)\n- **Testpool DB** rotation \u2014 deferred (an active `test0` lease was present); do it when all `testN` slots are free.\n- **Stage `APP_KEY`**, the **prod `APP_KEY`-match check** (your read-only SSH \u2014 host-key wasn't trusted here), and the **git history purge** of the still-in-history leaked files.\n\nTwo things I can do next if you want:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Not yet, Build the APP_KEY step"
+  }
+}

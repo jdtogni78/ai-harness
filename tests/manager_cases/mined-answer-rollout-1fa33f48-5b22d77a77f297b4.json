@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-1fa33f48-5b22d77a77f297b4",
+  "sig": "answer:rollout-1fa33f48:5b22d77a77f297b4",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 1fa33f48-d471-4827-b953-2237c7aabab1.jsonl turn #474",
+  "input": {
+    "action": {
+      "session_id": "rollout-1fa33f48",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/sweet-driscoll-0b292c",
+      "question": "Which OpenAI voice for the funds demo re-render?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01T6uADWVKdJQcQJtR8NCPTJ",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which OpenAI voice for the funds demo re-render?",
+            "header": "Voice",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "nova",
+                "description": "Warm, friendly female. Most natural fit for a calm product walkthrough \u2014 my default recommendation."
+              },
+              {
+                "label": "shimmer",
+                "description": "Brighter, lighter female. More energetic/upbeat feel."
+              },
+              {
+                "label": "onyx",
+                "description": "Deep, authoritative male. Good for a confident, corporate tone."
+              },
+              {
+                "label": "Hear more voices",
+                "description": "Also sample alloy, echo, and fable before deciding."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "The adapter itself works \u2014 the request was well-formed and **authenticated** (no 401). It came back **429 `insufficient_quota`**, which is a billing issue, not a code or key problem. Let me confirm the key is valid by hitting a free endpoint."
+      },
+      {
+        "role": "assistant",
+        "text": "Diagnosis is conclusive:\n\n- **Key is valid** \u2014 `GET /v1/models` returns `200`, 120 models visible. Auth works.\n- **Integration is proven** \u2014 the adapter built the correct TTS request, auto-loaded your key from `~/.ai-harness/narrate.env`, and reached OpenAI. The code is done and correct.\n- **The only blocker is billing.** The TTS call returned `429 insufficient_quota` \u2014 your OpenAI **API account has no usable credit**. This is separate from your ChatGPT/Codex subscription, and the key is brand new (`Last used: Never` in your screenshot) on a project with a $0 balance.\n\n**One action to unblock:** add a payment method + a little credit to the *API platform* account:\n\u2192 https://platform.openai.com/settings/organization/billing/overview \u2014 add ~$5 (our entire demo render costs ~2\u00a2, so that lasts essentially forever).\n\nOnce that's done, **nothing else changes** \u2014 say the word and I'll re-run the exact same POC: nova/shimmer/onyx samples to pick from, then the full funds-demo re-render with your chosen voice.\n\nTwo notes:\n- **Rotate this key when we're done.** You pasted it in plaintext, so it's in this transcript. It's low-risk right now (no quota), but best practice is to regenerate it at platform.openai.com/api-keys afterward \u2014 I'll update `~/.ai-harness/narrate.env` with the new one in one step.\n- The adapter work is staged in the ai-harness worktree (`feat/narrate-openai-tts`), not yet committed/merged \u2014 I'll commit it once the POC confirms it sounds good end-to-end."
+      },
+      {
+        "role": "user",
+        "text": "added $25"
+      },
+      {
+        "role": "assistant",
+        "text": "Credit added \u2014 re-running the POC now. Synthesizing the opening line in nova / shimmer / onyx through the new adapter."
+      },
+      {
+        "role": "assistant",
+        "text": "All three rendered. Sending them \u2014 same opening line, three OpenAI voices, with a \"warm, calm product-demo narrator\" tone applied."
+      },
+      {
+        "role": "assistant",
+        "text": "The adapter is proven end-to-end \u2014 that's the POC done. Compare those to the old robotic Alex.\n\nWhich voice should I render the full funds demo with?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "onyx"
+  }
+}

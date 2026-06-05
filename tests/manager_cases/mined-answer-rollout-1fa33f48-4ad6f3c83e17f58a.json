@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-1fa33f48-4ad6f3c83e17f58a",
+  "sig": "answer:rollout-1fa33f48:4ad6f3c83e17f58a",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 1fa33f48-d471-4827-b953-2237c7aabab1.jsonl turn #17",
+  "input": {
+    "action": {
+      "session_id": "rollout-1fa33f48",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/sweet-driscoll-0b292c",
+      "question": "What deliverable do you want for this Funds & Accounts demo?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01UddCYcud72c4uwqyUTxhF5",
+        "description": "",
+        "questions": [
+          {
+            "question": "What deliverable do you want for this Funds & Accounts demo?",
+            "header": "Format",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Narrated MP4 video",
+                "description": "Use the narrate-demo skill: a YAML script drives a browser, TTS narrates, output is a shareable .mp4. Best for async sharing / marketing / onboarding."
+              },
+              {
+                "label": "Live click-through script",
+                "description": "A written step-by-step runbook (URLs + talking points) you drive yourself in a browser during a live call."
+              },
+              {
+                "label": "Both",
+                "description": "Write the runbook first, then turn it into the narrated YAML/video once the flow feels right."
+              }
+            ]
+          },
+          {
+            "question": "How should role/persona switching feature in this demo?",
+            "header": "Roles",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Fund-admin only",
+                "description": "Stay logged in as fund-admin the whole time \u2014 simplest, cleanest single narrative for Demo 1."
+              },
+              {
+                "label": "End with a role reveal",
+                "description": "Run the whole flow as fund-admin, then re-login as beneficiary on the same pages to show what's gated \u2014 a strong closer."
+              },
+              {
+                "label": "Save roles for Demo 3",
+                "description": "Keep Demo 1 purely about the fund/account features; do the access-control story as its own separate demo."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "sounds like all is workning, lets plan for a demo, give me some ideas. I feel we could have separate demos, lets plan for one on funds and account pages/reports"
+      },
+      {
+        "role": "assistant",
+        "text": "I'll take a quick look at the app's funds and account features so the demo plan is grounded in what actually exists, not generic."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's a grounded plan. I had a look at the actual routes, views, and seed data so these map to what's really in the app today.\n\n## The demo-splitting idea\n\nThree natural demos, each ~5\u20138 min. You asked for the **Funds + Accounts** one, so I've fleshed that out and sketched the others:\n\n| Demo | Audience | Hook |\n|---|---|---|\n| **1. Funds & Accounts** (this one) | Prospective family/fund admins | \"See your whole fund, drill into one member's account, export a report\" |\n| 2. Goals & the 4% rule | Beneficiaries / planners | Goal tracking, on-track vs behind, disbursement caps, matching |\n| 3. Roles & access control | Security-minded / trust admins | Same pages, three logins, watch what disappears |\n\n## Demo 1 \u2014 Funds & Accounts (the one you asked for)\n\nA single narrative that climbs from the whole fund down to one account, then proves it on paper (reports/PDF). Uses the seeded **\"Family Fund A\"** + **Acct7**.\n\n**Act 1 \u2014 The fund at a glance** (`/funds/1`)\n- Highlights card: total value, share price, shares outstanding, all-time return, # accounts\n- Assets table + allocation graph (SPY/CASH holdings)\n- Performance line graph with trend line\n\n**Act 2 \u2014 Slicing the fund** (`/funds/1/overview`)\n- The interactive bit: toggle **1Y / YTD / 3Y / 5Y / All**, then re-group **by asset class / account / sector**. This is the \"wow, it's live\" moment \u2014 good for a narrated demo.\n\n**Act 3 \u2014 Drill into one account** (`/accounts/7`)\n- Market value (net of borrowed), shares, yearly + all-time return\n- Goals summary (progress %, ahead/behind), balances graph (OWN vs BOR)\n- Transaction history + scheduled transactions\n\n**Act 4 \u2014 Prove it on paper** (reports)\n- Fund report list \u2192 show one with email-delivery status\n- **PDF export**: `/funds/1/pdf_as_of/2026-05-31` and `/accounts/7/pdf_as_of/...`\n- Historical snapshot via `as_of/{date}` \u2014 \"here's the same fund as of last quarter\"\n\n**Setup that makes it look good:** the `TestBaselineSeeder` gives 7 years of price history (so the time-range filters and snapshots actually have data), and `/dev-login/...?as=fund-admin` jumps straight in without a login screen.\n\n## How to produce it\n\nYou have a **`narrate-demo`** skill that drives Chromium with Playwright, adds a glowing cursor, narrates each step with TTS, and muxes it into an `.mp4` \u2014 driven by a small `demos/funds-accounts.demo.yaml` of `say:` + `do:` steps. That's the lowest-effort path to a shareable artifact, and the YAML makes narration tweaks non-code.\n\nBefore I scaffold anything, two choices shape it:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Narrated MP4 video, End with a role reveal"
+  }
+}

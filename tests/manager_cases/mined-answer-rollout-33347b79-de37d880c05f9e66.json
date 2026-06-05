@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-33347b79-de37d880c05f9e66",
+  "sig": "answer:rollout-33347b79:de37d880c05f9e66",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 33347b79-8e7c-4059-a1c8-573307667f0d.jsonl turn #200",
+  "input": {
+    "action": {
+      "session_id": "rollout-33347b79",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01HgNtwCdfLNLzyJVMYx11SX",
+      "question": "How should I fix the missing-prefix problem?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_019C4T1cZhQGSMnsZLpp6ats",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I fix the missing-prefix problem?",
+            "header": "Fix scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Re-apply now + self-heal (Recommended)",
+                "description": "Run `titles apply` to re-prefix all drifted sessions now, AND add a periodic `titles apply` pass to the always-running supervisor loop so the platform's later auto-titling can no longer strip the prefix. Durable fix."
+              },
+              {
+                "label": "Re-apply now only",
+                "description": "Run `titles apply` once to fix the current drift (idempotent). Prefixes will drift again whenever the platform re-titles a session, since nothing re-asserts them."
+              },
+              {
+                "label": "Self-heal mechanism only",
+                "description": "Add the periodic supervisor pass but don't bulk-rename right now; let the periodic pass converge titles on its next ticks."
+              },
+              {
+                "label": "Just the diagnosis",
+                "description": "Don't change titles or the supervisor yet \u2014 leave it with the root-cause analysis and proposed fix for you to action later."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "`familyfund \u2192 FF` is in the default map and repo detection looks sound. The likely culprit is the `set --self` command path itself. Let me read the CLI handler."
+      },
+      {
+        "role": "assistant",
+        "text": "The code path looks correct (`familyfund \u2192 FF`, and `repo_from_worktree_path` resolves a FF worktree). The bug is more likely in *how the command is invoked*. Note the tension: `--self` reads the repo from `os.getcwd()` (must be the bridge worktree), but `python3 -m remote_control` needs the `remote_control` module importable from that cwd. Let me test from this FamilyFund worktree:"
+      },
+      {
+        "role": "assistant",
+        "text": "Both the import and the resolution work perfectly from here \u2014 `[FF] #82 \u2026` is exactly what `set --self` would produce. So the logic isn't broken. Let me look at the *actual live session titles* to see what's really happening \u2014 read-only dry run, filtered to FamilyFund:"
+      },
+      {
+        "role": "assistant",
+        "text": "Now I can see the real pattern. There are **two kinds** of FamilyFund sessions:\n\n- **Properly prefixed** (`=`, already correct): `[FF] #27 \u2026`, `[FF] #81 \u2026`, `[FF] #78 \u2026`, `[FF] #77 \u2026` \u2014 start-work worked.\n- **Unprefixed, auto-described** (`~`, would be renamed): e.g. `'Defense-in-depth ACL scoping for fund controllers'` (that's #85's work), `'Cross-account data visibility issue'`, `'Testpool DB rotation'`.\n\nThat first `~` example is the smoking gun: a session clearly doing **#85's** work but titled with a generic *platform-generated* summary and **no `[FF]` prefix** \u2014 meaning the title `set` by `start-work` got **overwritten by the platform's automatic title generation** that fires later in the session. The code itself is fine (I verified it emits `[FF] #85 \u2026`); the platform clobbers it afterward.\n\nLet me confirm there's no existing self-healing pass and see where one would live:"
+      },
+      {
+        "role": "assistant",
+        "text": "Confirmed: **there is no self-healing pass.** `start-work` sets the title once at claim time, and the platform's later auto-titling overwrites it \u2014 nothing re-applies the `[FF]` prefix afterward. That's the bug.\n\nLet me check the supervisor's loop structure so a durable fix can hook into it:"
+      },
+      {
+        "role": "assistant",
+        "text": "Root cause confirmed. Here's the diagnosis:\n\n**The `start-work` title code works** \u2014 I verified it emits exactly `[FF] #N \u2026` from a FamilyFund worktree. The problem is **nothing re-asserts it**: `start-work` sets the title once at claim time, then the platform's automatic title-generation fires later in the session and overwrites it, dropping the `[FF]` prefix. There's no periodic self-healing pass anywhere (not in the supervisor, no cron). That's why some sessions kept `[FF] #N` (claim settled after auto-title) while others drifted to bare summaries like *\"Defense-in-depth ACL scoping for fund controllers\"* (#85's session).\n\nThe dry-run also shows ~15 FamilyFund sessions currently drifted (and more across other repos). How do you want to fix it?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Re-apply now + self-heal (Recommended)"
+  }
+}

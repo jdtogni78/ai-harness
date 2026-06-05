@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b65edcb7-c4c80a93591f8b77",
+  "sig": "answer:rollout-b65edcb7:c4c80a93591f8b77",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b65edcb7-f90a-40dd-8397-842e3b6931db.jsonl turn #717",
+  "input": {
+    "action": {
+      "session_id": "rollout-b65edcb7",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_014zHCwzKq8kmrBCnZmE68ac",
+      "question": "Release the pool0 preview lease (http://localhost:3020)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Xgu8pgz5LDgMVdi6sm1W6z",
+        "description": "",
+        "questions": [
+          {
+            "question": "Release the pool0 preview lease (http://localhost:3020)?",
+            "header": "pool0 lease",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Release it (Recommended)",
+                "description": "Tear down pool0 and free the slot. :3001 already serves the merged code, so the preview env isn't needed."
+              },
+              {
+                "label": "Keep it",
+                "description": "Leave pool0 leased for more manual testing of this branch's code."
+              }
+            ]
+          },
+          {
+            "question": "This work had no GitHub Project ticket. File issue(s) on board #1 for the record?",
+            "header": "Tracking ticket",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "File both",
+                "description": "A closed issue documenting the shipped beneficiary-ACL hardening, plus an open follow-up for defense-in-depth scoping of the fund.full-gated controllers."
+              },
+              {
+                "label": "Follow-up only",
+                "description": "File just the open follow-up issue for the deferred defense-in-depth controller scoping; skip the retro record."
+              },
+              {
+                "label": "Skip",
+                "description": "No tickets \u2014 the commit + memory already document it."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "All 11 remaining owners backfilled (user1 already had it), **0 left without a role**. Let me confirm a previously-broken user (account 10 / user4) now works correctly at `:3001`:"
+      },
+      {
+        "role": "assistant",
+        "text": "Fully resolved and verified end-to-end. Account 10 (one of the previously-broken users) now: dashboard shows **\"My Account\" only**, accounts badge **1** (own only), funds badge **1** (own fund) \u2014 correctly scoped, no over-broad nav.\n\nLet me record this for future sessions, then wrap up."
+      },
+      {
+        "role": "assistant",
+        "text": "Everything's resolved and shipped. Final state:\n\n## Complete \u2705\n\n- **`main` (`04660b3f`)** has all the beneficiary-ACL hardening (your push fast-forwarded cleanly, and the parallel #77 session's merge layered on top without conflict).\n- **`:3001` now serves it** \u2014 verified live: beneficiaries (account:7 *and* the previously-broken account:10) get \"My Account\" only, funds/accounts scoped to their own, and no PII in the transactions selector.\n- **Dev DB corrected** \u2014 backfill migration applied: **11 owners granted** `beneficiary` (12 total incl. user1), **0 left without a role**. The earlier \"your account isn't linked to a fund\" dead-end is gone for every account owner.\n\n## What you can do now\n- Re-test freely at **`:3001`** \u2014 `/dev-login/dashboard?as=account:N` for any account, `?as=fund-admin` / `?as=admin` for the management/admin tiers. And the `?as=` footgun is fixed: appending `?as=...` to *any* URL now actually switches the user.\n\n## One loose end\nI still hold preview slot **pool0 (`:3020`)**. Want me to release it, or keep it around for more testing?\n\nThat's the whole chain: the original \"why do I see other accounts?\" was a `?as=` footgun, but chasing it surfaced three real leaks (funds index, selector PII, nav over-exposure) + a data-integrity gap (owners with no role) \u2014 all now fixed, tested (full suite green), merged, and live."
+      },
+      {
+        "role": "user",
+        "text": "Close work."
+      },
+      {
+        "role": "assistant",
+        "text": "Working through the close-work checklist. Let me gather the final state (review, test gate, TODO sweep, leases) in one pass."
+      },
+      {
+        "role": "assistant",
+        "text": "## Close-work review\n\n**Phase 1 \u2014 what changed:** Already delivered. My HEAD (`66937d01`) is fully contained in `origin/main` (`04660b3f`) \u2014 `origin/main..HEAD` is empty. Working tree clean. The branch is the supervisor's bridge branch (`worktree-bridge-cse_\u2026`), and I'm executing inside it.\n\n**Phase 2 \u2014 test gate:** Full suite green (2288 passed) on the work; the merge re-verified (85 auth tests + live alias/precedence curls + `:3001` smoke as account:7 & account:10). Fresh against final state.\n\n**Phase 3 \u2014 TODO sweep:** All 7 tasks completed; no in-code TODOs introduced; original ask fully delivered (incl. the dev backfill). One *deliberately deferred* item: defense-in-depth scoping/policies for the ~15 management controllers \u2014 they're already `fund.full`-gated (beneficiary 403s) so I added regression tests instead of rewriting them. Optional future hardening.\n\n**Phase 4 \u2014 verdict: READY TO CLOSE** (work merged, verified, clean).\n\n**Phase 5 \u2014 teardown:** Already merged, so no merge/push needed. Remaining: I still hold preview slot **pool0** (test pool already released), and this is a **bridge worktree** so I will *not* remove it (you're running inside it; the supervisor manages it). No agent claim/ticket was created (this was ad-hoc, not a `start-work` ticket).\n\nTwo confirmations before I tear down:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Release it (Recommended), File both"
+  }
+}

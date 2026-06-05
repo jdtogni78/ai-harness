@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-819f091a-1587a19c723d3fc4",
+  "sig": "answer:rollout-819f091a:1587a19c723d3fc4",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 819f091a-876f-4b24-8092-037367c18ec3.jsonl turn #61",
+  "input": {
+    "action": {
+      "session_id": "rollout-819f091a",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01N2U2Qar5tyGZztspVZYNR2",
+      "question": "How should the tickets be shaped on board #2?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01FFmVWbJMJxjAg3LcjQzBXQ",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the tickets be shaped on board #2?",
+            "header": "Ticket shape",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "One epic with a phase checklist (Recommended)",
+                "description": "Single issue '[AH] perm_gate_lab: AI permission gate evaluation harness' with the 7 phases as a checklist in the body, linked to #23/#25. Easy to claim and resume; split into sub-issues later if a phase grows."
+              },
+              {
+                "label": "Epic + one issue per phase (8 issues)",
+                "description": "Parent issue plus one child per phase. Best if multiple agents will work phases in parallel from day one; more bookkeeping upfront."
+              },
+              {
+                "label": "Just file phase 1 now, defer the rest",
+                "description": "Single narrow issue for 'phase 1: capture & storage'. File the others as they come into focus. Lightest weight; loses the roadmap view on the board."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I want to have a UI that... this is a brand new project, so we'll have to plan it. I wanna have a UI where I can look through the different permission requests and the recommended... recommendations, whether the static was used or the AI was used. And I want to be able to use those as later test cases to create a test infrastructure to to improve over time the the judging system and be able to test new AI guidelines against the recommendations... against the situations and check if they get a better score on the recommended output. So I wanna make sure that the system is able to give a security rating or risk rating in general and an analysis and output. So we should create a test infrastructure for that. So plan it."
+      },
+      {
+        "role": "assistant",
+        "text": "Before I plan this, a few choices will shape the whole design \u2014 let me ask up front rather than assume."
+      },
+      {
+        "role": "assistant",
+        "text": "# perm_gate_lab \u2014 Plan\n\n## Goal\n\nA captured corpus of every permission decision (static rules, AI tier, Anthropic Auto Mode if observable, human overrides) plus a UI to review them, label them, run new judge configurations against them, and score the results with an LLM-as-judge \u2014 so you can iterate on guidelines with regression-test discipline.\n\n## Where it lives\n\n- New module: `ai-harness/perm_gate_lab/` (Python package), with CLI `pgctl`.\n- UI: new tab in `manager-ui` on `:8765` \u2014 separate router/templates, shared session.\n- Storage: SQLite at `~/.perm-gate-lab/lab.db` (same pattern as your manager DB; one file, easy to back up, no extra services).\n- Cross-cutting decision \u2192 `GD-NNNN` entry in root `DECISIONS.md`.\n\n## Architecture (one-paragraph data flow)\n\nThe `PreToolUse` hook writes one **case** row per evaluation (tool, args, redacted context, tier-used, rule-fired, AI rationale if any, final verdict). Out-of-band importers add **Auto Mode** observations (if the recon spike finds anything visible) and **synthetic adversarial** cases checked into the repo. A **judge** is a (guideline text + model + system-prompt) bundle, versioned in-repo. A **run** is judge \u00d7 case-set \u2192 one **verdict** row per (case, run). A **scorer** is an LLM-as-judge call that reads (case, verdict) and emits `{score 0\u2013100, risk_tier, agrees_with_human_label?, critique}`. The UI browses cases, lets you label them, and diffs runs against each other and against labels.\n\n## Storage schema (SQLite)\n\n```\ncase(id, ts, source, tool, args_json, ctx_json, redacted, sha256)\n            -- source \u2208 {hook_static, hook_ai, auto_mode_obs, human_override, synthetic}\nverdict(id, case_id, run_id, verdict, risk_tier, rationale, model, latency_ms, cost_usd)\n            -- verdict \u2208 {allow, prompt, deny}\nlabel(case_id, ideal_verdict, ideal_risk_tier, labeler, ts, notes)\nrun(id, judge_id, case_set, ts, git_sha, notes)\njudge(id, name, version, guideline_path, system_prompt, model)\nscore(verdict_id, scorer_id, score, agrees_with_label, critique, ts)\nscorer(id, name, model, system_prompt, version)\n```\n\nCases are deduped by `sha256(tool + canonical_args + minimal_ctx)` so re-runs append verdicts, not cases.\n\n## Phases (incremental, each shippable on its own)\n\n1. **Capture & storage** \u2014 extend `perm_gate` hook (#23) to emit a structured JSONL record per decision; `pgctl import` ingests JSONL \u2192 SQLite; redaction pass at ingest (regex for keys, paths under `~/.ssh`, env-secret patterns).\n2. **Read-only browse UI** \u2014 new manager-ui tab: case list (filters: source, verdict, tier, date), case detail (full ctx, all verdicts). No write paths yet \u2014 confirm capture is sound.\n3. **Auto Mode recon spike** (timebox **2h**) \u2014 inspect what Auto Mode exposes to hooks/transcripts/CLI on Opus 4.7. Outcome is one of: (a) capture classifier verdict directly, (b) capture only the user-facing prompt + answer as proxy, (c) nothing observable \u2192 drop that source. Decision recorded as a `GD`.\n4. **Judge runner** \u2014 `pgctl run --judge configs/judges/v1.yaml --cases all` writes one `run` row + N `verdict` rows.\n5. **LLM-as-judge scorer** \u2014 `pgctl score --run <id> [--scorer configs/scorers/strict.yaml]`. **Use a different model for scorer than judge** to reduce shared blind-spots (e.g. judge=Opus 4.7, scorer=Sonnet 4.6, or vice versa). Cache by `(case_sha, verdict_sha, scorer_sha)` to keep cost bounded.\n6. **Labelling + diff UI** \u2014 human label form in case detail; run-vs-run diff page (rows where verdicts disagree, scorer critique inline); leaderboard (mean score per run, false-allow rate on red cases).\n7. **CI gate** \u2014 `pytest` target runs the current production judge against the frozen `synthetic_adversarial/` corpus + a sampled snapshot of real cases; **hard fail** on any false-allow of a red-tier synthetic case. PRs to `configs/judges/` must show the diff report in the PR body.\n\n## Key files / touch list\n\n- `perm_gate_lab/{__init__,db,models,redact,judge,scorer,cli}.py`\n- `perm_gate_lab/configs/judges/*.yaml` \u2014 versioned guideline bundles\n- `perm_gate_lab/configs/scorers/*.yaml`\n- `perm_gate_lab/corpus/synthetic_adversarial/*.yaml` \u2014 checked-in red-team cases (rm-rf, exfil-curl, prompt-injection patterns from Anthropic's own Auto Mode blog)\n- `manager-ui/routes/perm_gate.py` + `templates/perm_gate/*.html` (new tab)\n- `perm_gate` hook (existing, ai-harness#23) \u2014 add structured JSONL emit; behind `PERM_GATE_LAB_CAPTURE=1` so it's opt-in until phase 1 lands\n- `DECISIONS.md` \u2014 new `GD-NNNN` for \"perm-gate-lab corpus + LLM-judge scoring\"\n- New GH issue on board #2, linked to follow-up #25\n\n## Risks / open design questions (call out before building)\n\n- **Auto Mode observability is unknown** \u2014 phase 3 spike resolves this; don't design assuming we get the classifier verdict.\n- **PII/secrets in captured args** \u2014 redaction must run *before* anything hits disk *and* again before any LLM-judge call. Tests for the redactor are mandatory in phase 1.\n- **Judge/scorer model collusion** \u2014 both being Claude shares biases. Use different model tiers; consider an ensemble scorer for red-tier cases.\n- **Cost** \u2014 full scoring of a large corpus is real money. Cache aggressively; default `pgctl run` to a sampled subset; full-corpus runs are explicit.\n- **Coexistence with Anthropic Auto Mode** \u2014 your hook and Auto Mode could double-prompt. Config knob `PERM_GATE_MODE \u2208 {primary, second_opinion, off}` decides whether your verdict gates the call or just logs alongside Anthropic's.\n- **Labelling burden** \u2014 human labels are the ground truth even with LLM-as-judge picked, because the scorer needs *something* to anchor on for hard cases. Plan to label ~50 seed cases manually before phase 5 is useful.\n\n## Recommended next step\n\nStart with **phase 1 only** \u2014 capture into SQLite and confirm the data shape is right before any UI. Once you can `pgctl list` and see a week of decisions, the UI and judge runner have a real corpus to target. Want me to draft the phase-1 implementation (schema + hook patch + `pgctl import`)?"
+      },
+      {
+        "role": "user",
+        "text": "Is it all in a plan document and on tickets? Uh, if so, we can resume and start."
+      },
+      {
+        "role": "assistant",
+        "text": "Honest answer: **no \u2014 right now it only lives in this chat.** Two things to make it resumable:\n\n1. **Plan doc** in the repo (local, reversible \u2014 I'll do this now).\n2. **Tracking issue(s)** on board #2 (visible action \u2014 let me confirm the shape before I push)."
+      },
+      {
+        "role": "assistant",
+        "text": "Plan doc saved at `perm_gate_lab/PLAN.md`.\n\nFor tickets on board #2 \u2014 one decision before I push:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "One epic with a phase checklist (Recommended)"
+  }
+}

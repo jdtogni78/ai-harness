@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-7dcf6886-5c8fb4742997473e",
+  "sig": "answer:rollout-7dcf6886:5c8fb4742997473e",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 7dcf6886-8457-4a6e-b535-4416fe8b3043.jsonl turn #602",
+  "input": {
+    "action": {
+      "session_id": "rollout-7dcf6886",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01XwDewUgFeC5bPu6rT9Rmk4/app1",
+      "question": "What next?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_015BicbGk9i6RQyhixr8VR8R",
+        "description": "",
+        "questions": [
+          {
+            "question": "What next?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Phase 2: dstrader Java auth",
+                "description": "Spin up a dstrader worktree and add the Authorization: Bearer header to HTTPUtils + HolidayAPIClient, reading FF_API_TOKEN from env."
+              },
+              {
+                "label": "Phase 2+3 together",
+                "description": "Do dstrader (Java) and dstrader-docker (bash familyfund_bashlib.sh + FF_API_TOKEN/FF_SCHEDULER_API_TOKEN plumbing) in their worktrees back-to-back."
+              },
+              {
+                "label": "File credit-line schedule bug",
+                "description": "First file the pre-existing dead-Kernel finding (credit-line scheduled jobs never run) as a tracked issue on board #1."
+              },
+              {
+                "label": "Pause / post progress to #82",
+                "description": "Stop here for now; post a Phase 1-done progress note on #82 and leave Phase 2-4 for later."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Important finding: this is Laravel 11's minimal bootstrap (`bootstrap/app.php`), and there's **no `App\\Console\\Kernel` binding** \u2014 so `Kernel::schedule()` is dead code. `schedule:list` confirms it (even the pre-existing credit-line jobs don't register). I need to put my schedule in `routes/console.php` instead. Let me revert the Kernel edit and do it correctly."
+      },
+      {
+        "role": "assistant",
+        "text": "Now add the schedule to `routes/console.php` (the wired location in Laravel 11):"
+      },
+      {
+        "role": "assistant",
+        "text": "Schedule now registers correctly. Let me fix the runbook reference (it pointed at Kernel.php):"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me lint the reverted Kernel and review the full change set:"
+      },
+      {
+        "role": "assistant",
+        "text": "Clean change set. Note `app/Console/Kernel.php` correctly shows **no change** (added then reverted), and the decrypted env files are gitignored. Marking tasks done and releasing the slot:"
+      },
+      {
+        "role": "assistant",
+        "text": "Phase 1 (FamilyFund) is **complete and green**. Here's where things stand.\n\n## Phase 1 delivered \u2014 FamilyFund (this worktree)\n\n**Gating**\n- `config('familyfund.enforce_admin_writes')` flag (env `FF_ENFORCE_ADMIN_WRITES`, default on) + `adminWriteMiddleware()`/`requireAdminWrite()` helpers in `AuthorizesApiAccess`.\n- System-admin-only **writes** on `assets`, `asset_prices` (resource), `matching_rules`, `schedules`, `change_logs`, `asset_change_logs` (ctor middleware on store/update/destroy \u2014 runs before validation, reads stay open), `asset_prices_bulk_update` (the price feed), and `exchange_holidays/sync`.\n- **Left as-is on purpose:** `portfolio_assets_bulk_update` / `portfolio_balances_bulk_update` already gate via `requireFullAccessToAnyFund()` (fund-scoped data, not global reference; system admin satisfies it) \u2014 tightening them would break legit fund-admin use.\n\n**Service identity + tokens**\n- `DstraderServiceUserSeeder` \u2192 `dstrader-service@familyfund.local` with global system-admin.\n- `php artisan security:service-token` (prod-allowed): `--name=app|scheduler --rotate --ttl --revoke-previous --prune-expired --check-expiry --warn-days`. Stdout is token-only; diagnostics to stderr.\n- Scheduler safety-net (daily `--check-expiry`, weekly `--prune-expired`) in **`routes/console.php`**.\n- Runbook `docs/runbooks/ff-service-token-rotation.md`; ED-0015; stale `#50/#51` comments updated.\n\n**Tests (all in a leased testpool slot, then released)**\n- `SecurityApiAclMatrixTest`: **12 passed** incl. the 2 new (`reference_data_writes_are_admin_only`, flag-off path).\n- Full **APIs suite: 182 passed**; bulk/functional (`PriceUpdate`, `AssetPriceOverlap`, `PositionUpdate`, `SecurityRouteAutomation`, `HolidaysSync`): all green.\n- Seeder + command verified end-to-end in-container; all 16 changed PHP files lint-clean.\n\n## Two findings worth your attention\n\n1. **A real bug fixed mid-flight:** the command's `$signature` had bad apostrophe escaping (`''`) \u2014 it silently failed to register. Caught by in-container lint + `php -l`; fixed.\n2. **Pre-existing latent bug (not mine, out of #82 scope):** `app/Console/Kernel.php::schedule()` is **dead code** in this Laravel 11 minimal-bootstrap app \u2014 `schedule:list` shows nothing, so the **credit-line reminder / late-payment / quarterly-status jobs never run in prod.** I put my schedule in `routes/console.php` (which works), but the credit-line jobs are still stranded in the dead Kernel. Worth a separate ticket.\n\nNext is the cross-repo work (separate worktrees): **Phase 2** dstrader Java `Authorization` header, **Phase 3** dstrader-docker bash + secret, **Phase 4** coordinated stage\u2192prod cutover."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Phase 2+3 together"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-6f94ff35-4d9050b6e7ea51be",
+  "sig": "answer:rollout-6f94ff35:4d9050b6e7ea51be",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 6f94ff35-b022-4544-be79-cd0e3ef8d2cc.jsonl turn #160",
+  "input": {
+    "action": {
+      "session_id": "rollout-6f94ff35",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01AWRcbYuMGAD9PaBSgSCiUJ",
+      "question": "Proceed with delivery (commit \u2192 merge --no-ff into main \u2192 push)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01XYkrTXiMFg8FPn4MmnoC5L",
+        "description": "",
+        "questions": [
+          {
+            "question": "Proceed with delivery (commit \u2192 merge --no-ff into main \u2192 push)?",
+            "header": "Deliver",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, commit + merge + push",
+                "description": "Commit the 3 files, merge --no-ff into main, push to origin, then switch this bridge-cse worktree back to its bridge branch."
+              },
+              {
+                "label": "Commit only",
+                "description": "Commit to the worktree branch but don't merge/push yet \u2014 you'll review on main later."
+              },
+              {
+                "label": "Don't commit yet",
+                "description": "Leave the working tree as-is; just keep the close-work summary."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "All 233 credit-line tests pass \u2014 no regressions. Let me release the slot and check the working tree."
+      },
+      {
+        "role": "assistant",
+        "text": "Done. The `.env`/`.env.dev` I added are git-ignored, so only the three intended files show as modified.\n\n## Summary\n\nFixed both correctness bugs in the loan-share payment simulator plus the two cleanups, and backfilled the missing tests. All green on isolated slot `test1`: **13 unit + 6 feature** (5 new tests), and the full **233-test credit-line suite** with no regressions.\n\n### `PaymentSimulator.php`\n1. **`total_paid_usd` overcount (fixed)** \u2014 the final, capped month is now billed at the actual cost of the remaining shares (`sharesPaid \u00d7 shareValue`) instead of a full monthly payment. The USD total now agrees with the (already-capped) share total. As a bonus this also makes a zero-outstanding line report `$0` instead of a phantom payment.\n2. **Date anchoring (fixed)** \u2014 series dates and `payoff_date` now anchor to `today` (the projection's real starting point) instead of `origination_date`, so seasoned/backdated lines no longer show payoff dates in the past.\n3. **Dead branch removed** in `solveForPayment` (the `if/else` that both did `$hi = $mid`).\n4. **Duplication removed** \u2014 extracted `resolveScenarios()`, shared by `simulateAllScenarios()` and `solveForPaymentAllScenarios()`. Also dropped the now-unused `$monthsRun`.\n\n### Tests added\n- Unit: `test_total_paid_usd_excludes_unspent_final_month`, `test_payoff_date_anchored_to_today_not_origination`, `test_simulate_persists_nothing` (read-only guarantee \u2014 asserts no `transactions`/`credit_line_payments` rows are created).\n- Feature: `test_simulator_shows_error_on_invalid_payment`, `test_simulator_time_mode_rejects_out_of_range_target` (both assert the page renders 200 with the error alert and no results table).\n\n### Not changed (flagged in review, left as design calls)\n- One month of growth applied before the first payment (added a clarifying comment).\n- Simulator ignores the loan's actual `payment_frequency` (intentional \"what if monthly\" tool).\n- Share value floored to `1.0` when unavailable.\n\nThe changes are uncommitted on this worktree branch. Want me to commit them (and run `/close-work` to merge), or leave them for you to review first?"
+      },
+      {
+        "role": "assistant",
+        "text": "I'll work through the close-work phases. Let me start by gathering the state."
+      },
+      {
+        "role": "assistant",
+        "text": "No commits yet \u2014 three intended files modified, no stray artifacts (the `.env`/`.env.dev` I created are gitignored and absent from status). Let me check the diff is clean and look for any related tracking ticket."
+      },
+      {
+        "role": "assistant",
+        "text": "No simulator ticket exists \u2014 this was ad-hoc review work (direct request, not a `/start-work` claim), so no agent claim or ticket to close. Let me confirm there's no related open board item this should map to."
+      },
+      {
+        "role": "assistant",
+        "text": "Yes \u2014 every bug we actually changed code for got a test, plus a couple that were untested before. Here's the mapping:\n\n| Review finding | Test added | Type |\n|---|---|---|\n| Bug #1 \u2014 `total_paid_usd` overcounts final partial month | `test_total_paid_usd_excludes_unspent_final_month` | unit |\n| Bug #2 \u2014 payoff dates anchored to origination, not today | `test_payoff_date_anchored_to_today_not_origination` | unit |\n| Read-only guarantee (was only asserted in comments) | `test_simulate_persists_nothing` | unit |\n| Error path \u2014 invalid/negative payment | `test_simulator_shows_error_on_invalid_payment` | feature |\n| Error path \u2014 out-of-range target months | `test_simulator_time_mode_rejects_out_of_range_target` | feature |\n\nThe two cleanups (dead branch in `solveForPayment`, `resolveScenarios` extraction) are behavior-preserving and are already covered by the **existing** `test_solve_for_payment_*` and `test_three_scenarios_use_correct_growth_multipliers` tests \u2014 no new tests needed, and they stayed green.\n\nThe by-design items I flagged but **didn't** change (growth applied before first payment, frequency-ignored, share-value floor, gating the simulator to active lines) have no tests because there's no code change \u2014 they're open design questions, not fixes.\n\n---\n\n## Close-work status\n\n**Phase 1 \u2014 what changed:** No commits yet; 3 files modified vs `origin/main`, no stray artifacts:\n- `app/Services/CreditLine/Simulation/PaymentSimulator.php` (the 2 bug fixes + 2 cleanups)\n- `tests/Unit/.../PaymentSimulatorTest.php` (+3 tests)\n- `tests/Feature/CreditLineSimulatorTest.php` (+2 tests)\n\nNo tracking ticket \u2014 this was an ad-hoc review request, not a `/start-work` claim, so there's no agent claim or board issue to close.\n\n**Phase 2 \u2014 test gate:** Fresh and green. Ran *after* the last edit on isolated slot `test1`: 13 unit + 6 feature (the 5 new ones), and full 233-test credit-line suite, no regressions.\n\n**Phase 3 \u2014 TODO sweep:** Original ask (\"review the simulator\") delivered as the review; follow-up ask (\"go ahead\" = fix the 2 bugs + add tests) fully done. No deferred scope, no new in-code TODOs.\n\n**Phase 4 \u2014 verdict: READY TO CLOSE.**\n\nThis is a supervisor-managed `bridge-cse_*` worktree, so delivery is: commit \u2192 merge `--no-ff` into `main` \u2192 push \u2192 switch the worktree back to its bridge branch (not remove it). The testpool lease is already released; no preview lease is held.\n\nBefore I run any state-changing commands \u2014 do you want me to proceed with commit + merge to `main` + push?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Yes, commit + merge + push"
+  }
+}

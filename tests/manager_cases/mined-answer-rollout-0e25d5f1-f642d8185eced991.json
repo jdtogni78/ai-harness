@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-0e25d5f1-f642d8185eced991",
+  "sig": "answer:rollout-0e25d5f1:f642d8185eced991",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 0e25d5f1-b847-4e6f-8f9b-9ef926b3e1b8.jsonl turn #58",
+  "input": {
+    "action": {
+      "session_id": "rollout-0e25d5f1",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01KejVCMVj7e53bp68VWqimt",
+      "question": "Which bug from QA_BUGS_2026-05-20.md do you want to pick up first?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Na6eB2Uo5YhKXBcfzUvNjM",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which bug from QA_BUGS_2026-05-20.md do you want to pick up first?",
+            "header": "Pick bug",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "S1 #1 \u2014 Overpayment swallowed",
+                "description": "Repay endpoint accepts shares > outstanding; REP tx records full amount, phantom shares disappear from BOR ledger. Highest financial-accuracy risk."
+              },
+              {
+                "label": "S1 #2 \u2014 REP date unbounded",
+                "description": "Repays accepted before origination_date or far in the future; corrupts account_balances ordering."
+              },
+              {
+                "label": "S1 #3 \u2014 Excess doesn't cascade",
+                "description": "Overpayment on one CL doesn't apply to other active CLs on the same account; ~937-share ghost between borrowedSharesAsOf and active-CL sum."
+              },
+              {
+                "label": "All three S1 repay bugs together",
+                "description": "Fix #1+#2+#3 in one pass (they all touch the repay controller / RepayCreditLineService); single PR."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Let's pick up the bug's document or other empty files. First, let's see all... what are the empty files available that ask me which ones I wish should pick up next to start processing and addressing the next issues."
+      },
+      {
+        "role": "assistant",
+        "text": "Only one empty file in the worktree (a `.gitkeep`). Let me look for bug docs or task files that might represent pending work."
+      },
+      {
+        "role": "assistant",
+        "text": "There's a `docs/QA_BUGS_2026-05-19.md` \u2014 likely your bug tracking document. Let me read it."
+      },
+      {
+        "role": "assistant",
+        "text": "All bugs in `QA_BUGS_2026-05-19.md` are marked \u2705 fixed. Let me look for newer QA bug docs or other pending work documents."
+      },
+      {
+        "role": "assistant",
+        "text": "Found a newer bug doc for today (2026-05-20) in the parent FamilyFund directory. Let me read it."
+      },
+      {
+        "role": "assistant",
+        "text": "Found the active bug doc: `docs/QA_BUGS_2026-05-20.md` (in main, not yet in this worktree) \u2014 8 findings, none marked fixed. Here's the summary:\n\n**Critical (S1) \u2014 Repay endpoint integrity**\n- **#1** Overpayment silently absorbed: REP tx records 275 shares vs CL outstanding 270 \u2192 5 phantom shares disappear from BOR ledger\n- **#2** REP date unbounded: backdated (2020) or far-future (2050) repays accepted, corrupting `account_balances` ordering\n- **#3** Excess doesn't cascade: 10000-share overpay on one CL leaves other active CLs on the same account untouched \u2192 ~937-share ghost\n\n**Major (S2) \u2014 Ledger state**\n- **#4** Baseline contains `status=cancelled, outstanding=108` row that current controller blocks; `borrowedSharesAsOf` still counts cancelled CL until next BOR/REP\n- **#5** Same-day BOR\u2192REP cycle leaves zero historical BOR rows in `account_balances` \u2192 audit trail unrecoverable\n\n**UX (S3)**\n- **#6** Readjust keeps old schedule rows as `cancelled` next to new `scheduled` rows; allocations distributed across both\n- **#7** \"Lifetime disbursed/repaid\" cards sum across cancelled lines and phantom REPs \u2192 disagree with per-CL fields on the same page\n\n**Cosmetic (S4)**\n- **#8** Dark-mode toggle + avatar overlap \"Dashboard\" link at \u22641280px"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "S1 #1 \u2014 Overpayment swallowed"
+  }
+}

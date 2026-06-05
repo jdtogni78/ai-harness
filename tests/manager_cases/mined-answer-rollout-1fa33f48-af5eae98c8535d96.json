@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-1fa33f48-af5eae98c8535d96",
+  "sig": "answer:rollout-1fa33f48:af5eae98c8535d96",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 1fa33f48-d471-4827-b953-2237c7aabab1.jsonl turn #348",
+  "input": {
+    "action": {
+      "session_id": "rollout-1fa33f48",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/sweet-driscoll-0b292c",
+      "question": "Which voice-upgrade path do you want?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01FKcw2UcWnh3VyZ6u6pCMDK",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which voice-upgrade path do you want?",
+            "header": "TTS path",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Re-render with Samantha now",
+                "description": "Quickest: swap Alex\u2192Samantha (or another installed voice you liked) and re-render Demo 1 immediately. Marginal but free and instant."
+              },
+              {
+                "label": "Install Premium macOS voice",
+                "description": "Free, big quality jump, no code change. I open the Manage Voices pane and guide the download (Ava/Zoe/Evan Premium), then re-render. GUI download step required."
+              },
+              {
+                "label": "Wire up OpenAI TTS",
+                "description": "Best-value high quality. I implement the openai adapter in tts.py; you provide an OPENAI_API_KEY. ~1 cent per render. Voices: nova, shimmer, onyx."
+              },
+              {
+                "label": "Wire up ElevenLabs TTS",
+                "description": "Top-tier naturalness. I implement the elevenlabs adapter; you provide an ELEVENLABS_API_KEY. Slightly pricier than OpenAI."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "All demo claims check out against the live DB, and my ai-harness checkout is already at the fix. Here's the review.\n\n---\n\n## (a) Pool fix \u2014 `link.sh` rewrite (ai-harness `0ba6a05`)\n\n**Verdict: correct and low-risk. Safe to keep. One real maintainability gap worth a follow-up.**\n\nWhat I verified:\n- **Logic is sound.** Sources `load-config.sh` \u2192 resolves `STATE_DIR`, hard-fails with `${STATE_DIR:?}` if unset. `_yaml_to_env.py` **tilde-expands** correctly (`STATE_DIR=/Users/claudio1/.familyfund-pool`, absolute) \u2014 so the `mkdir -p \"$POOL_HOME/adapters\"` can't create a literal `~` dir. Idempotent, backs up real files before replacing, handles `config.local.yaml` carefully (never invents it; only symlinks from `$AI_HARNESS_POOL_CONFIG`).\n- **Live state is healthy.** `~/.familyfund-pool` has the full symlink set (dispatchers + libs + both adapters + config), all pointing at the **stable** `~/dev/ai-harness/scripts/pool/` checkout \u2014 not a worktree, so no dangle-on-GC risk.\n- **No risk to other apps/hosts.** The commit touches only `link.sh` + `README` \u2014 dispatcher/adapter runtime behavior is unchanged, so no running pool is affected. The repo ships *only* `laravel-docker` adapters (no `app-one` adapter exists anymore), so there's no other app to break. On another host the fix is corrective (run once with that host's config).\n- My ai-harness HEAD is **already at `0ba6a05`** \u2014 no pull needed; pool0 keeps working.\n\n**Flag (maintainability, not an active bug):** the `FILES` array **hardcodes** `adapters/laravel-docker-{pool,testpool}.sh`, while the header frames the installer as generic (\"an app's env-pool\"). Today that matches the only adapters in the repo, so it's fine. But a future app with a differently-named adapter would hit exactly the silent half-link this commit set out to kill \u2014 `link.sh` would print `missing \u2026 skip` for the laravel ones and never link the real adapter. Better: glob `adapters/*.sh` or derive the adapter name from config (`adapter: laravel-docker` is already in the YAML).\n\n**Nit:** a stray `~/.familyfund-pool/adapters/laravel-docker-testpool.sh.bak.1780280624` backup is left behind (harmless \u2014 adapters are referenced by exact name \u2014 just clutter).\n\n## (b) Demo storyboards\n\n**Verdict: accurate. Already merged here, no divergence. I rendered Demo 1 successfully.**\n\nEvery factual claim in `funds-accounts.demo.yaml` checks out against the live DB:\n\n| Narration claim | DB | \u2713 |\n|---|---|---|\n| \"Nine funds under management\" | `funds=9` | \u2713 |\n| \"Family Fund A\" = fund #2 | `fund2_name=Family Fund A` | \u2713 |\n| \"Twenty-two beneficiary accounts share Family Fund A\" | `fund2_accounts=22` | \u2713 |\n| account #7 belongs to it | `acct7_fund=2` | \u2713 |\n| fundReport #1 / accountReport #1 / `as_of/2022-09-01` | all HTTP 200 | \u2713 |\n\n**Merge status:** no divergence to resolve \u2014 my committed copy (`ea0329e1`) is **byte-identical** to their uncommitted source. The one conflict was my *earlier* draft using fund #1 (wrong); theirs corrected it to #2, and that's what shipped. I'll delete my stale `/tmp/my-funds-accounts-draft.yaml`.\n\n**Flow / narration nits (cosmetic, not blockers):**\n- **Scene 3 (\"Let's look at the funds themselves\") fires `move_first_visible_h2` while still on the dashboard**, then scene 4 navigates to `/funds`. The line anticipates the next page \u2014 reads slightly ahead of the visuals. Minor.\n- **`move to: h1` / `move_first_visible_h2`** are generic anchors: the glowing cursor lands on a page's first heading, not necessarily the *figure* the narration names (NAV, share price, balance). Tightening those to specific card selectors is the main polish pass if you want the cursor to \"point\" precisely.\n- The 5 stubs (`credit-lines`, `portfolios-rebalancing`, `transactions-matching`, `time-travel-reports`, `roles-access`) are route-skeletons with TODO narration \u2014 nothing to review yet.\n\n**Nothing wrong or duplicated** beyond the stale `/tmp` draft.\n\n---\n\nWant me to (1) push a small follow-up to ai-harness making `link.sh` glob `adapters/*.sh` instead of hardcoding, and (2) tighten Demo 1's cursor selectors + flesh out the stubs? Or leave it as-is?"
+      },
+      {
+        "role": "user",
+        "text": "I found the demo voice too robotic, do we have any alternatives"
+      },
+      {
+        "role": "assistant",
+        "text": "Good feedback. The macOS `say` engine has a big quality range \u2014 the default `Alex` is the robotic one, but if premium/neural voices are installed they're far more natural. The skill also has stub adapters for ElevenLabs/OpenAI. Let me see what's actually available on this machine first."
+      },
+      {
+        "role": "assistant",
+        "text": "The premium/neural tier isn't installed here \u2014 what you have is the standard `say` set (Samantha, Daniel, Karen) plus novelty voices, all noticeably synthetic. Two real paths to a more natural voice. Let me check which is viable \u2014 whether a cloud TTS key is already available, and the exact adapter shape I'd need to wire up."
+      },
+      {
+        "role": "assistant",
+        "text": "No cloud TTS key is set, and the openai/elevenlabs adapters are still `NotImplementedError` stubs. So there are two real upgrade paths \u2014 but first, let me give you something to actually *hear*. I'll synthesize the demo's opening line in the best standard voices installed so you can A/B them."
+      },
+      {
+        "role": "assistant",
+        "text": "Those are the ceiling for what's installed \u2014 better than Alex, but still \"standard tier.\" For a genuine jump in naturalness there are two real paths:\n\n- **Premium macOS voices (free, no API key):** download *Ava (Premium)*, *Zoe (Premium)*, or *Evan (Enhanced)* via System Settings \u2192 Accessibility \u2192 Spoken Content \u2192 Manage Voices. These are neural-quality, work with the existing `say` engine (just change `voice:` in the YAML \u2014 zero code), but the download itself is a GUI step (~100\u2013300 MB each). I can open that pane and guide you, then re-render.\n- **Cloud TTS (best quality, needs a key + ~30 lines):** I implement the stubbed `openai` or `elevenlabs` adapter in `tts.py`. OpenAI's `nova`/`shimmer`/`onyx` voices are very natural and cost ~a cent for our whole script; ElevenLabs is top-tier. Needs you to provide an API key.\n\nHow do you want to go?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Wire up OpenAI TTS"
+  }
+}

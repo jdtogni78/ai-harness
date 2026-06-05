@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2fb2cf35-3336f61002193f57",
+  "sig": "answer:rollout-2fb2cf35:3336f61002193f57",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2fb2cf35-1e06-4ccf-8f19-661200f9ebeb.jsonl turn #355",
+  "input": {
+    "action": {
+      "session_id": "rollout-2fb2cf35",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_0143BLSi72cXwwaoR5TWBJAa",
+      "question": "File the host-nick-precedence follow-up ticket on board #2?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01P4dEyZcuTufLQU4dSSwgSH",
+        "description": "",
+        "questions": [
+          {
+            "question": "File the host-nick-precedence follow-up ticket on board #2?",
+            "header": "File host-nick?",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "File as drafted",
+                "description": "Create the issue with the spec above on jdtogni78/ai-harness, add to board #2 as Todo. Worker C can pick it up after #2 if they have capacity, or it sits for a future dispatch."
+              },
+              {
+                "label": "Tweak first",
+                "description": "Tell me what to change in the spec before filing."
+              },
+              {
+                "label": "Don't file yet",
+                "description": "Hold off. Worker C will know not to bundle it; the memory note can stay unfiled for now."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Tracking workers and dispatching kickoffs in parallel."
+      },
+      {
+        "role": "assistant",
+        "text": "All four kickoffs delivered. Updating task statuses to in_progress."
+      },
+      {
+        "role": "assistant",
+        "text": "**Fleet status \u2014 4 workers in flight:**\n\n| Task | Issue | Worker | cse_ | Area |\n|------|-------|--------|------|------|\n| 1 | #31 handoff dispatcher | `oneoff-mini-a591a365` | `...4EmrPekho...` | `rehydrate.py` |\n| 2 | #11 send-to-session tests | `oneoff-mini-7ece9d48` | `...zPBb8oPw...` | `session_titles.py` tests |\n| 3 | #8 supervisor oscillation | `oneoff-mini-44a7dd7c` | `...PR9v6tbv...` | `supervisor.py` |\n| 4 | #2 Phase B host-derived defaults | `oneoff-mini-6d79bc94` | `...uMmPXbNt...` | `installer.py` + `config.py` |\n\nEach kickoff included: parallel-fleet awareness (so they don't step on each other's files), explicit `--reply-to <own-cse_>` instructions (sidesteps the JWT phantom-cse_ issue from the #29 run), and a flag for `#8 \u27f7 #31` supervisor-area coordination (merge sequence likely #8 first, then #31 rebase).\n\nI'll be auto-invoked when any of them ping back with a design question or completion. No polling needed."
+      },
+      {
+        "role": "user",
+        "text": "[from cse_014fuMmPXbNtA9hwisLPU8Lx \u2014 reply via send-to-session]\n\nWorker for #2 here, scope-check before I claim.\n\nIssue #2 body (jdtogni78/ai-harness, title \"Phase B: Host-derived defaults + ~/.ai-harness/ setup dir\") is about:\n- config.py defaults: claude_bin \u2192 ~/.local/bin/claude, active_file \u2192 ~/.ai-harness/active-dirs.txt (with repo fallback)\n- rename in-repo active-dirs.txt \u2192 active-dirs.example.txt\n- installer.py copies sample to ~/.ai-harness/ on first install\n- plist templates drop hardcoded /Users/user/... paths\n- docs revalidation (README, CLAUDE.md, OPERATIONS, skill, installer header)\n- cleanup REMOTE_CONTROL_ACTIVE_FILE + REMOTE_CONTROL_CLAUDE_BIN env vars from installed plists\n\nNO mention of host-nick precedence (REMOTE_CONTROL_HOST > ~/.ai-harness/host > derive) or seed_host_file.\n\nYour brief says the opposite \u2014 only host-nick + seed_host_file + config.py host resolution function.\n\nWhich scope do you want?\n  (A) implement issue #2 as-written (claude_bin/active_file defaults + installer + docs + plist)\n  (B) implement what your brief says (host-nick precedence + seed_host_file)\n  (C) both in one PR (they both live under ~/.ai-harness/, related but distinct)\n\nMemory note project_host_nick_config_file.md says the host-nick ticket was \"unfiled\" as of 2026-05-27 \u2014 possible #2 was intended to cover it too but the body never got updated, or host-nick is a separate ticket I should file alongside.\n\nAwaiting decision before I touch the board."
+      },
+      {
+        "role": "assistant",
+        "text": "My brief conflated #2 with an unfiled host-nick-precedence ticket \u2014 worker C caught it before claiming. Good catch. Sending decision A to unblock them."
+      },
+      {
+        "role": "assistant",
+        "text": "Worker C unblocked. Heads-up on the slip:\n\nI dispatched #2 with a brief based on a memory note (`project_host_nick_config_file.md`) that said the host-nick-precedence work was \"unfiled \u2014 file when sweeping board #2.\" I assumed that work *was* #2 without verifying the issue body. The worker caught it \u2014 #2 is actually about `claude_bin`/`active_file` defaults + installer copying samples to `~/.ai-harness/` + plist cleanup + docs. The host-nick stuff is genuinely a separate, still-unfiled ticket.\n\n**Lesson for me**: before dispatching on ticket #N, fetch the issue body and confirm scope matches the brief I'm composing. I'll do that on future dispatches.\n\nThe host-nick ticket should now actually get filed \u2014 memory directs me to do it during a board sweep, and we are sweeping. Proposed spec (filing pending your OK):\n\n> **Title**: `[AH][config] host-nick precedence: env > file > hostname-derive + plist seed`\n>\n> **Body**: implement host-nickname resolution in `remote_control/config.py` with strict precedence: `REMOTE_CONTROL_HOST` env > `~/.ai-harness/host` file > derive from `hostname` via `discovery.py:NICKNAME_RULES`. Add `installer.seed_host_file()` which writes the file from the plist env value on first install if the file doesn't exist. Phase A workaround in commits `024fb9b` / `97c1226` removed once Phase B (#2) and this ticket land. AC: each tier returns the expected value, fallback chain works, both hosts (mini/note) continue working with hostname-derive when env+file are absent."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "File as drafted"
+  }
+}

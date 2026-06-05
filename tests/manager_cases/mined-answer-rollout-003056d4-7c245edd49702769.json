@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-003056d4-7c245edd49702769",
+  "sig": "answer:rollout-003056d4:7c245edd49702769",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 003056d4-0b85-4b77-be98-2c8c05c7d0e9.jsonl turn #570",
+  "input": {
+    "action": {
+      "session_id": "rollout-003056d4",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01X3pwkmzXWuEmfBtyQNCv5V",
+      "question": "Run the merge + push now? (merge --no-ff into main from the ~/dev/ai-harness checkout, then git push origin main; bridge worktree stays in place per the bridge-close rule)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_018FDXQEggokiTPVpVrB9htz",
+        "description": "",
+        "questions": [
+          {
+            "question": "Run the merge + push now? (merge --no-ff into main from the ~/dev/ai-harness checkout, then git push origin main; bridge worktree stays in place per the bridge-close rule)",
+            "header": "Deliver",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 merge --no-ff + push to origin/main (Recommended)",
+                "description": "git -C ~/dev/ai-harness fetch origin main && git merge --no-ff worktree-bridge-cse_01X3pwkmzXWuEmfBtyQNCv5V -m 'Merge worktree-bridge-cse_01X3pwkmzXWuEmfBtyQNCv5V: manager-eval phases 1+2 (ai-harness#37 #38 #39)' && git push origin main. Bridge worktree left in place (supervisor-managed)."
+              },
+              {
+                "label": "Merge but don't push yet",
+                "description": "Lands the merge commit locally; you push later. Useful if you want to look at the diff on main first."
+              },
+              {
+                "label": "Don't merge \u2014 leave the bridge branch unmerged",
+                "description": "Phases 1+2 stay on the bridge branch only. Future sessions can keep adding to the bridge or merge later."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Is there any impact to main if we merge domain? No. I meant merge to main."
+      },
+      {
+        "role": "assistant",
+        "text": "**No meaningful impact on a running main.** The changes are purely additive:\n\n- **Phase 1** \u2014 `analyze_action`/`investigator_prompt_advise` got an optional `transcript_tail=None` parameter. Every live call site (manager loop, manager-ui's analyze button, the executor) passes None, so the rendered prompt is byte-identical to before. Tests assert this explicitly.\n- **Phase 2** \u2014 net-new endpoint (`POST /api/test_case`), net-new UI button + modal (only opens on click), net-new module (`eval_cases.py`, imported only by the new endpoint + tests), net-new config property (`test_cases_dir`, only read inside the new endpoint), net-new dir (`tests/manager_cases/`, no test discovery touches it \u2014 they're JSON, not `test_*.py`). The only edit to existing markup is the CSS selector `#gpanel` \u2192 `#gpanel,#tcpanel`, which just adds the same modal-overlay rules to the new panel.\n\n**One operational thing to flag:** the running `manager-ui` and `manager` launchd services load code at process start. After the merge they'll keep using the old code until you `launchctl kickstart -k` them (same gotcha as `feedback_supervisor_restart_on_nickname_change`). Without that restart the new button and endpoint won't appear \u2014 but nothing breaks either.\n\nWant me to also check whether any other unmerged bridge worktrees touch `manager.py` / `manager_ui.py` (conflict risk on merge)?"
+      },
+      {
+        "role": "user",
+        "text": "Close work."
+      },
+      {
+        "role": "assistant",
+        "text": "Working through the close-work phases. First doing the read-only review."
+      },
+      {
+        "role": "assistant",
+        "text": "Phase 1-3 review done. Let me also confirm the agent-claims state on the board + check main is ready for the merge."
+      },
+      {
+        "role": "assistant",
+        "text": "## Close-work review\n\n**Phase 1 \u2014 What changed (vs `origin/main`):**\n- Branch: `worktree-bridge-cse_01X3pwkmzXWuEmfBtyQNCv5V` (supervisor-managed bridge)\n- 3 commits ahead, 15 files, +1051/-8\n  - `80e07da` docs: plan\n  - `9d7f126` Phase 1: refactor (#38)\n  - `da385c3` Phase 2: capture + seed (#39)\n- Working tree clean. No `.env*` / pool artifacts. Nothing unexpected.\n\n**Phase 2 \u2014 Tests:** ran `python3 -m unittest discover tests` after the last edit \u2192 **587 green**. ai-harness is Python/unittest, not Docker (Docker is a FamilyFund convention). Gate is fresh.\n\n**Phase 3 \u2014 TODO sweep:**\n- All 11 session tasks completed\n- No new TODO/FIXME/XXX introduced in the diff\n- Original ask: \"plan + create tickets + let's start\". Plan written, 5 tickets filed, Phases 1 & 2 delivered.\n- Phases 3-5 **intentionally deferred** per the plan (\"collect ~20 real cases before building the runner\") \u2014 tracked as open tickets #40 / #41 / parent #37, not silent backlog\n- One operational note already flagged: running `manager` + `manager-ui` services need `launchctl kickstart -k` after the merge to load the new code\n\n**Board state:**\n- #38 closed/Done \u00b7 #39 closed/Done \u00b7 agent claims released\n- #37 (parent) stays open until Phases 3+4 land \u2014 that's correct\n\n**Verdict: READY TO CLOSE.**\n\n---\n\nPhase 5 \u2014 delivery needs your OK. Proposed (all from this bridge worktree):"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Yes \u2014 merge --no-ff + push to origin/main (Recommended)"
+  }
+}

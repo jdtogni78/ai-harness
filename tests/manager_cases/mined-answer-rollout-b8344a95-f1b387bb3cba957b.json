@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b8344a95-f1b387bb3cba957b",
+  "sig": "answer:rollout-b8344a95:f1b387bb3cba957b",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b8344a95-ea6e-4231-8506-bcc2bc620b8a.jsonl turn #25",
+  "input": {
+    "action": {
+      "session_id": "rollout-b8344a95",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01TuK4n1kgc7pytKgcsmqQv1",
+      "question": "How should `sessions submit` know the sender's `cse_*` id to embed?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01FUzGngPnLgEXUeb9Mb5Mgy",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should `sessions submit` know the sender's `cse_*` id to embed?",
+            "header": "Sender id source",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Auto-detect from env (Recommended)",
+                "description": "Read $CLAUDE_SESSION_ID (or whatever the running claude exposes); fall back to --reply-to if missing. Caller-free in the common case."
+              },
+              {
+                "label": "Required --reply-to flag",
+                "description": "Always explicit. Caller must pass --reply-to cse_XXX. Simplest, but the skill has to add a step to fetch the agent's own id every time."
+              },
+              {
+                "label": "Optional --reply-to flag, no auto-detect",
+                "description": "Off by default; only embeds when caller passes the flag. Least magic, but easy to forget."
+              }
+            ]
+          },
+          {
+            "question": "How should the sender-id be embedded in the message body?",
+            "header": "Embed format",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Prepend a one-line header (Recommended)",
+                "description": "Prefix the body with `[from cse_XXX \u2014 reply via send-to-session]\\n\\n<message>`. Visible to the receiving agent, parse-friendly for future tooling."
+              },
+              {
+                "label": "Append a footer",
+                "description": "Same content but at the end. Less likely to throw off the receiving model's read of the prompt."
+              },
+              {
+                "label": "Both header and footer",
+                "description": "Belt-and-braces; the id is hard to miss but the body gets noisier."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "the sendmessage should post the reply to session id"
+      },
+      {
+        "role": "assistant",
+        "text": "The recent commit said the receiver must reply via the same skill, but the receiver currently has to guess or ask for the sender's `cse_*` id (skill doc step 1). You want the `submit` CLI to embed the sender's session id in the body itself so the receiver always knows where to reply.\n\nBefore I edit anything, two design choices:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Auto-detect from env (Recommended), Prepend a one-line header (Recommended)"
+  }
+}

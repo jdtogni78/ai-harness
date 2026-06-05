@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-7f8fbc3c-ffaea6275eb5c18f",
+  "sig": "answer:rollout-7f8fbc3c:ffaea6275eb5c18f",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 7f8fbc3c-c984-4422-b2b0-0b73482f8258.jsonl turn #117",
+  "input": {
+    "action": {
+      "session_id": "rollout-7f8fbc3c",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "The secret-rotation lives in job-search two ways: (a) the board #3 draft item that bundles website specs + secret-rotation docs, and (b) the actual files (SECRET-ROTATION-PLAN.md, SECURITY-EXPOSURE.md, HANDOFF-secret-rotation.md) committed in the job-search worktree. How far should I move it?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_0118YZiv1bTxY2uwQ75nE9GE",
+        "description": "",
+        "questions": [
+          {
+            "question": "The secret-rotation lives in job-search two ways: (a) the board #3 draft item that bundles website specs + secret-rotation docs, and (b) the actual files (SECRET-ROTATION-PLAN.md, SECURITY-EXPOSURE.md, HANDOFF-secret-rotation.md) committed in the job-search worktree. How far should I move it?",
+            "header": "Move scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Tracking + files (Recommended)",
+                "description": "Split the board #3 item so only website specs stay on Job Search; track secret-rotation under FamilyFund #1 (#16/#29); AND relocate the 3 docs into the FamilyFund repo, removing them from the job-search worktree."
+              },
+              {
+                "label": "Tracking only",
+                "description": "Re-point tracking: drop secret-rotation from board #3, fold it into FamilyFund #16/#29. Leave the doc files where they are in the job-search worktree."
+              },
+              {
+                "label": "Files only",
+                "description": "Physically move the 3 docs into FamilyFund and out of job-search, but don't touch the board items."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "add memory notes to the job search proj"
+      },
+      {
+        "role": "assistant",
+        "text": "I'll add this to memory. Let me check the existing GitHub Projects memory first so I update rather than duplicate."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll update the existing boards memory to add board #3 and the job-search specifics."
+      },
+      {
+        "role": "assistant",
+        "text": "Now a dedicated project memory for the job-search work itself, then update the index."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me finish the memory index update, then handle the secret-rotation move."
+      },
+      {
+        "role": "assistant",
+        "text": "Memory notes are saved. Now to your message \u2014 moving secret-rotation away from job-search. There are two layers to that, and they're meaningfully different in effort/reversibility, so let me confirm scope."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Tracking + files (Recommended)"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-33347b79-cf622ce4aa0668c9",
+  "sig": "answer:rollout-33347b79:cf622ce4aa0668c9",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 33347b79-8e7c-4059-a1c8-573307667f0d.jsonl turn #46",
+  "input": {
+    "action": {
+      "session_id": "rollout-33347b79",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01HgNtwCdfLNLzyJVMYx11SX",
+      "question": "Which of the ticket reconciliations should I carry out? (All are board edits \u2014 comments/checkboxes/closes, no labels, no code.)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01UDSNNbSUQuVWzzekK4PLXt",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which of the ticket reconciliations should I carry out? (All are board edits \u2014 comments/checkboxes/closes, no labels, no code.)",
+            "header": "Reconcile",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Re-verify & close #73",
+                "description": "Confirm post-#34 main: if a strict `npm ci` resolves cleanly with vite ^6, close #73 (or reduce it to a one-line ZAP check) with a note pointing at #34."
+              },
+              {
+                "label": "Slim #16 umbrella",
+                "description": "Tick the done items (testpool/scanners/SOPS/#78/#81), split out 'bulk user password reset' as its own ticket, and convert #16 to a tracking index pointing at #66/#80."
+              },
+              {
+                "label": "De-dup #30/#31",
+                "description": "Make #31 the epic, move the deploy+backfill runbook to #30 as its child, and cross-link so the two stop double-tracking."
+              },
+              {
+                "label": "Prune #29",
+                "description": "Remove items already done (#78) or covered by #66/#16, leaving #29 as a thin pre-publish checklist that references them."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "I'll review the tickets for you \u2014 read-only, no changes. Let me gather the open issues and the project board state first."
+      },
+      {
+        "role": "assistant",
+        "text": "24 open tickets. Let me read their full bodies to assess validity, overlaps, and whether any are already done."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the rest:"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me verify a couple of factual claims before I conclude \u2014 notably whether #73 (Vite peer-deps) is stale given #34 (Vite 4\u21925/6 upgrade) is marked Done."
+      },
+      {
+        "role": "assistant",
+        "text": "I have the full picture now. One key finding: **#73's root cause is stale** \u2014 #34 (closed a few hours after #73 was filed) already bumped Vite to `^6.0` with `laravel-vite-plugin@^1.0`, so the peer-mismatch it describes no longer exists. Let me confirm a couple more small things before I write up."
+      },
+      {
+        "role": "assistant",
+        "text": "Read-only review complete \u2014 I changed nothing on the board or in any ticket (no labels added). Here's the assessment of all **24 open tickets**.\n\n## Verdict\n\nThey're mostly well-formed (good sourcing to docs/commits, clear acceptance criteria). But there's **one stale ticket, one bloated umbrella, and two duplicate pairs** worth reconciling. Details below.\n\n## The 8 natural clusters\n\n| Cluster | Tickets |\n|---|---|\n| Security CI / scanning gates | #52, #53, #71, #73, #75, #76, #82, #83, #84 |\n| Go-public chain | #66 \u2192 #67 \u2192 #68 |\n| Secrets / data hygiene | #16, #29, #80 |\n| Price-staleness / ops | #30, #31 |\n| UI standardization | #27, #28 |\n| Features (designed, unbuilt) | #63, #64, #65 |\n| ACL defense-in-depth | #85 |\n| Tooling | #54 |\n\n## Validity problems (act on these)\n\n**#73 \u2014 stale, likely closeable.** Filed 2026-05-24 23:18; its root cause is \"vite pinned `^4.5` \u2192 `laravel-vite-plugin` peer mismatch \u2192 `npm ci` ERESOLVE.\" But **#34 (closed ~3h later) bumped Vite to `^6.0` and the plugin to `^1.0`** \u2014 the peer requirement (`vite ^5||^6`) is now satisfied. So #73's \"longer-term fix\" is already done, and the immediate `npm ci \u2192 --legacy-peer-deps` change is probably unnecessary now (the ZAP jobs still run a bare `npm ci` at lines 436/506, but it should resolve cleanly against the post-#34 lockfile). **Recommendation:** re-verify against current `main` \u2014 likely close, or reduce to a one-line \"confirm ZAP `npm ci` passes.\"\n\n**#16 \u2014 bloated umbrella, mostly done.** Of its ~10 checkboxes, testpool rotation, scanners/SOPS, \u00a74 PII parameterization (#81), and the synthetic seeder (#78) are all \u2713. The genuinely-live remainder is: stage/prod APP_KEY confirm, **bulk user password reset**, history purge, and prod hardening \u2014 and **two of those have already been split into their own tickets** (history purge = #66, prod hardening = #80). It's now half index, half stale. **Recommendation:** reconcile the checkboxes, split out the one still-unsplit live item (\"bulk user password reset, excl. admin\") as its own small ticket, then convert #16 to a pure tracking-index or close it.\n\n## Merge candidates\n\n**#30 \u2282 #31 (price staleness).** #31 is the root-cause epic spanning 3 repos, with a \"Remaining\" list that includes *\"Deploy\"* and *\"Backfill Jan-13 \u2192 today\"*. #30 **is** exactly those two bullets, expanded into a runbook. They'll double-track. **Recommendation:** keep #31 as the epic and strip the deploy/backfill bullets out of it (point them at #30), or fold #30's runbook into #31 and close #30.\n\n**#29 \u2192 #66 / #16.** #29 (\"pre-publish data hygiene\") overlaps both: its synthetic-data item is done (#78), its \"history audit\" item *is* #66, and its \"dev/prod cred sharing\" item *is* #16. **Recommendation:** prune the done items and either merge into #66 (the pre-publish gate) or keep it only as a thin checklist that references #66/#67/#16 rather than restating them.\n\n## Split candidate\n\n**#28** (\"standardize remaining detail/show pages\") is open-ended \u2014 \"all remaining pages,\" no file list, unlike #27's concrete 23 files. Fine to leave, but it should be scoped into a concrete file list once #27 lands, or it'll never have a clear \"done.\"\n\n## Organization / dependency notes\n\n- **#52 is unblocked and ready to pick up** \u2014 its deps #49, #50, #51 are all closed.  **#82** is likewise unblocked (#51 closed).\n- **#66 \u2192 #67 \u2192 #68** is a clean, correctly-ordered dependency chain. No change needed.\n- **#76** (required-gate promotion) is the natural capstone for #75, #83, #67, #68 \u2014 it can't be \"done\" until those are.\n- **Stale doc reference:** #27 and #28 both cite \"`STYLE_GUIDE.md` (pending)\" \u2014 it now **exists** on `main`. Minor, but worth updating so nobody thinks they're blocked on a missing doc.\n- The 9 security-CI tickets all derive from `SECURITY_SCAN_AUTOMATION_PLAN.md` / `SECURITY_NEXT_STEPS.md`. The board has no sub-issue hierarchy, so they only relate via prose. An epic/parent would help here \u2014 but per your request I'm **not** adding labels or grouping; flagging only.\n- #63/#64/#65 (designed-but-unbuilt) and #85 (explicitly lower-priority) are valid backlog placeholders \u2014 no action.\n\n## Suggested next step\n\nThe four reconciliations above (#73 re-verify, #16 slim, #30/#31 de-dup, #29 prune) are all comment/checkbox/close edits \u2014 no code. Want me to do any of them? I'd suggest:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Re-verify & close #73, Slim #16 umbrella, De-dup #30/#31, Prune #29"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-28f33fac-de2de7030004e860",
+  "sig": "answer:rollout-28f33fac:de2de7030004e860",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 28f33fac-f13c-4acf-b313-3e9a9d59aa82.jsonl turn #198",
+  "input": {
+    "action": {
+      "session_id": "rollout-28f33fac",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01Ts72PCdSjYSrsf2CHHhcre",
+      "question": "Coming off the testpool rotation, what should I take on next?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01LgC7LZN6QQiFG1Jmx51VYm",
+        "description": "",
+        "questions": [
+          {
+            "question": "Coming off the testpool rotation, what should I take on next?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sync docs + split \u00a75 box",
+                "description": "Quick: flip SECRET-ROTATION-PLAN.md:22 to 'testpool rotated \u2705', and split the #16 \u00a75 checkbox so the DONE scanner/gitignore/CI work isn't blocked on the open synthetic-seeder follow-up. Commit + merge to main."
+              },
+              {
+                "label": "Synthetic test-baseline seeder",
+                "description": "Bigger: design a synthetic seeder to replace the committed test-baseline.sql.gz (the load-bearing 'tgz') so CI + testpool stop restoring real-data dumps. The largest open \u00a75 piece. I'd scope it first."
+              },
+              {
+                "label": "Parameterize embedded PII (\u00a74)",
+                "description": "Move admin/recipient emails out of code into config/env and scrub the dumps. Touches real PII; dev-DB work."
+              },
+              {
+                "label": "Just the review, stop here",
+                "description": "You'll drive the next item yourself (e.g. the prod APP_KEY check, which is owner-gated to you). I take no further action."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "6 commits behind \u2014 and notably another session has been advancing **#16** on main (gitleaks scanners \u00a75, SOPS+age secret vaulting). Let me fast-forward this worktree, then review the next-steps docs."
+      },
+      {
+        "role": "assistant",
+        "text": "Synced to `e8bbf184`. Now let me read the next-steps docs and re-check #16's live state to give an accurate \"what's left\" picture."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me read the plan's status section and the new engineering-decisions log to assess how complete the \u00a75 work that just landed actually is."
+      },
+      {
+        "role": "assistant",
+        "text": "The plan still lists testpool as \"NOT rotated\" (line 22) \u2014 stale now. Let me read \u00a75 and the order-of-operations to pin down exactly what's done vs left."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me quickly check the new engineering-decisions log (ED-0002) so my review is accurate, then I'll synthesize."
+      },
+      {
+        "role": "assistant",
+        "text": "Synced and reviewed. Here's where **#16** actually stands after pulling main.\n\n## What landed on main since my last sync (6 commits)\n- **#16 \u00a75 (prevent future leaks):** gitleaks **pre-commit + pre-push hooks**, a CI **\"Secret Scan\"** job (`security-scan.yml` + `.gitleaks.toml`), **hardened `.gitignore`** (`.env*`, `*.sql.gz`, `*.ibd`, datadirs\u2026), and the dead **PII dev dump untracked** (`git rm --cached database/dev/familyfund_dev_data.sql`).\n- **SOPS + age** in-repo encrypted-env vaulting (`bin/secrets.sh`, `.env.stage.sops`) \u2014 logged as **ED-0002**. There's now a full `docs/ENGINEERING_DECISIONS.md` (ED-0001\u2026ED-0010; ED-0007 documents the isolated testpool DBs I just rotated).\n- Credit-line simulator growth-rate inputs always visible.\n\n## #16 live status (8 items)\n| Item | State |\n|---|---|\n| **Rotate testpool DB** | \u2705 **done this session** |\n| Prevent future leaks (\u00a75) | **mostly done** \u2014 scanners + gitignore + CI + SOPS all landed; checkbox still unticked |\n| Stage APP_KEY | open \u2014 dormant (no running stage env); low value |\n| Prod APP_KEY check | open \u2014 **owner: you** (needs trusted SSH to `spirit`; host-key verification failed for me) |\n| Bulk user password reset (\u00a73) | open \u2014 touches ~13 real PII addresses |\n| Parameterize embedded PII (\u00a74) | open |\n| Prod hardening | open \u2014 later, with deploy planning |\n| History purge before publish | open \u2014 pre-publish |\n\n## Two discrepancies I found\n1. **Stale plan doc:** `docs/security/SECRET-ROTATION-PLAN.md:22` still says *\"Testpool DB \u2026 NOT rotated.\"* \u2014 untrue as of this session. Quick fix: flip it to \u2705 (I already ticked the #16 checkbox + commented last turn).\n2. **\u00a75 checkbox lag:** per the plan's own \u00a75 markers the scanning/gitignore/CI layers are **DONE**; the only real remainders are (a) the **synthetic `test-baseline.sql.gz` seeder** \u2014 the load-bearing follow-up, and it's the very \"tgz\" I reviewed earlier (CI + `testpool.sh` restore from it, so it can't be swapped casually), (b) parameterize PII (\u00a74), (c) periodic full-history scan in CI. Worth splitting that one checkbox so it's not blocking on the seeder.\n\n## What's genuinely actionable next\n- **Owner-gated (you):** the **prod APP_KEY check** \u2014 only you can clear the `spirit` host-key trust.\n- **Engineering (me):** the **synthetic test-baseline seeder** is the largest open \u00a75 piece and connects directly to the baseline I just reviewed.\n- **Low value right now:** stage APP_KEY (dormant), prod hardening / history purge (pre-publish, later).\n\nOne quick cleanup I'd fold in regardless: syncing the stale plan-doc line. Which direction do you want?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Sync docs + split \u00a75 box"
+  }
+}

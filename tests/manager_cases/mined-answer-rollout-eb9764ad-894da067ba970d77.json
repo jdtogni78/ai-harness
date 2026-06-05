@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-eb9764ad-894da067ba970d77",
+  "sig": "answer:rollout-eb9764ad:894da067ba970d77",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from eb9764ad-2369-41bb-b0ff-060fde4e5372.jsonl turn #84",
+  "input": {
+    "action": {
+      "session_id": "rollout-eb9764ad",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01NRk9pdWxBa331wPsrbsXUW",
+      "question": "For the parameterized admin email, what should the committed default be (the value used when ADMIN_EMAILS env is unset)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_019N6NzFfX1iTnfrmG2euTtD",
+        "description": "",
+        "questions": [
+          {
+            "question": "For the parameterized admin email, what should the committed default be (the value used when ADMIN_EMAILS env is unset)?",
+            "header": "Admin default",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Keep jdtogni@gmail.com",
+                "description": "Config default stays your real email (env-overridable). Matches \u00a74's note that your own email is 'lower concern / already in commit metadata'. Zero breakage for migrations/seeders/dev-login/tests. De-duplicates 8+ hardcoded copies into one config key."
+              },
+              {
+                "label": "Synthetic placeholder",
+                "description": "Default becomes admin@example.com; real value must be set via the git-ignored .env (ADMIN_EMAILS). Fully removes your email from source, but migrations/seeders/dev-login/tests that expect the jdtogni admin user need .env set or they'll skip/fail in fresh checkouts."
+              }
+            ]
+          },
+          {
+            "question": "The 13 family-member emails (the higher-concern 'others') live ONLY in the load-bearing test-baseline.sql.gz. How should I handle scrubbing them?",
+            "header": "Dump scrub",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Anonymize in place now",
+                "description": "Rewrite the 14 real addresses \u2192 synthetic (e.g. user-N@example.test) inside the gz, recompress, then verify a testpool restore + suite still pass. Nothing in code references them, so low risk. Directly satisfies 'scrub the dumps'."
+              },
+              {
+                "label": "Defer to synthetic-seeder ticket",
+                "description": "Leave the baseline untouched and only do source parameterization + owner-only dumps now. The real family emails stay committed until the separate synthetic-baseline follow-up replaces the dump wholesale."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Let me read the remaining source usages and check the config directory structure."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the FundTrait and the blade views, plus the config directory:"
+      },
+      {
+        "role": "assistant",
+        "text": "Now let me check which SQL dumps are git-tracked (the \"scrub the dumps\" part) and read the blade view admin checks."
+      },
+      {
+        "role": "assistant",
+        "text": "`zcat` failed silently on macOS (needs `.Z`); `gunzip -c` works. Let me re-scan the baseline and prod_to_dev properly."
+      },
+      {
+        "role": "assistant",
+        "text": "Now I have the complete picture of the dumps. Let me check whether any test/source references the 13 family-member emails (to assess the risk of scrubbing the load-bearing baseline), and look at the blade views + `.env.example`."
+      },
+      {
+        "role": "assistant",
+        "text": "No source or test references the 13 family-member emails \u2014 they exist **only** in `test-baseline.sql.gz`. That means they can be anonymized in place safely. I now have everything I need to scope this. Two decisions genuinely shape the implementation, so let me confirm them."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Synthetic placeholder, Anonymize in place now"
+  }
+}

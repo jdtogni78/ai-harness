@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a3aafcc1-3239a9da89c54cb6",
+  "sig": "answer:rollout-a3aafcc1:3239a9da89c54cb6",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a3aafcc1-40fd-4785-a4ff-ed0a75823fad.jsonl turn #223",
+  "input": {
+    "action": {
+      "session_id": "rollout-a3aafcc1",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01VzsvPC2qtCr1SrEswWpsPa",
+      "question": "I'll recreate the 4 cards as project-only draft issues. What should happen to the original repo issues (#2\u2013#5 in dstrader-aws)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Fm6Vr2BBkR88WwVtnmKq9p",
+        "description": "",
+        "questions": [
+          {
+            "question": "I'll recreate the 4 cards as project-only draft issues. What should happen to the original repo issues (#2\u2013#5 in dstrader-aws)?",
+            "header": "Repo issues",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Delete them",
+                "description": "Permanently delete the repo issues after drafts are created \u2014 a clean move, but irreversible. Recommended if you want the dstrader-aws Issues tab empty."
+              },
+              {
+                "label": "Close them",
+                "description": "Keep the repo issues as a closed record (with a note pointing to the project drafts). Reversible, but they'll still exist in the repo."
+              },
+              {
+                "label": "Keep as-is, cancel",
+                "description": "Don't move anything \u2014 leave them as repo issues that are already on the board."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Issue #2 created (the `#1` slot is a pre-existing PR \u2014 issues/PRs share numbering). Creating the other three."
+      },
+      {
+        "role": "assistant",
+        "text": "All four issues created (#2\u2013#5). Now adding each to the **Trading & Fund** board and setting Status \u2192 `Todo`."
+      },
+      {
+        "role": "assistant",
+        "text": "Exactly 4 items on the board (no duplicates). Now setting each to `Todo`."
+      },
+      {
+        "role": "assistant",
+        "text": "Done \u2014 all four are now on the **Trading & Fund** board (https://github.com/users/jdtogni78/projects/1), each as a GitHub issue with Status `Todo`.\n\nThe board was empty earlier because the first attempt hung on a shell-quoting bug and created nothing; I killed it (it left no duplicates) and recreated cleanly.\n\n**Issues created in `jdtogni78/dstrader-aws`** (that's the GitHub repo behind `dstrader-docker`, where all the asset-run scripts live):\n\n| # | Item | Status |\n|---|------|--------|\n| [#2](https://github.com/jdtogni78/dstrader-aws/issues/2) | [Ops] One-time asset-price backfill \u2014 fill the 1\u20133 month prod gap | Todo |\n| [#3](https://github.com/jdtogni78/dstrader-aws/issues/3) | [Bug] Daily DSTrader run not firing in prod (root cause) | Todo |\n| [#4](https://github.com/jdtogni78/dstrader-aws/issues/4) | [Enhancement] Widen gap self-heal window (`GAP_DETECT_DAYS=30`) | Todo |\n| [#5](https://github.com/jdtogni78/dstrader-aws/issues/5) | [Enhancement] Alert when the daily asset run doesn't fire | Todo |\n\nEach issue body carries the full runbook / investigation steps from this thread. I re-scoped #5 so the heartbeat/alert lives in the **asset run scripts** (`daily_run.sh` / `asset_report.sh`), per your note.\n\nTwo things worth knowing:\n- I filed all four in **dstrader-aws** rather than FamilyFund, since every concrete change is in the asset-run scripts (FamilyFund only supplies the already-built `/gaps` endpoint). If you'd rather some sit in FamilyFund, GitHub's **Transfer issue** moves them without losing the board link \u2014 say the word and I'll move them.\n- These went on board **#1 \"Trading & Fund\"** (not #2 \"Remote Control\").\n\nWant me to link #3/#4/#5 as related to the root-cause issue #3, or set a milestone?"
+      },
+      {
+        "role": "user",
+        "text": "now we have repo issues and project issues, can we move all to project issues"
+      },
+      {
+        "role": "assistant",
+        "text": "Quick heads-up on a GitHub constraint before I do this: GitHub lets you convert a *draft* into a real issue, but **not** the reverse. So \"moving\" the four to project-only (draft) issues means I have to **recreate each as a draft item, then remove the original repo issue** in `dstrader-aws`. I have all the titles/bodies saved, so no content is lost.\n\nThe only real decision is what to do with the original repo issues once the drafts exist:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Delete them"
+  }
+}

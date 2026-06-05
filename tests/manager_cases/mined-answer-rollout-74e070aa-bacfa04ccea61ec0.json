@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-74e070aa-bacfa04ccea61ec0",
+  "sig": "answer:rollout-74e070aa:bacfa04ccea61ec0",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 74e070aa-9a0f-40a2-9b35-bf4417248634.jsonl turn #25",
+  "input": {
+    "action": {
+      "session_id": "rollout-74e070aa",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control/.claude/worktrees/bridge-cse_018LEw9aLNu7iME7ZqL1hRzo",
+      "question": "Which session would you like to resume?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01J2pUtBm6doyoS7sF36r33d",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which session would you like to resume?",
+            "header": "Session",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "#4 sandbox-stuck (2026-05-20)",
+                "description": "claude-remote-control / 'two sessions stuck on allocating sandbox for the job sea...' \u2014 matches the truncated line from your first message"
+              },
+              {
+                "label": "#1 bridge-cse 04:08",
+                "description": "bridge worktree, goal = the same truncated 'two sessions stuck...' status line"
+              },
+              {
+                "label": "#3 monitor didn't work",
+                "description": "'the monitor for claude limits didnt work, the sessions were not resume...' (2026-05-21T03:05)"
+              },
+              {
+                "label": "#5 respawn no new sessions",
+                "description": "'make the respawn of servers not start any new sessions' (2026-05-20T21:56)"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "3\t2026-05-20T23:35\tclaude-remote-control\t1\ttwo sessions stuck on allocating sandbox for the job sea..."
+      },
+      {
+        "role": "assistant",
+        "text": "That line looks like a truncated status/log entry rather than a question \u2014 could you clarify what you'd like me to do with it? For example:\n\n- Investigate why two sessions are stuck allocating a sandbox in this repo\n- Look up the full text of that notification somewhere\n- Something else\n\nIf you want me to investigate the \"stuck allocating sandbox\" issue, point me at where to look (a log file, a session ID, or just \"find it\") and I'll dig in."
+      },
+      {
+        "role": "user",
+        "text": "resume"
+      },
+      {
+        "role": "assistant",
+        "text": "Six recent sessions. Which would you like to resume? The first message you sent earlier mentioned \"two sessions stuck on allocating sandbox,\" which matches **#4** (`afad6046...`), but I want to confirm before continuing."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "#5 respawn no new sessions"
+  }
+}

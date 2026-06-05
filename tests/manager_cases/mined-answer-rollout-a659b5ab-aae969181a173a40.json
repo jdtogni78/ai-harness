@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a659b5ab-aae969181a173a40",
+  "sig": "answer:rollout-a659b5ab:aae969181a173a40",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a659b5ab-d80b-449a-ab68-8415fad7a22a.jsonl turn #372",
+  "input": {
+    "action": {
+      "session_id": "rollout-a659b5ab",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01PuV1r2e7MGjHW8BtvKtPmM",
+      "question": "This worktree (and likely other bridge-cse_* ones) are now empty/merged. Want me to clean up?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Mpra6c9PquJ6b1nmPJtC7G",
+        "description": "",
+        "questions": [
+          {
+            "question": "This worktree (and likely other bridge-cse_* ones) are now empty/merged. Want me to clean up?",
+            "header": "Cleanup",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sweep all merged worktrees",
+                "description": "Run the resume-work/session-triage cleanup: rescue-check first, then remove every bridge-cse_* worktree whose branch is MERGED+clean (releasing any pool leases), and reclaim orphaned/zombie leases. I'll list exactly what goes and confirm before deleting."
+              },
+              {
+                "label": "Just this one",
+                "description": "Remove only this session's now-empty worktree (bridge-cse_01PuV1r2e7MGjHW8BtvKtPmM) + its branch."
+              },
+              {
+                "label": "Leave them",
+                "description": "Don't touch any worktrees now; the secret-rotation work is already safely on main + pushed."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Pushed (`6505efb6`). Let me add a pointer to the runbook in memory so future sessions find the repeatable procedure."
+      },
+      {
+        "role": "assistant",
+        "text": "All done. Here's the wrap-up.\n\n## Secret rotation \u2014 complete \u2705\n- **Executed & verified** the full dev rotation (`APP_KEY` + DB root/`famfun_dev` passwords), removed the leaked `.env.dev` and hardcoded DB password from the repo HEAD, invalidated sessions/tokens, and confirmed all four live stacks (`app1` :3001, `pool0` :3020, `pool1` :3021, `test0` :3010) working with the new credentials.\n- **Delivered:** 4 commits fast-forwarded to `main` and **pushed to private origin** (`a76e4cdf..6505efb6`).\n\n## Learnings captured \u2192 `docs/security/SECRET-ROTATION-RUNBOOK.md` (pushed)\nA standing, repeatable procedure so this is routine, not archaeology:\n- **Cadence:** quarterly for dev/stage; prod is analyze-only on its own window.\n- **Exact commands** for the APP_KEY step (no downtime) and the DB step (with the minimal-downtime ALTER \u2192 recreate sequence).\n- **The gotchas that bit us**, written down so they don't recur: the real DB password now lives only in git-ignored `app1/.env` (else compose uses `changeme` and fails); running containers read `DB_PASSWORD` from compose-injected env (must recreate, not just edit); pools recreate **only** via `./launch_docker.sh <slot>` (bare `docker compose` collides on `familyfund-dev`); never rotate the testpool DB while a `testN` slot is leased; APP_KEY-vs-encrypted-columns pre-check.\n- **Automation roadmap:** a staged path to `bin/rotate-dev-secrets.sh` \u2014 pre-flight lease gate \u2192 APP_KEY step first (lowest risk) \u2192 DB step driven off the live lease table \u2192 a pass/fail verification harness \u2192 CI gitleaks \u2192 finally schedule it once the script is trusted.\n\n## Still open (documented, not done)\n- **Testpool DB** rotation \u2014 deferred (an active `test0` lease was present); do it when all `testN` slots are free.\n- **Stage `APP_KEY`**, the **prod `APP_KEY`-match check** (your read-only SSH \u2014 host-key wasn't trusted here), and the **git history purge** of the still-in-history leaked files.\n\nTwo things I can do next if you want:"
+      },
+      {
+        "role": "assistant",
+        "text": "Building the lowest-risk automation piece \u2014 an `APP_KEY`-only rotation script with a pre-flight safety gate."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me make it executable and test-run it end-to-end (this re-rotates the dev `APP_KEY` once, which is harmless and proves the automation works)."
+      },
+      {
+        "role": "assistant",
+        "text": "The script works end-to-end (rotated `APP_KEY` \u2192 `a75c513e490d`, sessions/tokens cleared, `/login` 200, pre-flight gate fired correctly). Let me mark the automation step as shipped in the runbook and commit both."
+      },
+      {
+        "role": "assistant",
+        "text": "Pushed (`6505efb6..454b975b`) \u2014 the script and runbook are on `main`. And this session's worktree branch has **0 commits of its own** and a clean tree, confirming nothing landed in it.\n\nNow, your question \u2014 **why working out of a worktree, and why so often:**\n\n1. **I didn't choose it \u2014 the session was launched there.** This session's \"primary working directory\" *is* `\u2026/.claude/worktrees/bridge-cse_01PuV1r2e7MGjHW8BtvKtPmM`, and the harness keeps resetting my shell back to it (you saw the repeated \"Shell cwd was reset to \u2026\" lines). Those `bridge-cse_*` worktrees are **auto-created per session by your bridge / claude-remote-control setup** \u2014 one fresh worktree each time a session is spawned. That's the \"frequently\": every bridged session mints its own, and nothing removes them automatically.\n\n2. **For this task I deliberately did NOT work in the worktree.** The rotation had to run where the dev container (`app1-familyfund-1`) actually mounts its code \u2014 the **main repo** `/Users/claudio1/dev/FamilyFund` \u2014 and the handoff said to run there. So every commit, `key:generate`, `ALTER`, the merge and the push all happened in the main repo (branch `secret-rotation-dev` \u2192 `main`). The worktree was never more than my shell's default cwd; that's why it ended up empty.\n\n3. **So this worktree is now disposable** (0 commits vs `main`, clean) \u2014 as are most of the older `bridge-cse_*` ones once their work merges. They pile up because direct-to-main work (like this) bypasses them, and they only get reaped by an explicit cleanup pass (the `resume-work` / `session-triage` skills, or `close-thread` when a thread's work merges).\n\nIf you want fewer of them spawned in the first place, that's governed by your remote-control activation list (the `remote-control-dirs` skill), not something I control from inside a session.\n\nWant me to clean up now?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Sweep all merged worktrees"
+  }
+}

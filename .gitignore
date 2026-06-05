@@ -14,3 +14,4 @@ out/
 # (per-user, per-host, names private app dirs). If a misconfigured `cp` or
 # `git add -A` ever pulls it back into the repo, this rule blocks it.
 /active-dirs.txt
+.DS_Store

@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a7629c48-3179e2c18558b41c",
+  "sig": "answer:rollout-a7629c48:3179e2c18558b41c",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a7629c48-dc10-4fe0-83fd-9e6f251d6c6a.jsonl turn #906",
+  "input": {
+    "action": {
+      "session_id": "rollout-a7629c48",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_019Ca1TnMCYF66txVjvk5xLH",
+      "question": "All main directories are now \u226570%. The remaining gap is in dead base controllers shadowed by WebV1\\*Ext overrides. What next?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01UsbdLn5u1srzgUcD2MpU3f",
+        "description": "",
+        "questions": [
+          {
+            "question": "All main directories are now \u226570%. The remaining gap is in dead base controllers shadowed by WebV1\\*Ext overrides. What next?",
+            "header": "Next move",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Stop \u2014 coverage goal met",
+                "description": "All main / sub directories at depth 1-2 are above 70%. The remaining 3-deep gap is mostly unreachable dead code. Worktree closed cleanly."
+              },
+              {
+                "label": "Push the reachable ones (PersonController, etc.)",
+                "description": "Some base controllers ARE reachable (their route hits them directly, no Ext shadow). Add focused tests for those \u2014 a few dozen more covered lines, no risk."
+              },
+              {
+                "label": "Delete the shadowed base controllers",
+                "description": "Refactor: if WebV1\\*Ext overrides every method, the base class is dead. Removing it cleans up the codebase but is a meaningful change \u2014 risk of breaking something subtle."
+              },
+              {
+                "label": "Investigate first, then decide",
+                "description": "Spend a few minutes checking which base controllers are genuinely unreachable vs partially reachable. Decide on per-class basis."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Syncing with main first, then re-analyzing what's still under 70%."
+      },
+      {
+        "role": "assistant",
+        "text": "Already in sync (HEAD == main at `3ec73aa4`). Re-analyzing coverage to find anything still under 70%."
+      },
+      {
+        "role": "assistant",
+        "text": "Only one top-level directory remains under 70%: **`App\\Livewire\\Forms`** at 32.14% (9/28). Need 11 more lines. Investigating."
+      },
+      {
+        "role": "assistant",
+        "text": "LoginForm \u2192 100% (28/28). Looking for any other directories under 70% at any depth."
+      },
+      {
+        "role": "assistant",
+        "text": "Committing the LoginForm tests now and merging \u2014 they're the only thing needed to clear the 1-deep dir list."
+      },
+      {
+        "role": "assistant",
+        "text": "LoginForm landed on main. \n\n**Post-push state \u2014 at the main directory level (1-segment and 2-segment), nothing remains under 70%:**\n\n| Dir | Coverage |\n| --- | --- |\n| App\\Http\\Middleware | 82.76% \u2705 |\n| App\\Listeners | 98.15% \u2705 |\n| App\\Repositories | 81.58% \u2705 |\n| App\\Http\\Controllers | 81.80% \u2705 |\n| App\\Livewire | now 100% \u2705 |\n\n**The only remaining sub-cluster under 70% is at depth-3 \u2014 the *direct children* of `App\\Http\\Controllers\\` (i.e. excluding `API/`, `APIv1/`, `WebV1/`, `Auth/`, `Traits/`):** 699/1168 = 59.85%. The worst offenders look like effectively-dead code \u2014 base controllers whose web routes point at `WebV1\\*Ext` overrides:\n\n| Controller | Coverage | Route hits |\n| --- | --- | --- |\n| AccountMatchingRuleController | 3.03% (1/33) | `WebV1\\AccountMatchingRuleControllerExt` (overridden) |\n| FundReportController | 23.53% (8/34) | `WebV1\\FundReportControllerExt` |\n| DepositRequestController | 33.33% (11/33) | `WebV1\\DepositRequestControllerExt` |\n| TransactionController | 34.15% (14/41) | `WebV1\\TransactionControllerExt` |\n| ScheduledJobController | 33.33% (17/51) | `WebV1\\ScheduledJobControllerExt` |\n| PersonController | 38.89% (28/72) | direct route (`people`) \u2014 actually reachable |\n| AssetPriceController | 30.23% (13/43) | `WebV1\\AssetPriceControllerExt` |\n| AccountReportController | 39.39% (13/33) | `WebV1\\AccountReportControllerExt` |\n| CashDepositController | 39.39% (13/33) | `WebV1\\CashDepositControllerExt` |\n\nHow do you want to proceed?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Stop \u2014 coverage goal met"
+  }
+}

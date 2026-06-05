@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2d642b23-ff172507768f03a7",
+  "sig": "answer:rollout-2d642b23:ff172507768f03a7",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2d642b23-5938-48d2-aff3-84330c740b19.jsonl turn #9",
+  "input": {
+    "action": {
+      "session_id": "rollout-2d642b23",
+      "repo": "job-search",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/job-search/.claude/worktrees/bridge-cse_01Nrdofcmj3p4V4pFoKdAZGn",
+      "question": "Which data source do you want to pull jobs from?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_011mfcpS667Kg2USzEHp6ngt",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which data source do you want to pull jobs from?",
+            "header": "Source",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Aggregator API (JSearch/Adzuna)",
+                "description": "Legit API, ~free tier, covers LinkedIn/Indeed/Glassdoor postings. No login needed. Cleanest path."
+              },
+              {
+                "label": "LinkedIn directly (browser/scrape)",
+                "description": "Drives your logged-in LinkedIn session. Richer data (Easy Apply, your network signals) but against ToS and can get your account restricted."
+              },
+              {
+                "label": "Both \u2014 aggregator now, LinkedIn later",
+                "description": "Start with the safe API to iterate on filters/ranking, add LinkedIn driver later if needed."
+              }
+            ]
+          },
+          {
+            "question": "How should I deliver the integration?",
+            "header": "Form factor",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Local MCP server in this repo",
+                "description": "A small MCP server Claude Code can call as tools (search_jobs, get_job, save_job). Reusable across sessions."
+              },
+              {
+                "label": "Plain CLI scripts in this repo",
+                "description": "Python/Node scripts I run via Bash. Faster to prototype, no MCP wiring."
+              },
+              {
+                "label": "Claude Code skill",
+                "description": "A skill under .claude/skills/ that bundles the search workflow + your criteria. Good if the value is the prompt/process, not the tools."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Is there a LinkedIn or plugin for Claude code, uh, or MCP, uh, and or SKU or something? And, um, if not, uh, can we build a quick integration with LinkedIn so that I can\u2026 we can do some job searches? I\u2019ll\u2026 we\u2019ll narrow down what I\u2019m looking for and, you know, help me look for it. Um,"
+      },
+      {
+        "role": "assistant",
+        "text": "Short answer: there's no official LinkedIn MCP from Anthropic, but a few community LinkedIn MCP servers exist on GitHub (mostly unofficial scrapers/wrappers around `linkedin-api` or Playwright). LinkedIn's official Jobs API is gated and not granted for personal use, so any \"quick\" integration realistically means either (a) a third-party job-board API like JSearch/Adzuna/Indeed that aggregates LinkedIn-style postings, or (b) a browser-automation MCP that drives LinkedIn while you're logged in \u2014 which works but technically violates LinkedIn's ToS and risks account flags.\n\nBefore I build anything, two quick questions so I pick the right path:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Aggregator API (JSearch/Adzuna), Claude Code skill"
+  }
+}

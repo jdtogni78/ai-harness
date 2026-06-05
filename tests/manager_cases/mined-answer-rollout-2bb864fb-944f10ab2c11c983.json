@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2bb864fb-944f10ab2c11c983",
+  "sig": "answer:rollout-2bb864fb:944f10ab2c11c983",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2bb864fb-4a04-4ffb-866c-e0f39cca4ebe.jsonl turn #257",
+  "input": {
+    "action": {
+      "session_id": "rollout-2bb864fb",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01GefdkXcCug5MQ54tqaj9t9",
+      "question": "The answer path is wired but unproven against a live session. What next?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01UnW7XFthYNZ1nA4Hnfum8V",
+        "description": "",
+        "questions": [
+          {
+            "question": "The answer path is wired but unproven against a live session. What next?",
+            "header": "Next",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Commit this slice",
+                "description": "Commit the wired+tested answer path to the worktree branch as a checkpoint. No live fire. Safest; you can test-fire later when a throwaway/safe session is waiting."
+              },
+              {
+                "label": "Build the continuous loop",
+                "description": "Add the interval loop + launchd agent so `manager` ticks like the usage-monitor (stays MANAGER_DRY_RUN=1 by default, so still no live action until you flip it)."
+              },
+              {
+                "label": "Live test-fire now",
+                "description": "Temporarily lower the answer-grace and fire --go on ONE real waiting FamilyFund session to validate end-to-end. Outward-facing: injects a manager answer into that session's real work."
+              },
+              {
+                "label": "Leave it here",
+                "description": "Stop for now; the answer path is built and tested. Revisit later."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now add executor tests before the `__main__` block:"
+      },
+      {
+        "role": "assistant",
+        "text": "The `_action` helper is hacky (creates then deletes then recreates a tmpdir). Let me clean it up with proper setUp/tearDown:"
+      },
+      {
+        "role": "assistant",
+        "text": "Now run the manager tests and the full suite:"
+      },
+      {
+        "role": "assistant",
+        "text": "56 manager tests pass; full suite **314 green**. Let me check the current live plan (read-only) to see whether anything is actually answer-eligible right now:"
+      },
+      {
+        "role": "assistant",
+        "text": "The answer path is wired and tested. The current live plan shows it working correctly and *safely*: FamilyFund is in the allowlist (and we're on `macmini`), two sessions are genuinely waiting on a question \u2014 but the **answer-grace is holding them** (`question only 53s old`), so nothing fires yet. They'd become live `ANSWER` actions once past 600s.\n\nLet me update the memory to reflect the wired answer path:"
+      },
+      {
+        "role": "assistant",
+        "text": "## Status: answer path is wired and tested\n\n`--go` (or `MANAGER_DRY_RUN=0`) now executes the **answer** path end-to-end:\n1. reads the pending question from the session's local transcript,\n2. runs the investigator `claude -p` **in `--permission-mode plan`** (read-only \u2014 it can explore the repo to form an answer but can't edit the worktree it shares with the paused agent),\n3. POSTs the investigator's output back via `/sessions/{id}/events`,\n4. records state so the cooldown stops it re-answering the same question.\n\nCapped at `max-actions-per-tick` (default 1). **Review and rescue stay dry-run** (`[skip-live]`) until their endpoints are confirmed. Tests: **56 manager / 314 suite, all green.**\n\nWhat it has *not* done yet is fire against a real session \u2014 and right now nothing is eligible (the grace is correctly holding the two waiting sessions). A live test-fire would POST a manager-generated answer into one of your real in-progress FamilyFund sessions (e.g. \"Secret rotation deferred items\"), which is outward-facing and would redirect that session's actual work \u2014 so I won't do it without you choosing to.\n\nHow do you want to proceed?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Live test-fire now"
+  }
+}

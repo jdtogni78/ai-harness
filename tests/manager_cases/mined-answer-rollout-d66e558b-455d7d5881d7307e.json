@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-d66e558b-455d7d5881d7307e",
+  "sig": "answer:rollout-d66e558b:455d7d5881d7307e",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from d66e558b-ad79-47fd-a338-8b19bda19f89.jsonl turn #250",
+  "input": {
+    "action": {
+      "session_id": "rollout-d66e558b",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "How do you want to reconcile the existing docs (Execution Plan + An\u00e1lise pptx) with the Track A/B argument files I just wrote?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_0154kxhwPW9Sp35rdPUCa9us",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want to reconcile the existing docs (Execution Plan + An\u00e1lise pptx) with the Track A/B argument files I just wrote?",
+            "header": "Reconcile",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Resolve the separation date first",
+                "description": "Settle Jul 2022 vs Jun 2023 as date of separation \u2014 that one fact changes the Pereira numbers materially and propagates everywhere. I'll dig into the docs you have to find which is right, or you tell me"
+              },
+              {
+                "label": "Restructure as two strategies",
+                "description": "Rebuild the Status doc as 'Path A: consensual Proposta 5 (Execution Plan)' and 'Path B: aggressive Pereira (An\u00e1lise)' instead of CA vs BR. Jurisdiction is already settled (CA first). The real choice is posture, not venue"
+              },
+              {
+                "label": "Refresh all numbers against $5.2M",
+                "description": "Both planning docs are stuck on $4.54M ($5M in pptx). Update Proposta 5b in the xlsx, regenerate the Execution Plan asset table, refresh the Pereira math against the current $5.2M total"
+              },
+              {
+                "label": "Leave docs as-is; flag inconsistencies",
+                "description": "Don't touch the existing planning docs. Just add a CONTRADICTIONS.md to the folder that flags the open questions for the CA attorney and you to resolve"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Both written and mirrored. Quick summary of the substance:\n\n**Both tracks converge on the same allocation by design:**\n\n| Slice | Amount | Daniel | Simone |\n|---|---|---|---|\n| Community/comum on Jun 2023 | $2.8M | $1.40M | $1.40M |\n| Passive appreciation post-Jun 2023 | $0.9M | $0.45M | $0.45M |\n| Labor-attributable excess post-Jun 2023 | $1.5M | $1.50M | \u2014 |\n| **Total** | **$5.2M** | **$3.35M** | **$1.85M** |\n\n**Same numbers, different doctrinal hooks:**\n\n- **Track A (CA)**: Fam. Code \u00a770 separation date + \u00a7771 (\"post-separation earnings are separate\") + inverse-Van-Camp apportionment of post-\u00a770 portfolio growth between passive (community) and labor (separate).\n- **Track B (BR)**: comunh\u00e3o parcial + STJ jurisprudence that \"bens adquiridos ap\u00f3s separa\u00e7\u00e3o de fato n\u00e3o se comunicam\" + decomposition of post-Jun 2023 growth between aprecia\u00e7\u00e3o passiva (comum) and esfor\u00e7o pessoal (particular).\n\n**The deliberate equivalence**: if both jurisdictions produce the same number, neither side has a strong incentive to forum-shop. That's a tactical feature, not a coincidence.\n\n**The two doctrinal vulnerabilities I called out honestly in each doc:**\n- CA: \"pure appreciation of community asset is community regardless of who managed it\" \u2014 addressed by \u00a7771 and the apportionment cases.\n- BR: doctrine on \"natureza do bem vs. esfor\u00e7o pessoal\" for portfolio management is **less developed than CA's** \u2014 this is the softer of the two arguments and needs documentary support of active management to hold up.\n\n**The single weakest link in both arguments**: needing a clean **Jun 2023 portfolio snapshot**. All the math depends on that number being defensible. If it's reconstructed rather than contemporaneous, opposing counsel/advogado will hammer it.\n\n**Big caveats stated up front in both docs:**\n- I'm not a lawyer; doctrines stated from general knowledge; case citations marked \"verify with counsel\" rather than asserted as gospel (refusing to fabricate citation numbers is non-negotiable in a legal context).\n- BR memo recommends Portuguese translation before sharing with the advogado.\n\nWant me to also draft the **Jun 2023 docs inventory template** I mentioned earlier? That's the prerequisite evidentiary work both tracks depend on."
+      },
+      {
+        "role": "user",
+        "text": "find 2 more docs on icloud/documents/divorce"
+      },
+      {
+        "role": "assistant",
+        "text": "Found 4 docs in the Divorcio folder \u2014 3 net new, 1 is a larger version of the Ajustes xlsx. Copying them into the working set and inspecting in parallel."
+      },
+      {
+        "role": "assistant",
+        "text": "iCloud files weren't materialized \u2014 force-downloading first."
+      },
+      {
+        "role": "assistant",
+        "text": "iCloud surfaced the docs (folder mtime jumped to 11:37 just now \u2014 sync caught up). Retrying the copy and extracting content."
+      },
+      {
+        "role": "assistant",
+        "text": "Found **4 docs** (not 2). All 4 are now in `~/dev/projeto-completo/` and `~/Documents/divorce-prep/`. Here's what's in each and how they relate to what we've been building.\n\n## The 4 docs\n\n### 1. `Divorce Execution Plan.docx` (May 3, 27KB) \u2014 this is the most important new doc\nA **9-section operational playbook** authored on the assumption the divorce gets settled as **Proposta 5** (\u224850/50 split, ~$2.27M each, no alimony). Covers:\n- **Cost comparison CA vs BR** \u2014 bottom line: CA $30\u201350K typical, BR $60\u2013200K most-likely (or $250\u2013500K+ if contested), driven by OAB/SP's 6% indicative fee scaling badly on a $4.5M estate.\n- **Jurisdiction decision: California first**, optional STJ homologa\u00e7\u00e3o after. Rationale spelled out across 7 dimensions.\n- **Filing sequence** for CA: Phases A\u2013E with form numbers (FL-100, FL-110, FL-117, FL-140/142/150, FL-180), QDRO mechanics, deed transfers, timeline.\n- **Asset-by-asset transfer mechanics** for every line item.\n- **CA fiduciary-duty (\u00a7721/\u00a71100) protocol** for the \"Daniel has sole account access\" situation \u2014 read-only access for Simone, statements as of Jun 2023 + current month, stop discretionary trading, etc.\n- **Tax checklist** including both spouses' dual-citizenship status (Daniel filed Sa\u00edda Definitiva; Simone resident in BR, US citizen \u2014 annual stack: 1040, FBAR, 8938, DIRPF, Form 1116 FTC).\n- **Attorney intake checklist** for CA family-law attorney, BR advogado, and CPA.\n\n### 2. `Analise_Divorcio_Apresentacao.pptx` (May 11, 322KB) \u2014 11-slide mediation deck\nA **Pereira-vs-Van-Camp scenario analysis** with **three property-split scenarios** + **three alimony scenarios** + a \"target landing zone\":\n\n| Scenario | Simone | Daniel |\n|---|---|---|\n| Divis\u00e3o igual (her likely demand) | $2.50M | $2.50M |\n| **Pereira (middle, defensible)** \u2014 capital \u00d7 1.08^3.83 = $3.09M comum + $1.91M alpha to Daniel | **$1.54M** | **$3.46M** |\n| Daniel agressivo (freeze at separation) | $1.15M | $3.85M |\n\nAlimony pool (10 yrs, SEPARATE from $5M, formula 40% \u00d7 Da net \u2212 50% \u00d7 Si net):\n- A: no imputation \u2192 $625K\n- B: $100K imputed (LTD/part-time) \u2192 $293K\n- **C: $200K full imputation \u2192 $26K**\n\n**Stated \"target\" scenario: Pereira + Alimony B \u2192 Si $1.83M (37%) / Da $3.17M (63%).** Optional add: if Simone leaves her share under Daniel's management at 12% vs 6% passive \u2192 +$1.97M \"performance credit\" over 10 yrs.\n\n### 3. `Divorcio - Ajustes.xlsx` (May 3, 244KB) \u2014 the FULL workbook\nAll 7 tabs present (the version in projeto-completo had only 2): **Proposta 5b \u00b7 Proposta 5 \u00b7 Plano \u00b7 Proposta 4 \u00b7 Proposta 3 \u00b7 Proposta 2 \u00b7 Projecao**. This replaces the truncated copy.\n\n### 4. `alimony_projection.xlsx` (May 11, 26KB)\n6 tabs: Summary \u00b7 Property Division \u00b7 Inputs \u00b7 Asset Growth \u00b7 Annual Schedule \u00b7 Notes. Pairs with the pptx alimony scenarios.\n\n---\n\n## What's now clear \u2014 and contradictions with what we wrote in the last turn\n\n**Two parallel strategies are encoded in these docs, not one:**\n\n| | Execution Plan path | An\u00e1lise/aggressive path |\n|---|---|---|\n| Split | 50/50 (~$2.27M each) | Pereira \u2192 Da 63 / Si 37 |\n| Alimony | None | $26K\u2013$625K (10 yrs) |\n| Posture | Consensual, fast | Mediation/contested |\n| Cost | $30\u201350K | Much higher |\n| Drops earlier \"manage her money\" clause | Yes, dropped | Optional add-on as \"performance credit\" |\n\n**The Counterfactual analysis you pasted earlier corresponds to the An\u00e1lise/aggressive path** (Pereira on full marriage capital, $1.5M passive counterfactual, $1.9M alpha to Daniel). My response to it was consistent.\n\n**My Track A / Track B docs from the last turn diverged in two ways from these existing planning docs:**\n\n1. **Date of separation.** The pptx uses **Jul 2022** as the Pereira start (3.83 yrs \u00d7 8%). The Execution Plan \u00a77 names **Jun 2023 as date of separation** (for the fiduciary-duty statement requirement). You told me Jun 2023 with docs. Both can't be right for the same purpose. The pptx Pereira number ($1.91M alpha) would shrink materially if the start date moved to Jun 2023.\n2. **Doctrinal framing.** I wrote inverse-Van-Camp on the post-\u00a770 period; the existing docs use classic Pereira on the full marriage. They're not the same argument and they produce different numbers. My framing is doctrinally tighter if Jun 2023 is the \u00a770 date; the existing framing is stronger if Jul 2022 is.\n\n---\n\n## What I'd suggest"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Resolve the separation date first"
+  }
+}

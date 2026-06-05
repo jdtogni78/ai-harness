@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-fbd6b665-192ae0b2839c9951",
+  "sig": "answer:rollout-fbd6b665:192ae0b2839c9951",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from fbd6b665-4afb-45fb-a556-89b203245b22.jsonl turn #68",
+  "input": {
+    "action": {
+      "session_id": "rollout-fbd6b665",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How should `fork-all` decide which sessions to fork?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_016cwYJuKfNR8Lqm2ZRQZK7j",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should `fork-all` decide which sessions to fork?",
+            "header": "Host filter",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "--host <nick> required",
+                "description": "User must pass `--host mini` or `--host note`. Matches against the session's title prefix (e.g. `[AH.mini]`) AND the worktree-index for that host. No implicit 'this-host' \u2014 explicit only."
+              },
+              {
+                "label": "--host plus --id list",
+                "description": "`--host mini` filters by host; OR pass `--id cse_xxx --id cse_yyy` to fork an explicit set regardless of host. Lets you cherry-pick when the title prefix is missing."
+              },
+              {
+                "label": "--host with --this-host shortcut",
+                "description": "`--host <nick>` is the canonical form; `--this-host` is sugar that resolves to whatever this machine's nickname is (mini/note from $(hostname))."
+              }
+            ]
+          },
+          {
+            "question": "How does fork-all locate the on-disk transcript for an orphaned cse_ session?",
+            "header": "Transcript find",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Reuse find_source_jsonl (worktree dirname match)",
+                "description": "Existing logic: glob `~/.claude/projects/*bridge-cse-<tail>` and pick newest .jsonl. Works only if the bridge worktree dir is still present locally."
+              },
+              {
+                "label": "Same, but require worktree present",
+                "description": "Reuse find_source_jsonl AND verify the bridge worktree dir still exists under ~/dev. If not present, skip with a warning instead of erroring \u2014 covers the case where worktree was removed before fork-all runs."
+              },
+              {
+                "label": "Scan all project dirs for sessionId match",
+                "description": "Slower but bulletproof: open every .jsonl under ~/.claude/projects and check if its sessionId equals the cse_ id. Lets fork-all work even if the worktree dir was renamed/removed."
+              }
+            ]
+          },
+          {
+            "question": "Archive flow after a successful fork (your point #3)?",
+            "header": "Archive",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Per-session: fork \u2192 verify \u2192 archive, one at a time",
+                "description": "For each cse_: do_fork; if dest .jsonl exists and line_count > 0, then archive_session(cse_id); on any failure, abort archive for that one and keep going. Safest \u2014 partial failures don't lose work."
+              },
+              {
+                "label": "Two-phase: fork all, then archive all that succeeded",
+                "description": "Phase 1: fork every session, collect (cse_id, success) pairs. Phase 2: archive only the successes. Clearer logs but holds twice the state in memory; no real upside over per-session."
+              },
+              {
+                "label": "Fork only; archive is a separate subcommand",
+                "description": "`fork-all` never archives. Add `python3 -m remote_control sessions archive <cse_id>...` separately. Manual two-step, but archival becomes reusable for other workflows (manager executor in #27, etc.)."
+              }
+            ]
+          },
+          {
+            "question": "Where does the supervisor automation live?",
+            "header": "Automation",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Post-spawn hook in Supervisor.tick()",
+                "description": "After the first tick where all wanted servers are confirmed running, run fork-all against the list of cse_ ids that WERE running before this supervisor instance started. Gated by env var. Self-healing on every restart."
+              },
+              {
+                "label": "Separate launchd job, RunAtLoad",
+                "description": "A second plist that runs `fork-all --host <this>` once after the supervisor's plist has had time to spawn its servers (sleep + run). Decouples it from the supervisor's tick loop entirely."
+              },
+              {
+                "label": "Skip automation; manual fork-all only",
+                "description": "Just ship the CLI. You run it yourself after `launchctl kickstart -k`. Defers the automation decision until the manual flow is proven."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Looking at what's there: the existing `fork` command already does the right thing per-session (copies the `.jsonl` to a fresh uuid, rewrites cwd `--into-main`, retitles the source with `--mark`), and the supervisor's `shutdown_all()` is the choke point that nukes the `mm-*` servers on every kickstart. So we already have the per-session primitive; what's missing is bulk + automation.\n\nCurrent state on mini: `python3 -m remote_control sessions` shows 5 `this-host` bridge sessions, of which 3 are already disconnected+forked (the `\u2192 forked to \u2026` titles) and only 2 are live (`Remote control titles apply` idle, `macmini-local-cozy-piglet` running). So a useful \"fork-all\" is genuinely just a handful per cycle.\n\n### Recommendation\n\n**(1) Right now \u2014 a `fork-all` subcommand** that wraps `do_fork` over the result of `session_list`, filtered to `location == this-host` and not already-forked (skip titles ending in `\u2192 forked to \u2026`). Defaults: `--into-main`, `--mark`, no `--run` (resuming is the human's call). Optional `--archive` flag for the originals (needs adding a tiny `archive_session(cse_id)` to `usage_limit/monitor.py` against the existing API client). One command, dry-runnable, idempotent.\n\n**(2) Automation \u2014 pre-shutdown hook in `Supervisor.shutdown_all()`**, gated by an env var (`SUPERVISOR_FORK_ON_SHUTDOWN=1`), that calls the same `fork-all` *before* it TERMs the servers. That way every `launchctl kickstart -k` automatically lays down local siblings with full history. Resume is still manual (the supervisor restart re-creates fresh `cse_` sessions per dir \u2014 there's no API to make a fresh server adopt an old cse_), but the work is never lost.\n\n**Main tradeoff**: forking \u2260 auto-resume. The forks are independently resumable transcripts; the user still has to `claude -r <new_sid>` in the right cwd to continue. Auto-resume would mean spawning headless `claude -r \u2026 -p` workers post-restart, which is a much bigger feature and arguably worse than letting the human pick which threads to revive.\n\nWant me to build (1) first as a standalone `python3 -m remote_control fork-all` and verify against your current 2 live sessions, then wire (2) on top? Or pull the trigger on both in one pass?"
+      },
+      {
+        "role": "user",
+        "text": "ask interactively"
+      },
+      {
+        "role": "user",
+        "text": "[Request interrupted by user for tool use]"
+      },
+      {
+        "role": "user",
+        "text": "1) forkall, but add params to make things more explicit - like localhost or mini\n2) we cant call fork before terming, the issue is that the new server must be launched first, than forks done\n3) how are we going to archive (only after successfull fork)"
+      },
+      {
+        "role": "assistant",
+        "text": "Got it \u2014 I had the lifecycle wrong. Let me save that and re-plan."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the interactive questions, tightened to your three corrections:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "--host with --this-host shortcut, Reuse find_source_jsonl (worktree dirname match), Per-session: fork \u2192 verify \u2192 archive, one at a time, Post-spawn hook in Supervisor.tick()"
+  }
+}

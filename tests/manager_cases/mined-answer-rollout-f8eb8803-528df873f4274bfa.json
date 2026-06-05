@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f8eb8803-528df873f4274bfa",
+  "sig": "answer:rollout-f8eb8803:528df873f4274bfa",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f8eb8803-11f7-477b-98a5-3ae1653d1d8f.jsonl turn #326",
+  "input": {
+    "action": {
+      "session_id": "rollout-f8eb8803",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01RYTfST7aAo1xGyWGY7YxZ8",
+      "question": "I plan to FF local main to origin/main (which absorbs my session-titles fix), then commit the 4 files as 2 logical commits: `fix(config): per-user claude_bin default (incident 2026-05-26)` and `fix(supervisor): reject unknown argv so --help doesn't launch a real supervisor`, then push origin main. Sound good?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01PqVSNxz7NjC6FrUKT2VB6B",
+        "description": "",
+        "questions": [
+          {
+            "question": "I plan to FF local main to origin/main (which absorbs my session-titles fix), then commit the 4 files as 2 logical commits: `fix(config): per-user claude_bin default (incident 2026-05-26)` and `fix(supervisor): reject unknown argv so --help doesn't launch a real supervisor`, then push origin main. Sound good?",
+            "header": "Commit shape",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Two commits, push (Recommended)",
+                "description": "Split as planned: config/test_config.py = commit 1, supervisor/test_supervisor_decisions.py = commit 2. Push to origin/main."
+              },
+              {
+                "label": "One combined commit, push",
+                "description": "Land both as a single commit: `fix(remote_control): harden supervisor argv + per-user claude_bin default (2026-05-26 incident)`. Push."
+              },
+              {
+                "label": "Move to a worktree branch first",
+                "description": "Don't commit on main directly. Create `~/dev/ai-harness-worktrees/incident-2026-05-26` with a new branch, move the 4 dirty files there, then commit + merge in. More ceremonious but obeys [[feedback_main_dir_on_main]] retroactively."
+              }
+            ]
+          },
+          {
+            "question": "The supervisor.py comment references `ai-harness#TBD`. How should I replace it?",
+            "header": "TBD comment",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Strip the issue link (Recommended)",
+                "description": "Change `(see ai-harness#TBD)` to `(see incident 2026-05-26 \u2014 supervisor kill-spree)`. The date + description is enough; the [[project_host_config_dir]] memory + commit message carry the rest."
+              },
+              {
+                "label": "File a GH issue, link it",
+                "description": "Create issue on board #2 titled \"supervisor main() silently ignored argv, let --help launch a real supervisor for 9+ hours (incident 2026-05-26)\" and replace `#TBD` with the real issue number. Heavier-weight but matches the [[project_followups_as_gh_issues]] pattern."
+              },
+              {
+                "label": "Leave #TBD as is",
+                "description": "Don't touch the comment. Someone can file the issue later if they care."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "lets fix the 4 dirty files"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me look at the full diff first, then check if any parallel session owns this work before I take it over."
+      },
+      {
+        "role": "assistant",
+        "text": "Two coherent fixes from the 2026-05-26 supervisor kill-spree recovery:\n\n1. **CLAUDE_BIN per-user default** (`config.py` + `test_config.py`): extracts `CLAUDE_BIN = str(Path.home() / \".local/bin/claude\")`, replaces the hard-coded `/Users/user/.local/bin/claude` default in both `SupervisorConfig.from_env` and `ManagerConfig.from_env`. Adds 2 regression tests.\n\n2. **Supervisor `main()` argv hardening** (`supervisor.py` + `test_supervisor_decisions.py`): the old `main()` silently ignored argv, so `python -m remote_control supervisor --help` accidentally launched a real supervisor that fought the launchd one for 9+ hours. Now parses argv \u2192 `--help` prints usage (rc=0), unknown arg \u2192 rc=2, no-args runs Supervisor. Adds `SupervisorMainArgvTest` with 4 cases.\n\nBoth reference \"incident 2026-05-26\" in their docstrings \u2014 matches the memory entry. Neither shows up on any other bridge branch, so they were edited directly in the main checkout (the anti-pattern from `[[feedback_main_dir_on_main]]`). Let me run the full test suite from the main checkout to confirm they pass."
+      },
+      {
+        "role": "assistant",
+        "text": "595 tests; 1 error in `perm_gate_lab/test_redact.py` (`No module named 'perm_gate_lab.redact'`) \u2014 unrelated to the dirty files. Let me confirm it pre-exists."
+      },
+      {
+        "role": "assistant",
+        "text": "Interesting \u2014 on clean main, `tests.perm_gate_lab.test_redact` passes (12 OK). Let me see if the dirty state actually breaks it."
+      },
+      {
+        "role": "assistant",
+        "text": "Pre-existing failure confirmed: `perm_gate_lab.redact` import quirk fails on clean main too (588 tests, 1 error). Dirty files add 7 passing tests on top \u2014 they're safe to land.\n\nOne nit to decide before committing \u2014 the `supervisor.py` comment says `see ai-harness#TBD` (a placeholder for an issue that was never filed):"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Two commits, push (Recommended), Strip the issue link (Recommended)"
+  }
+}

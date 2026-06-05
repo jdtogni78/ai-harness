@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-eb4025ca-ed2c726b939185a0",
+  "sig": "answer:rollout-eb4025ca:ed2c726b939185a0",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from eb4025ca-9c5b-4da9-bba1-b8c4e9d432f8.jsonl turn #427",
+  "input": {
+    "action": {
+      "session_id": "rollout-eb4025ca",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "The S&P 500 mention \u2014 what did you mean?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01MKCzCw9kNnxJjQb2v6emkP",
+        "description": "",
+        "questions": [
+          {
+            "question": "The S&P 500 mention \u2014 what did you mean?",
+            "header": "S&P 500",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Use SPY (S&P 500) as the example asset",
+                "description": "Swap the scene-2 allocation chart from AAPL/MSFT/Cash to SPY/TLT/Cash (S&P 500 ETF / Treasury bonds / Cash). More relatable to a general audience than picking two specific tech stocks."
+              },
+              {
+                "label": "Compare against passive S&P 500 holding",
+                "description": "Add a sentence in scene 1 or 8 framing the contrast: 'unlike just buying and holding the S&P 500, rebalancing lets you choose your risk profile.' Keep the AAPL/MSFT example chart."
+              },
+              {
+                "label": "Both \u2014 SPY in chart AND the comparison framing",
+                "description": "Apply both: use SPY/TLT/Cash in the doughnut AND mention the passive-S&P-500 contrast in narration."
+              }
+            ]
+          },
+          {
+            "question": "Draft of the new opening narration \u2014 does this land?",
+            "header": "Opening draft",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 use this",
+                "description": "Scene 1 narration: 'The rebalancing strategy lets you make a choice about the risks you want to take, and keeps your portfolio balanced toward that risk over time. Unlike most strategies, it doesn't try to predict the market \u2014 it just keeps your portfolio honest to a decision you already made.' (~13s onyx)"
+              },
+              {
+                "label": "Close, but tweak \u2014 I'll tell you how",
+                "description": "Pick this and add a note with the tweak; I'll incorporate before dispatching."
+              },
+              {
+                "label": "Rewrite differently",
+                "description": "Pick this and tell me the direction (shorter, more technical, more product-marketing, different angle, etc.)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "How had James done it for a little bit? I want to change it to Wapoocool first, like, uh, the rebalancing strategy, uh, allow you to make a choice on the risks you want to take and maintain your portfolio balance towards that risk. Uh, on the contrary, instead of trying to predict the market... so that you mentioned that second part later. He stopped saying that the percentages should be in each name, and you say in each It's stock. He's had a couple views as P five hundred."
+      },
+      {
+        "role": "user",
+        "text": "[Request interrupted by user]"
+      },
+      {
+        "role": "user",
+        "text": "The simple graphs are when you drag it should immediately go to the middle. It's kind of going on a slope that make it more sharp, the slope after trade. And, also, pick a better example from... try to find one example from Family Fund where there are more up and down trades. See if you find something better."
+      },
+      {
+        "role": "user",
+        "text": "[Request interrupted by user]"
+      },
+      {
+        "role": "user",
+        "text": "Also explain why the trading bell from Trading Dance are trading bands, are growing, and it's because the total portfolio... the total funding is growing for the bands have increased size."
+      },
+      {
+        "role": "assistant",
+        "text": "Parsing the feedback through the voice transcription. Here's what I caught \u2014 confirm/correct the interpretations before I dispatch v3:\n\n**Clear (queuing for v3):**\n1. **Reframe the opening** \u2014 lead with the *positive* framing (\"rebalancing lets you make a risk choice and keeps your portfolio balanced toward that risk\"), THEN contrast with \"instead of trying to predict the market.\" Currently it's the opposite order.\n2. **\"in each name\" \u2192 \"in each stock\"** in scene 2 narration.\n3. **Snap-back must be vertical, not sloped** \u2014 currently Chart.js draws a diagonal from trigger value down to target between W5\u2192W6. Make it an immediate vertical drop (split data into per-segment lines + annotation arrows at each trigger x).\n4. **Find a FF fund/symbol with more up-and-down trade activity** than TECL \u2014 the current screenshot is too quiet. Worker will sweep through fund 2's other symbols and other fund IDs.\n5. **Add a sentence in scene 7 explaining why the trading bands grow** over the 5 years \u2014 because the total fund value is growing, so the dollar size of each band grows with it.\n6. **Sync on-screen lede text to audio** (\"the trader sells some\") \u2014 already queued from last round.\n\n**One I'm not sure about:**"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Use SPY (S&P 500) as the example asset, Yes \u2014 use this"
+  }
+}

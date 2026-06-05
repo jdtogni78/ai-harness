@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-dce82d57-cf56e7e1a605bd6e",
+  "sig": "answer:rollout-dce82d57:cf56e7e1a605bd6e",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from dce82d57-cf2b-4b1d-864e-6d2491c9fa16.jsonl turn #520",
+  "input": {
+    "action": {
+      "session_id": "rollout-dce82d57",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01CzRGg2tXxdYLwo9HPNDLxo",
+      "question": "dstrader-aws has live private keys + prod creds on HEAD and a datadir in history. How to handle it?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01GukVEQ8P5bsjRgc95TNrMN",
+        "description": "",
+        "questions": [
+          {
+            "question": "dstrader-aws has live private keys + prod creds on HEAD and a datadir in history. How to handle it?",
+            "header": "dstrader-aws",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "File ticket(s), don't change yet",
+                "description": "Open tracking issue(s) on board #1 for the dstrader-aws findings (private keys, prod creds \u2192 ties to #80, datadir purge). Report-only; no edits."
+              },
+              {
+                "label": "Start remediation now",
+                "description": "Begin fixing dstrader-aws in a worktree: rotate/remove the PGP keys + de-hardcode prod creds. Larger, touches prod secrets \u2014 needs its own care."
+              },
+              {
+                "label": "Just note it, no ticket",
+                "description": "Leave the findings in this conversation only; take no further action on dstrader-aws."
+              }
+            ]
+          },
+          {
+            "question": "For the FamilyFund #66 thread itself, what next?",
+            "header": "FF #66",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Close-work this thread",
+                "description": "Run /close-work: merge the audit docs to main, keep #66 open with the force-push deferred. Ends this session's work cleanly."
+              },
+              {
+                "label": "Execute the FF rewrite now",
+                "description": "Proceed with the destructive FamilyFund history rewrite + force-push, following the safe-execution order (land 01XwDewU, pause supervisor, etc.)."
+              },
+              {
+                "label": "Leave open, continue here",
+                "description": "Keep this thread open and keep working other items without closing."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "1) lets backup the repo before.\n2) lets review dstrader / dstrader-aws/docker as well."
+      },
+      {
+        "role": "assistant",
+        "text": "Two clear tasks. Let me start both: (1) make a durable off-repo backup of FamilyFund now, and (2) locate the dstrader-family repos to audit."
+      },
+      {
+        "role": "assistant",
+        "text": "**Backup done** \u2713 \u2014 `~/familyfund-repo-backups/2026-05-25/`: a mirror clone + a verified 28M bundle (\"records a complete history\") + an 82-ref manifest. (Note: refresh it right before the actual force-push, since `origin/main` keeps advancing \u2014 it's now `2789e800`.)\n\n**Repo discovery:** `~/dev/dstrader-docker`'s origin is actually **`github.com/jdtogni78/dstrader-aws.git`** \u2014 so \"dstrader-aws\" and \"docker\" are the *same* repo (85 commits). Plus `dstrader` (127), `dstrader_python` (5), `DSTraderAnalysis` (10).\n\nLet me kick off the dstrader-family history audits, and I'll answer #3 from analysis while they run."
+      },
+      {
+        "role": "assistant",
+        "text": "**dstrader-aws (dstrader-docker) is dirty in history:** gitleaks found **2 private keys**, plus the entire **raw `datadir_dev/familyfund_dev/` MariaDB datadir** is committed (accounts, balances, assets, funds, `password_resets`, \u2026 as `.ibd`/`.frm` \u2014 real data recoverable). That's on top of the known hardcoded prod DB creds. Let me pin down the private keys + prod creds, and scan the other three repos."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me confirm whether those PGP private keys are still on HEAD (critical) and check the python repo's properties file."
+      },
+      {
+        "role": "assistant",
+        "text": "All four repos reviewed. Here's the full picture plus your #3 answer.\n\n## 2) dstrader-family review\n\n| Repo (dir \u2192 remote) | History clean? | Notes |\n|---|---|---|\n| `dstrader` | \u2705 **clean** (gitleaks 0) | The 2026-05-21 purge held. Only `.properties` (internal URLs, no IP). |\n| `dstrader_python` | \u2705 clean | `connection.properties` = `host=127.0.0.1 port=4002` (IB TWS local) \u2014 no secret. |\n| `DSTraderAnalysis` | \u2705 clean | nothing sensitive. |\n| **`dstrader-docker` \u2192 `dstrader-aws`** | \u274c **NOT clean** | see below |\n\n**`dstrader-aws` (the worst of the family):**\n- \ud83d\udd34 **2 PGP private keys committed AND still on HEAD (live):** `dstrader/dstrader_private.pgp`, `dstrader/database_private.pgp` (added in `9d90046`). Most urgent \u2014 actual private keys in the working tree.\n- \ud83d\udd34 **Hardcoded prod + stage DB passwords on HEAD:** `docker-compose.prod.yml` & `docker-compose.stage.yml` (`DB_PASSWORD`, `MARIADB_PASSWORD`, `MARIADB_ROOT_PASSWORD`). This is the live prod-creds exposure (overlaps the open **#80**).\n- \ud83d\udfe0 **Raw `datadir_dev/familyfund_dev/` MariaDB datadir in history** (236 objects: accounts, balances, `password_resets`, \u2026) \u2014 gone from HEAD, still in history.\n\nIt's a **private** repo so not publicly exposed, but the private keys + prod creds are real hygiene/security issues independent of publishing.\n\n## 3) What breaks after the FamilyFund history rewrite\n\nThe rewrite removes files throughout history, so **every commit SHA changes** and the force-push replaces origin's history.\n\n**Will break / needs action:**\n1. **Every clone & worktree diverges** \u2014 the main checkout + 46 live bridge worktrees sit on old SHAs; each must `fetch` + `reset --hard` or re-clone.\n2. **The live bridge supervisor (pid 55400) + active sessions** \u2014 its 46 worktree branches share *no* history with the new origin. \u26a0\ufe0f The **`01XwDewU` service-token feature** (committed 13 min ago, unmerged) would be stranded on an orphaned base \u2014 **land/rebase it first**.\n3. **All pushed origin branches** (`claude/*`, `codex-*`, ~12 `dependabot/*`, `feature/*`, pushed `worktree-*`) \u2014 must each be force-pushed (rewritten) or deleted; open Dependabot PRs break.\n4. **Commit-SHA references go dangling** \u2014 `ENGINEERING_DECISIONS.md` ED entries, issue/PR comments, memory notes, even my #66 doc cite SHAs that won't exist on origin anymore.\n5. **Pool/test env leases** on old SHAs diverge (code side; the test DB is synthetic-seeded so it's fine).\n6. **CI baselines** (security-scan / PHPStan) re-run against new SHAs.\n\n**Will NOT break:**\n- **Current code is identical** \u2014 we only purge files already absent from HEAD + redact the owner email in *old* history. A fresh clone builds/tests exactly as now.\n- **Production** \u2014 prod runs on spirit, deployed from `dstrader-docker`, not from FamilyFund git history. Untouched.\n- Caveat: GitHub may retain old objects *by SHA* until GC \u2014 but dev creds are already rotated (dead), so the residual is PII you treat as possibly-already-cached.\n\n**Safe-execution order when you do it:** refresh backup \u2192 land/rebase `01XwDewU` (+ any unmerged) \u2192 pause supervisor & drop bridge worktrees \u2192 rewrite on a fresh mirror \u2192 force-push *all* branches \u2192 re-clone everywhere \u2192 re-audit origin (expect 0).\n\nHow do you want to proceed?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "File ticket(s), don't change yet, Close-work this thread"
+  }
+}

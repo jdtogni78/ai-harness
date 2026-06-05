@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-6aeb7203-db9b9073722f9a18",
+  "sig": "answer:rollout-6aeb7203:db9b9073722f9a18",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 6aeb7203-151e-4564-bc7e-d06ff321d11a.jsonl turn #31",
+  "input": {
+    "action": {
+      "session_id": "rollout-6aeb7203",
+      "repo": "ai-harness-session-preserve",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness-session-preserve",
+      "question": "Remove the two merged feature worktrees (ai-harness-host-defaults + ai-harness-session-preserve)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01B97gTqg4GucSNp91K8hEWD",
+        "description": "",
+        "questions": [
+          {
+            "question": "Remove the two merged feature worktrees (ai-harness-host-defaults + ai-harness-session-preserve)?",
+            "header": "Merged worktrees",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, remove both",
+                "description": "Run `git worktree remove` for each, then delete the now-merged local branches. Both are clean, fully merged into origin/main."
+              },
+              {
+                "label": "Remove host-defaults only",
+                "description": "Keep session-preserve around for now."
+              },
+              {
+                "label": "Remove session-preserve only",
+                "description": "Keep host-defaults around."
+              },
+              {
+                "label": "Skip",
+                "description": "Don't touch either."
+              }
+            ]
+          },
+          {
+            "question": "ai-harness-public is a *separate clone* of the same jdtogni78/ai-harness repo as ai-harness (not a worktree). Same branch (main), same content. What should we do with it?",
+            "header": "Public clone",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Delete it",
+                "description": "Remove /Users/claudio1/dev/ai-harness-public entirely \u2014 it's redundant with ai-harness."
+              },
+              {
+                "label": "Keep \u2014 has a purpose",
+                "description": "Leave it alone; I'll explain why it exists separately."
+              },
+              {
+                "label": "Convert to worktree",
+                "description": "Delete the standalone clone, then add it as a worktree of ai-harness on main (saves ~1M of duplicated .git)."
+              }
+            ]
+          },
+          {
+            "question": "ai-harness-private has 28 bridge-cse_* worktrees under .claude/worktrees/ (most locked) \u2014 these are supervisor/session bridges. Touch them?",
+            "header": "Bridge worktrees",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Leave them alone",
+                "description": "Supervisor-managed; risky to delete blindly. Don't touch."
+              },
+              {
+                "label": "Triage via session-triage skill",
+                "description": "Run the session-triage skill to find which bridges are unfinished / safely removable."
+              },
+              {
+                "label": "Force-remove all unlocked + locked merged ones",
+                "description": "Aggressive: unlock and prune any whose branch is already merged to origin/main. Riskier."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "lets do a cleanup on ai-harness* dirs on dev"
+      },
+      {
+        "role": "assistant",
+        "text": "Survey of `/Users/claudio1/dev/ai-harness*`:\n\n| Dir | Type | Branch | State |\n|---|---|---|---|\n| `ai-harness` | primary clone (jdtogni78/ai-harness) | `main` clean | keep |\n| `ai-harness-host-defaults` | worktree of `ai-harness` | `feature/host-derived-defaults` | clean, **fully merged into origin/main** |\n| `ai-harness-public` | separate clone of same `jdtogni78/ai-harness` repo | `main` clean | duplicate of `ai-harness`? |\n| `ai-harness-private` | primary clone (jdtogni78/ai-harness-private) | `main` clean | 737M \u2014 hosts 28 `bridge-cse_*` worktrees from supervisor |\n| `ai-harness-session-preserve` | worktree of `ai-harness-private` | `feature/session-preserve-toolkit` | clean, **fully merged into origin/main** |\n\nTwo clearly safe wins: drop the two merged feature worktrees. The other two questions need your call."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Yes, remove both, Delete it, Triage via session-triage skill"
+  }
+}

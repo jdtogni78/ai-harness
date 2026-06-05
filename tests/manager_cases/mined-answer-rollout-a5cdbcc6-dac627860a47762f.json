@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a5cdbcc6-dac627860a47762f",
+  "sig": "answer:rollout-a5cdbcc6:dac627860a47762f",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a5cdbcc6-9957-494f-a09e-0a7400bbdcf1.jsonl turn #104",
+  "input": {
+    "action": {
+      "session_id": "rollout-a5cdbcc6",
+      "repo": "job-search",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/job-search/.claude/worktrees/bridge-cse_01S28BQZjF3KvWTeCxbqgoju",
+      "question": "How do you want to supply the career facts so I can fill the [FILL:] slots and write the experience bullets?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01RGczur79BhFviMsm4mr8wv",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want to supply the career facts so I can fill the [FILL:] slots and write the experience bullets?",
+            "header": "Fill the gaps",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Paste old resume / LinkedIn",
+                "description": "Give me your current resume text or LinkedIn export and I'll mine dates, titles, companies, and accomplishments \u2014 then rewrite them to the new positioning. Fastest, highest quality."
+              },
+              {
+                "label": "Quick guided Q&A",
+                "description": "I ask you a short, focused set of questions (Visa role + metrics, the earlier companies/dates, education) and write the bullets from your answers."
+              },
+              {
+                "label": "You'll fill it yourself",
+                "description": "Leave the draft as-is with [FILL:] markers; you edit resume.md / linkedin.md directly and come back for a tightening pass."
+              },
+              {
+                "label": "Just review the draft first",
+                "description": "Hold on facts \u2014 you want to react to the structure, positioning, and project bullets before we touch the experience section."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now the user-background memories for the raw resume material."
+      },
+      {
+        "role": "assistant",
+        "text": "I have the full picture now. Let me check what git ignores (the resume will eventually hold contact PII) before deciding where to put the draft."
+      },
+      {
+        "role": "assistant",
+        "text": "I have everything I need. This is a greenfield task \u2014 no resume exists yet. I have rich detail on the two projects and the positioning (builder-first, staff/tech-lead, seed\u2013Series B, AI/ML-pivot, *not* big-co, name **Daniel Togni**), but the career specifics only you hold (dates, company names, Visa accomplishments, education).\n\nMy plan: draft the full resume + LinkedIn rewrite now \u2014 writing in full the parts I can (positioning, the two-project platform, skills) and leaving clearly-marked `[FILL: \u2026]` slots for facts only you have. That gives you a concrete draft to react to (resume feedback is the next step in `notes/network-outreach.md`) and surfaces exactly what's missing. Let me build it."
+      },
+      {
+        "role": "assistant",
+        "text": "Now let me reflect the work in this session's title so it's visible in the session list."
+      },
+      {
+        "role": "assistant",
+        "text": "`--self` keys off cwd; from the ai-harness dir it can't see the worktree. Let me pass the CSE id explicitly."
+      },
+      {
+        "role": "assistant",
+        "text": "Drafts are in place and the session is retitled `[JOB] Resume + LinkedIn rewrite`. Here's what I built under `resume/`:\n\n- **`resume/resume.md`** \u2014 full resume draft. Written in full: the summary, the DS Trader + FamilyFund platform section (your differentiator), and skills. Skeleton-with-bullets for the experience section.\n- **`resume/linkedin.md`** \u2014 headline (3 lanes incl. a discreet \"still at Visa\" option), About (first-person, leads with the platform hook), experience reframes, Featured, and the *Open to Work* settings.\n- **`resume/README.md`** \u2014 the locked positioning (builder-first, rules-based, *not* AI-framed, startup audience) and the full list of `[FILL: \u2026]` gaps.\n\nThe positioning is fully baked per your memory: builder/tech-lead first, projects as strong *general* engineering (no AI-flagship framing), AI/ML kept as career *direction* only, no big-co language, DS Trader strictly rules-based.\n\nWhat's left is the career facts only you have \u2014 Visa accomplishments, the earlier company names/dates, education. The fastest way to fill those well is for me to mine an existing document rather than interview you slot-by-slot."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Paste old resume / LinkedIn"
+  }
+}

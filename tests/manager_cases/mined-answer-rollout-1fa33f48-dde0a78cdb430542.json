@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-1fa33f48-dde0a78cdb430542",
+  "sig": "answer:rollout-1fa33f48:dde0a78cdb430542",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 1fa33f48-d471-4827-b953-2237c7aabab1.jsonl turn #1045",
+  "input": {
+    "action": {
+      "session_id": "rollout-1fa33f48",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/sweet-driscoll-0b292c",
+      "question": "After reviewing the account-7 test render, what next?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01CdjBmF4a2qVj8dcZj9G5pk",
+        "description": "",
+        "questions": [
+          {
+            "question": "After reviewing the account-7 test render, what next?",
+            "header": "Next",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Render account final in onyx",
+                "description": "Swap account.demo.yaml to onyx and render the clean final."
+              },
+              {
+                "label": "Tweak account content",
+                "description": "Adjust narration/section order/pacing on the account walkthrough before the onyx final."
+              },
+              {
+                "label": "Build the 5 stub demos",
+                "description": "Flesh out credit-lines, portfolios-rebalancing, transactions-matching, time-travel-reports, roles-access."
+              },
+              {
+                "label": "Wrap up for now",
+                "description": "Stop here; the three main demos are done. Pick up the rest later."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Goals scene is perfect \u2014 shows the \"20K by 2030\" goal with progress, expected vs current, and \"behind schedule\" \u2014 exactly matching the narration. Now borrowing:"
+      },
+      {
+        "role": "assistant",
+        "text": "Borrowing lands perfectly too \u2014 \"Loans summary\" + \"Loan Shares\" table with borrowed/repaid/outstanding shares and the schedule. Let me confirm disbursement (the one that worried me in the probe):"
+      },
+      {
+        "role": "assistant",
+        "text": "All three verified \u2014 disbursement (eligibility + cap), goals (20K-by-2030 progress), and borrowing (loan shares) each land on the right section. The DOM-order walk works cleanly. Sending the account test for your review:"
+      },
+      {
+        "role": "assistant",
+        "text": "All three demos are in good shape. Let me capture this reusable demo infrastructure in memory so future sessions don't have to rediscover it."
+      },
+      {
+        "role": "assistant",
+        "text": "Memories saved. Let me commit the new/updated storyboards (the mp4s stay git-ignored):"
+      },
+      {
+        "role": "assistant",
+        "text": "Everything's committed and captured. Here's where the demo work stands:\n\n**Delivered:**\n| Demo | Status |\n|---|---|\n| `funds.mp4` | \u2705 onyx final (section-by-section, screens fixed) |\n| `funds-accounts.mp4` | \u2705 onyx final (re-rendered clean) |\n| `account.mp4` | \ud83d\udfe1 test render (free voice) \u2014 awaiting your review before onyx |\n\n**Landed today:** 4 ai-harness fixes on main (OpenAI TTS adapter, `reveal` action, page pre-warm, stale-webm muxing fix), storyboards committed (`1e8a0f0a`), and two memories saved so this tooling is documented for next time.\n\n**One security reminder:** you pasted your OpenAI key in chat earlier \u2014 it's stored safely in `~/.ai-harness/narrate.env` (gitignored, 600), but since it's in the transcript, consider rotating it at platform.openai.com/api-keys when convenient. I'll swap the new one into that file in one step.\n\nOnce you've watched the account test:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Render account final in onyx"
+  }
+}

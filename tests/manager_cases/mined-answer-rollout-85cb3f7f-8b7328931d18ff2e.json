@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-85cb3f7f-8b7328931d18ff2e",
+  "sig": "answer:rollout-85cb3f7f:8b7328931d18ff2e",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 85cb3f7f-4e47-4f6d-be0c-cedfc1bf0f31.jsonl turn #40",
+  "input": {
+    "action": {
+      "session_id": "rollout-85cb3f7f",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01YZYvSALAVwSZ5gdzcLwdN4",
+      "question": "Rename credit_line domain to something more honest about the balance-reduction semantics?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01U5g3cAADRwXf1bpJEfh3gs",
+        "description": "",
+        "questions": [
+          {
+            "question": "Rename credit_line domain to something more honest about the balance-reduction semantics?",
+            "header": "Domain name",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 Share Advance (Recommended)",
+                "description": "Rename now in a dedicated PR (tables, columns, services, views). Captures 'no new money, just an offset against OWN'. Scenario work uses the new names from the start."
+              },
+              {
+                "label": "Yes \u2014 Share Loan",
+                "description": "Less of a leap from 'credit line' but still accurate. Rename in dedicated PR."
+              },
+              {
+                "label": "Defer rename, keep `credit_line`",
+                "description": "Build the scenarios under the existing names; rename later. Lower risk, fewer touched files now."
+              },
+              {
+                "label": "Keep `credit_line` permanently",
+                "description": "Accept the misleading label; rely on docs/UI copy to clarify."
+              }
+            ]
+          },
+          {
+            "question": "Which deliverable shapes do you want for the 6 scenarios?",
+            "header": "Deliverable",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "A) PHPUnit Feature tests (Recommended)",
+                "description": "tests/Feature/Scenarios/*.php using CreditLineScenarioBuilder. Asserts numbers, runs in CI."
+              },
+              {
+                "label": "B) Dusk browser tests",
+                "description": "tests/Browser/Scenarios/*.php \u2014 drives the UI, screenshots. Must run in main `familyfund` container (pool slots lack ChromeDriver). Highest value for S1, S2, S5."
+              },
+              {
+                "label": "C) Seeder + artisan command",
+                "description": "db:seed --class=ComplexScenariosSeeder so a human can lease a preview env and click through. Pairs naturally with the UI review I'll do afterward."
+              }
+            ]
+          },
+          {
+            "question": "Want me to lease a preview env and walk through every scenario in a real browser after writing them?",
+            "header": "UI review",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 full UI review per scenario (Recommended)",
+                "description": "Per the UI-verify memory rule: lease a pool env, seed the scenarios, drive each in browser (covering error/empty/role/mobile where relevant), share URLs + screenshots."
+              },
+              {
+                "label": "Yes \u2014 UI review only for S1, S2, S5",
+                "description": "Skip browser walkthrough for S3/S4/S6 (those are mostly invariants better proved in PHPUnit)."
+              },
+              {
+                "label": "No browser review \u2014 tests only",
+                "description": "Skip the lease + browser step. Faster, but I'll explicitly say UI wasn't visually verified."
+              }
+            ]
+          },
+          {
+            "question": "How should this work be sequenced?",
+            "header": "Sequence",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Land scenarios first, rename later (Recommended)",
+                "description": "Write the 6 scenarios using current `credit_line` names so they're in CI immediately; do the rename in a follow-up PR."
+              },
+              {
+                "label": "Rename first, then scenarios",
+                "description": "Big rename lands first; scenarios use new names from day one. Slower start; larger blast radius."
+              },
+              {
+                "label": "One PR for everything",
+                "description": "Bundle rename + scenarios. Big diff but no in-between state."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "create complex test scripts/scenarios for later automation.\nCreate multiple borrowings, multiple types of payments, include one that gets paid off.\nadd matching, other trans to prove they dont/or do interact.\nadd goals, see how goals react to the borrowings.\nRemember the credit line should be considered - not as a new credit, but as a reduction of balance.\nShould we name it differently?"
+      },
+      {
+        "role": "assistant",
+        "text": "I'll explore the codebase to understand the existing borrowing/payment/goal/credit-line domain before designing the scenarios. Let me kick off targeted exploration in parallel."
+      },
+      {
+        "role": "assistant",
+        "text": "I have the domain map. Now let me also inspect the shares/balances table shape (since the credit-line acts as a balance reduction, not new credit) and check goal/borrowing interactions before proposing scenarios."
+      },
+      {
+        "role": "assistant",
+        "text": "Now I have what I need. Before writing scenarios, here are the findings on shape + naming, and a proposal \u2014 I want your call on direction before generating code.\n\n## Shape of the shares (balances) table\n\n`account_balances` (one row per (account, type, period)):\n| col | type | notes |\n|---|---|---|\n| `id` | bigint PK | |\n| `type` | `string(3)` | `OWN` \\| `BOR` (no enum constraint \u2014 string) |\n| `shares` | `decimal(19,4)` | |\n| `account_id` | FK accounts | |\n| `transaction_id` | FK transactions | triggering txn |\n| `previous_balance_id` | FK self | temporal chain |\n| `start_dt`, `end_dt` | dates | `end_dt=9999-12-31` = active row |\n\nLoad-bearing invariants:\n- **Exactly one `BOR` row per account per time period.** It holds \u03a3 `outstanding_shares` across all **active** lines.\n- Per-line breakdown is reconstructed from `transactions` filtered by `account_credit_line_id` (BOR \u2212 REP).\n- Net = `OWN \u2212 BOR` (`AccountExt::sharesAsOf` `app1/family-fund-app/app/Models/AccountExt.php:123-128`).\n- Per-line temporal history lives in a **separate** mirror table `account_credit_line_balances` (5/13 migration) \u2014 same shape, scoped to one line.\n\nSo your statement is structurally correct: a draw doesn't add new \"credit\" anywhere \u2014 it raises `BOR` so net falls. `OWN` is untouched.\n\n## Naming \u2014 should we rename?\n\n\"Credit line\" misleads in three ways: (1) implies new spendable money, (2) implies revolving, (3) hides the fact that the math is purely a balance offset against `OWN`. Candidates:\n\n- **Share Advance** *(my pick)* \u2014 fits the math: beneficiary draws shares forward against their own balance, repays later. Honest about \"no new money.\"\n- **Share Loan** / **Beneficiary Loan** \u2014 neutral and accurate.\n- **Encumbrance** \u2014 technically right (lien on own shares) but jargon.\n- **Pledge** \u2014 wrong direction.\n\nIf you agree, the rename is mechanical but wide: tables (`account_credit_lines`, `credit_line_payments`, `credit_line_payment_allocations`, `credit_line_adjustments`, `account_credit_line_balances`), columns (`account_credit_line_id`, `credit_line_match_status`), services (`CreditLine\\*`), routes, views, Livewire components, tests. Worth doing in one dedicated PR \u2014 out of scope for the scenario task itself.\n\n## Proposed scenarios (for automation)\n\nSix scenarios, each a deterministic builder so the same setup feeds PHPUnit assertions **and** the browser walkthrough:\n\n- **S1 \u2014 Multiple draws, one paid off, no interference.** Beneficiary with 2 lines (different terms/frequencies), L1 fully repaid \u2192 `paid_off`, BOR drops to L2's outstanding only.\n- **S2 \u2014 REP routing matrix.** Same beneficiary, 2 lines w/ equal scheduled rows \u2192 exact-share REP = `ambiguous` \u2192 manual split \u2192 `manual`. Then payoff-by-outstanding REP \u2192 `auto_matched` via priority-3. Plus a REP on a line-less account \u2192 `unmatched`. Asserts `OutstandingCalculator` correctly **ignores** `ambiguous`/`unmatched`/`reversed`.\n- **S3 \u2014 Non-interaction with PUR/SAL/MAT.** Beneficiary borrows; then a fund **matching** rule fires on a deposit (MAT txn), then a PUR, then a SAL. Assert BOR/outstanding/allocations untouched (proves the matcher's REP-only guard at `CreditLineMatcher.php:48-52`).\n- **S4 \u2014 Backdated draw + late sweep.** Origination 6 mo ago; `LateDetector::detectAll()` marks past-due rows `late`; a single catch-up REP lands on oldest row \u2192 `paid`, rest stay `late`.\n- **S5 \u2014 Goals react to borrowing.** Goal target=1000; draw 200 drops goal \"Current\" from 500\u2192300 (net = OWN\u2212BOR per memory rule); repay restores it. Adds a second goal using `target_pct` to confirm both flavors track net.\n- **S6 \u2014 Readjustment + reversed REP.** Open, 2 REPs, readjust 12\u219218 mo (new `CreditLineAdjustment`, old rows `cancelled`, fresh schedule), then reverse one REP \u2014 outstanding restored, allocation preserved as audit but excluded by `reversed=true` filter.\n\n## Deliverable shape \u2014 need your call\n\nThe same scenarios can ship in three forms; I'd recommend **A + C**, with **B** following for the highest-value scenarios:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Yes \u2014 Share Loan, A) PHPUnit Feature tests (Recommended), B) Dusk browser tests, Yes \u2014 full UI review per scenario (Recommended), Land scenarios first, rename later (Recommended)"
+  }
+}

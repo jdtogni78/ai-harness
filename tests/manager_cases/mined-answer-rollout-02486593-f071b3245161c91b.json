@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-02486593-f071b3245161c91b",
+  "sig": "answer:rollout-02486593:f071b3245161c91b",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 02486593-7b38-4144-bc7c-bb11ebc29314.jsonl turn #33",
+  "input": {
+    "action": {
+      "session_id": "rollout-02486593",
+      "repo": "job-search",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/job-search/.claude/worktrees/bridge-cse_01Duxu1Fx6WR22eqyPiuS7NH",
+      "question": "Which Job Search draft should I start? (I'll convert it to a real issue, then claim it.)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01JmdtQXyY7bGYtbmL1jJJLk",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which Job Search draft should I start? (I'll convert it to a real issue, then claim it.)",
+            "header": "Draft",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Regenerate site",
+                "description": "Rebuild jdtogni78/jdtogni-site \u2014 live site is stale, still shows pre-teardown AI/research-agent framing. Concrete content/code task I can largely do end-to-end."
+              },
+              {
+                "label": "Resume + LinkedIn rewrite",
+                "description": "Pipeline step 3: rewrite resume + LinkedIn for the AI-pivot framing (EM-at-Visa \u2192 AI-lead). Substantial drafting I can do, you review."
+              },
+              {
+                "label": "Adzuna signup",
+                "description": "Unblock the job-search search skill. Mostly needs YOU to register at Adzuna for API creds; I wire them in + verify after. Foundational but gated on your action."
+              },
+              {
+                "label": "Network outreach",
+                "description": "Discovery-stage outreach prep: sanity-check resume + brainstorm positioning with trusted contacts. I prep drafts/lists; you send."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Start work."
+      },
+      {
+        "role": "assistant",
+        "text": "I'm on `macmini` in the **job-search** worktree (`bridge-cse_01Duxu1Fx6WR22eqyPiuS7NH`), fresh/alive. Here's what's available to pick up. I won't auto-pick \u2014 you choose.\n\nSince this worktree is the **job-search** repo, the Job Search board (#3) is the natural fit, but everything there is still a **draft note** (no issue number yet). The numbered tickets live on the other two boards."
+      },
+      {
+        "role": "assistant",
+        "text": "You picked the **Job Search** board. Those are all draft notes \u2014 let me pull their details so you can choose which one to turn into a ticket and start."
+      },
+      {
+        "role": "assistant",
+        "text": "Here are the **Todo** drafts on the Job Search board. A couple already have committed work in other worktrees (better suited to `resume-work`); the rest are fresh starts:\n\n**Fresh starts (no existing worktree):**\n- **Adzuna API signup** \u2014 the single blocker for the job-search skill to run a real search (needs *you* to register at Adzuna; I set up creds after)\n- **Resume + LinkedIn rewrite** (pipeline step 3) \u2014 AI-pivot framing\n- **Network outreach** \u2014 resume feedback + position brainstorming\n- **Talent-marketplace signups** \u2014 A.Team / Braintrust / Gun.io\n- **Outbound to ~15 target companies** (pipeline step 4) \u2014 meant to come *after* resume + site are ready\n- **Regenerate published site** (`jdtogni78/jdtogni-site`) \u2014 live site is stale; built before the position-thesis-agent teardown, still shows old AI/research-agent framing\n\n**Already have committed work elsewhere (consider resume-work instead):**\n- LinkedIn referral tooling (worktree `01NKJUo`)\n- Website specs + LinkedIn-connector idea (worktree `01Qb1`, 1 commit ahead of main)"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Adzuna signup"
+  }
+}

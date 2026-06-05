@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-3ae83a92-447fb93d8c0ef927",
+  "sig": "answer:rollout-3ae83a92:447fb93d8c0ef927",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 3ae83a92-a569-4759-ba89-823cf99d969f.jsonl turn #224",
+  "input": {
+    "action": {
+      "session_id": "rollout-3ae83a92",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/magical-maxwell-60c79b/app1",
+      "question": "The app is running locally. What next?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_016jpU54CDz3zMLxz2oZGVEj",
+        "description": "",
+        "questions": [
+          {
+            "question": "The app is running locally. What next?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Finish & close #1",
+                "description": "Document the bootstrap steps in SETUP.md and close FamilyFund-v2-archive#1 (dev-env restore) \u2014 acceptance is already met."
+              },
+              {
+                "label": "Start a bug ticket",
+                "description": "Claim and fix one of the memory-bank-surfaced bugs (#87 dead schedule body, #88 missing UNIQUE constraint, #89 cleartext tokens)."
+              },
+              {
+                "label": "Just leave it running",
+                "description": "Stop here \u2014 dev stack stays up at :3001, nothing more to do right now."
+              },
+              {
+                "label": "Browser smoke-test",
+                "description": "Drive the running app in a real browser across a few roles/pages and share screenshots."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "`pool.sh list` now works cleanly \u2014 preview pool restored. Now let me verify the full path (ticket acceptance criterion): lease a slot from this worktree against the shared dev DB."
+      },
+      {
+        "role": "assistant",
+        "text": "The claim wants the `app1/` dir (where `launch_docker.sh` lives), not the app subdir. Let me run from there."
+      },
+      {
+        "role": "assistant",
+        "text": "Preview slot `pool0` is up at `http://localhost:3020`. Let me verify it serves a working page (the ticket's acceptance criterion) and confirm both stacks coexist."
+      },
+      {
+        "role": "assistant",
+        "text": "All ticket #1 acceptance criteria are met \u2014 both stacks run and the leased slot serves working pages off the shared dev DB. Since the dev stack at `:3001` is the primary local run and the worktree code is identical to main, the `pool0` slot was verification-only. Let me release it to keep the pool clean, then record what I learned."
+      },
+      {
+        "role": "assistant",
+        "text": "Both stacks are clean. Let me record the durable fixes in memory (this is reusable next host swap, and corrects a now-stale note about where issues live)."
+      },
+      {
+        "role": "assistant",
+        "text": "The local environment is fully restored and running. Here's the rundown.\n\n## \u2705 Running locally again\n\nI brought the dev stack up from the **main checkout** (`~/dev/FamilyFund/app1` \u2014 it holds the populated `datadir_dev` and the compose-var `.env`):\n\n| Service | URL / Port | Status |\n|---|---|---|\n| **FamilyFund app** | http://localhost:3001 | \u2705 302\u2192login, dev-login\u2192dashboard 200, funds index 200 |\n| MariaDB (dev) | localhost:3306 | \u2705 19 users / 9 funds |\n| Mailpit UI | (app1-mailhog) | \u2705 healthy |\n\n**Debugging done along the way:**\n- This worktree had no env \u2014 copied `.env.dev`/`.env.stage` from the main checkout and symlinked `.env`.\n- **One migration was pending** (`2026_05_29_000001_create_password_reset_tokens_table`) \u2192 applied with `migrate --force`. All migrations now `Ran`. No errors in `laravel.log`.\n\n## \ud83d\udd27 Fixed the broken preview pool (root-caused a real ticket)\n\n`~/.familyfund-pool/` was half-migrated to the refactored ai-harness layout and **refused to run** (`pool: no config found` / `adapter not found`). I restored the missing symlinks in the state dir: `config.local.yaml`, the `laravel-docker-pool.sh` adapter, and `_yaml_to_env.py` / `pool-core.sh` / `load-config.sh`. Verified end-to-end by leasing slot `pool0` (http://localhost:3020 \u2192 dashboard 200 against the shared dev DB), then released it so the pool is clean (6/6 free).\n\nThis is **exactly** [`FamilyFund-v2-archive#1` \u2014 \"Restore mini dev-env runability after public-portfolio split\"](https://github.com/jdtogni78/FamilyFund-v2-archive/issues/1), and all its acceptance criteria now pass (pending only the optional SETUP.md doc + narrate-demo hookup).\n\n## \ud83c\udfab Tickets\n\nNote: the public `FamilyFund` repo has **0 issues** \u2014 work now lives on **`FamilyFund-v2-archive`** + the **Trading & Fund board (#1)**. Open Todo items relevant here:\n\n- **#1** Restore dev-env runability \u2014 *effectively done this session*\n- **#87** [bug] dead `Kernel::schedule()` body \u2014 orphaned credit-line scan entries\n- **#88** [bug] missing UNIQUE constraint on `credit_line_payment_allocations`\n- **#89** [bug][security] `tws_query_id`/`tws_token` stored cleartext on `trade_portfolios`\n- **#9** Credit Lines: \"Catch up\" helper button \u00b7 **#2** deploy price-staleness to prod \u00b7 **#16** harden PHPStan gate \u00b7 **#36** go-public epic\n\nWhat would you like to do next?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Finish & close #1"
+  }
+}

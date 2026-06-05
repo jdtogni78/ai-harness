@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4fc4bdee-9c7b535e076b2388",
+  "sig": "answer:rollout-4fc4bdee:9c7b535e076b2388",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4fc4bdee-a4d3-48ae-8c4d-12d54399691d.jsonl turn #8",
+  "input": {
+    "action": {
+      "session_id": "rollout-4fc4bdee",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "What kind of servers do you want to manage with an activation list?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Vb3nBb8XkUZG7J47WfJLtm",
+        "description": "",
+        "questions": [
+          {
+            "question": "What kind of servers do you want to manage with an activation list?",
+            "header": "Server type",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "MCP servers",
+                "description": "Claude Code MCP servers configured in settings \u2014 toggle which ones are active per session/project"
+              },
+              {
+                "label": "Preview pool envs",
+                "description": "FamilyFund preview environments (pool0..pool5) leased via the lease-env skill"
+              },
+              {
+                "label": "Dev servers / processes",
+                "description": "Local dev servers (npm run dev, docker compose, etc.) spawned across worktrees"
+              },
+              {
+                "label": "Remote-control autostart",
+                "description": "The LaunchAgent that auto-spawns claude remote-control per dev dir at login"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I have too many servers being spawn, lets gave an activation list and a skill to manage that"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Remote-control autostart"
+  }
+}

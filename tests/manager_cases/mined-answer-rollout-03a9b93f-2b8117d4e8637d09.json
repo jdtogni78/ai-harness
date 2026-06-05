@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-03a9b93f-2b8117d4e8637d09",
+  "sig": "answer:rollout-03a9b93f:2b8117d4e8637d09",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 03a9b93f-ff4d-4a55-8d3a-4c0b023e17a9.jsonl turn #377",
+  "input": {
+    "action": {
+      "session_id": "rollout-03a9b93f",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund",
+      "question": "What should I do about .env.stage's MAIL_FROM?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01MBrSFcHZrqxB95yWStC77v",
+        "description": "",
+        "questions": [
+          {
+            "question": "What should I do about .env.stage's MAIL_FROM?",
+            "header": "Stage .env",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Change to yourfamilyfund.com (match dev)",
+                "description": "Keep the same MAIL_FROM across all envs for consistency. Affects real outbound stage mail headers, but the change is local-only (.env.stage is gitignored)."
+              },
+              {
+                "label": "Leave .env.stage alone",
+                "description": "Honor the brief's 'dev only' boundary. Stage may have its own SOPS-managed value that the next stage-side sync overwrites anyway."
+              }
+            ]
+          },
+          {
+            "question": "What should I do about database/dev/familyfund_dev_data_20260419.sql?",
+            "header": "Raw PII dump",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Leave alone \u2014 trust prod-to-dev.sh",
+                "description": "The 2.3 MB raw prod dump is the documented seed input. Now that prod_to_dev.sql is fixed, the scrub will fully clean the DB on next refresh. Don't string-replace the file."
+              },
+              {
+                "label": "Delete it from disk",
+                "description": "Remove the on-disk copy entirely. You can re-pull from your backup host (per SETUP.md L37) when you actually need to refresh dev. Removes the lingering raw-PII artifact."
+              },
+              {
+                "label": "Also string-replace inside it",
+                "description": "Replace familyfund.com with yourfamilyfund.com in the dump. WARNING: this masks only the emails \u2014 real first/last names (27+ rows: Togni / Geremia / Bavaresco / ...) remain. Likely a false-confidence fix."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "What is the current email that still shows"
+      },
+      {
+        "role": "assistant",
+        "text": "`no-reply@familyfund.com` \u2014 the system MAIL_FROM address, not a person's email.\n\n**Where it comes from:** `app1/family-fund-app/.env` line 50:\n```\nMAIL_FROM_ADDRESS=no-reply@familyfund.com\n```\n(Also same value in `.env.dev` line 50.)\n\n**Where it renders:** /emails \u2192 \"Email Configuration\" card \u2192 \"From address\" row. Pulled via `config('mail.from.address')` in `EmailController::getEmailConfig()` (app/Http/Controllers/WebV1/EmailController.php:182).\n\n**Why it triggered the audit:** the family-emails-list intentionally has a broad `^.*@familyfund\\.com.*$` pattern (since the family owns that domain). So *any* `@familyfund.com` address \u2014 including the system `no-reply@` \u2014 matches, even though no real person is exposed.\n\n**To fix purely for clean demo videos:** change to `no-reply@dev.familyfund.local` in `app1/family-fund-app/.env` (and `.env.dev` to survive an `.env.dev \u2192 .env` symlink rebuild). No DB or code change, no restart needed for new mail (Laravel reads it per-request via `config()`); the /emails Configuration card will render the new value on next refresh. Want me to do that?"
+      },
+      {
+        "role": "user",
+        "text": "The family fund is not a real domain, so we can use it for now. Actually, we should, uh, maybe put your family fund instead, so... or something more generic."
+      },
+      {
+        "role": "assistant",
+        "text": "Done. /emails now renders `no-reply@yourfamilyfund.com` and matches `0` against the family-emails-list. The full dev surface (`/accounts`, `/people`, `/persons`, `/users`, `/emails`) is now at 0 family-list matches.\n\nChange is in `app1/family-fund-app/.env.dev:50` (and `.env` follows via symlink). `.env*` is gitignored \u2014 local-only, no commit needed."
+      },
+      {
+        "role": "user",
+        "text": "What are all the scripts that anonymize what use FamilyFund dot com? Can you search in the codebase and replace by your family fund?"
+      },
+      {
+        "role": "assistant",
+        "text": "Here's what I found. There are no anonymization *scripts* that use `familyfund.com` \u2014 the actual scrub code uses `@dev.familyfund.local` for synthetic addresses, and the only `familyfund.local` references in code are the dstrader service-user (unrelated, different domain).\n\nThe full `familyfund.com` surface in the codebase (including gitignored files):\n\n| File | Line | Status |\n|---|---|---|\n| `app1/family-fund-app/.env.dev` | 50 | \u2705 already changed to `yourfamilyfund.com` |\n| `app1/family-fund-app/.env.stage` | 47 | \u26a0\ufe0f stage env \u2014 not changed (brief: \"dev only\") |\n| `database/dev/familyfund_dev_data_20260419.sql` | 8 person rows | \u26a0\ufe0f raw PII data dump \u2014 should NOT be string-replaced |\n| `app1/family-fund-app/.env.example` | 55 | already `hello@example.com` (clean) |\n| `docs/INTEGRATIONS.md`, `docs/runbooks/ff-service-token-rotation.md`, `app1/family-fund-app/config/familyfund.php` | service user | `familyfund.local`, not `.com` \u2014 unrelated |\n\n**Two are real decisions, not blind replaces:**\n\n1. **`.env.stage:47`** \u2014 also uses `no-reply@familyfund.com`. If you want stage's MAIL_FROM to match dev, I can change it; but the brief said dev-only and stage MAIL_FROM affects real outbound stage mail headers, so I held off.\n\n2. **`database/dev/familyfund_dev_data_20260419.sql`** \u2014 this is the 2.3 MB *raw prod data dump* used to seed dev (per SETUP.md:37). It contains real first/last names (Laura, Togni, etc.) alongside the 27 family-email matches. The correct flow is: load this file \u2192 run `prod_to_dev.sql` to scrub. **Doing a string-replace inside this file would only mask emails while leaving the real names intact, giving false confidence.** The right fix is the one already shipped (f5144a9e) \u2014 prod-to-dev.sh now fully scrubs the DB after loading, including the latent password_resets abort that was the root cause. Better options for this file: (a) leave alone and trust the now-working scrub, (b) delete it and re-pull from backup only when needed, or (c) replace it with a synthetic seed."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Change to yourfamilyfund.com (match dev), Also string-replace inside it"
+  }
+}

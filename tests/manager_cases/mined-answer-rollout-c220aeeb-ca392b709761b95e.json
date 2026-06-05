@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-c220aeeb-ca392b709761b95e",
+  "sig": "answer:rollout-c220aeeb:ca392b709761b95e",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from c220aeeb-1ff6-4d18-91c9-3d870ae06b40.jsonl turn #297",
+  "input": {
+    "action": {
+      "session_id": "rollout-c220aeeb",
+      "repo": "familyfund-secrets",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/familyfund-secrets",
+      "question": "How to handle the 23 vs ~97 emails discrepancy before running the SOP audit?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Jg3TR7M5ak8ma7WPfc4H5c",
+        "description": "",
+        "questions": [
+          {
+            "question": "How to handle the 23 vs ~97 emails discrepancy before running the SOP audit?",
+            "header": "Emails delta",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Ship it \u2014 trust FF#66's purge for the historical 74",
+                "description": "Treat the 23 current addresses as the gate. Rationale: #66 already scrubbed the original ~97 from repo history; this file is the forward-looking belt-and-braces. The relaxed rollback stance (archive/re-publish) covers the residual risk. Unblocks SOP audit immediately."
+              },
+              {
+                "label": "Recover the original ~97 from #66's purge artifacts before proceeding",
+                "description": "Check FF#66 closed-ticket artifacts (familyfund-repo-backups, redaction-map) for the original list, merge with the 23 current ones into the file. Safer but adds delay \u2014 requires finding/reading the purge artifacts."
+              },
+              {
+                "label": "Re-verify against fresh prod (or fresher backup) before deciding",
+                "description": "May 22 dump is 8 days old. Either pull a fresh dump from spirit, or query the running prod DB if reachable. Resolves option (c) but not (a) or (b). Adds a step before the SOP can run."
+              },
+              {
+                "label": "Investigate the ~97 figure first \u2014 is it real?",
+                "description": "Look at FF#66's ticket history and any incident notes to confirm the ~97 number isn't an exaggeration. Quick research before committing to recover-vs-ship."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Session 5 is alive and running \u2014 it's been working on the brief for ~5 minutes already. Here's what's confusing the picker view:\n\nThe titles got auto-prefixed by the rename convention:\n- Session 5 shows up as **`[AH] oneoff-mini-session-skills`** (not just `oneoff-mini-session-skills`)\n- Session 1 shows up as **`[FS.mini] oneoff-mini-ff-emails`**\n\nCurrent state from the cloud:\n\n| # | Title in picker | cse_id | Worker | Last activity |\n|---|---|---|---|---|\n| 1 | `[FS.mini] oneoff-mini-ff-emails` | `cse_01GE44cnhzmr7tUZsCreKwJo` | **running** | 23:46Z |\n| 5 | `[AH] oneoff-mini-session-skills` | `cse_014sbGQLV2UyvcbQ1yb8RAq3` | **running** | 23:50Z |\n\nBoth processes are alive (pids 32414 + 33011), both `worker=running` (= actively thinking / using tools), both connected.\n\nIf the picker still doesn't show #5 even with the `[AH]` prefix, force a refresh \u2014 sometimes the app caches the list. The cloud has it, so it'll appear on next fetch.\n\nWant me to ping either worker (e.g. \"status?\") so they spit an interim update, or just let them run to completion and reply on their own?"
+      },
+      {
+        "role": "user",
+        "text": "lets keep todos for reviewing/updating the sessions we started. What is next"
+      },
+      {
+        "role": "assistant",
+        "text": "## Board\n\n```\n#1 in_progress  FF emails extraction              \u2190 oneoff-mini-ff-emails running\n#5 in_progress  AH session-skills uplift           \u2190 oneoff-mini-session-skills running\n#6 blocked-by 1 Review FF emails worker reply\n#7 blocked-by 5 Review session-skills PR\n#2 blocked-by 1 FF SOP Steps 0-5 audit\n#3 blocked-by 2 Create FamilyFund-public + first sync\n#4 blocked-by 3 Post-sync hardening (#54 + #11 + Secret Scanning)\n```\n\n## What's next \u2014 depends on which worker replies first\n\n**If #1 (FF emails) lands first** \u2192 I'll review it (#6), and if clean, immediately dispatch a third worker for the FF SOP audit (#2). Roughly: stream `gitleaks --all` + grep sweep + workflow diff + file inventory, dump reports into `~/repo-backups/sync/2026-05-30-FamilyFund/`, send-to-session the verdict (PASS / list of findings). The 24-hour human review window (SOP Step 5) means even if Steps 0-4 pass tonight, Step 6 push waits at least 24h.\n\n**If #5 (session-skills PR) lands first** \u2192 I review the diff with you (#7). The proposed `--prompt` flag is the highest-value change; everything else is polish. If approved + merged, the next FF SOP-audit worker dispatch becomes a one-liner instead of the polling dance we did tonight.\n\n**Either way, while we wait** there are two productive options:"
+      },
+      {
+        "role": "assistant",
+        "text": "Worker replied with a clean result + 4 anomalies worth your attention. Let me verify the file then update the board."
+      },
+      {
+        "role": "assistant",
+        "text": "File checks out:\n- Path: `~/dev/familyfund-secrets/configs/known-family-emails.txt` \u2705\n- Perms: `-rw-------` \u2705\n- Gitignored: `configs/.gitignore:5` matches \u2705\n- Git status: clean (not staged) \u2705\n- 28 lines total (16 pattern lines + headers), header dated 2026-05-30 + source dump filename \u2705"
+      },
+      {
+        "role": "assistant",
+        "text": "## Worker reply summary + the one thing that needs your call\n\nThe worker did good work but surfaced a real discrepancy you should weigh in on before we proceed to the SOP audit.\n\n**Captured: 23 distinct real emails** (14 gmail individuals + 1 hotmail + 8 `@familyfund.com` collapsed into one broad pattern \u2192 16 pattern lines).\n\n**The flag:** FF#66's round-1 leak was described as \"~97 real family-member emails.\" Today's prod dump (May 22) has 23. Worker's three hypotheses:\n- (a) the ~97 figure included historical exports / wasn't just the live `users` table\n- (b) prod was post-incident-pruned\n- (c) the May 22 dump predates additions\n\n**Why this matters for the gate:** the SOP Step-2 grep with this file catches *current* emails appearing in repo content. If the 74-address delta is \"addresses that once existed in prod but were deleted before May 22,\" then `FamilyFund#66`'s history purge is supposed to have already scrubbed those from the repo's history. So a current-only list is sufficient *only if you trust #66's purge was complete.*\n\n**Three other anomalies (informational):**\n- `persons` table carries 8 real emails NOT in `users` \u2192 orphan legacy column; included in the 23\n- `operation_logs` table has 1 real gmail in audit captures \u2192 active leak channel\n- No synthetic emails in prod (seeds run only in lower envs)"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Ship it \u2014 trust FF#66's purge for the historical 74"
+  }
+}

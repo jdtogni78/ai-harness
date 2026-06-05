@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-003056d4-58c8c61c027b4308",
+  "sig": "answer:rollout-003056d4:58c8c61c027b4308",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 003056d4-0b85-4b77-be98-2c8c05c7d0e9.jsonl turn #44",
+  "input": {
+    "action": {
+      "session_id": "rollout-003056d4",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01X3pwkmzXWuEmfBtyQNCv5V",
+      "question": "What should the runner / eval CLI be?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01PEHTs6DEhhVnV9zxKdL8gS",
+        "description": "",
+        "questions": [
+          {
+            "question": "What should the runner / eval CLI be?",
+            "header": "Runner shape",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "New subcommand: python -m remote_control eval ... (Recommended)",
+                "description": "eval run / eval compare / eval show. Lives next to the existing manager CLI, same module, same config plumbing. Easy to call from Makefile or CI later."
+              },
+              {
+                "label": "Standalone script: scripts/eval_manager.py",
+                "description": "Separate file, imports from remote_control. Lighter coupling to the package. Loses the shared config/argparse infra."
+              },
+              {
+                "label": "Pytest-driven: tests/test_guidelines.py with the corpus as parametrized cases",
+                "description": "Reuses pytest reporting and CI integration for free. Downside: pytest is awkward for 'run and just print scores' and for A/B comparing two guideline files in one invocation."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I had some thoughts about, um, the next steps for the manager. I think I want to, uh, be able to have a test infrastructure to test if the guidelines are doing better. So first, we have to make sure we collect the sessions, analysis, recommendation, and expected recommendation, which is very similar to what we have on the UI, but we have to extend the and add the button to record as a test case, right, or something like that. And then we have to build the infrastructure such that we could have different guidelines and test the the success rate of different guidelines. Please plan it and share the plan."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll explore the manager/manager-ui code to understand what exists today, then come back with a plan."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me look at a couple of pivot points (the analyze path and the UI card) to ground specific line refs in the plan."
+      },
+      {
+        "role": "assistant",
+        "text": "# Plan: Guideline regression-test harness for the session manager\n\n## Goal\nEvaluate whether a change to `docs/session-manager-cases.md` (or the prompts that consume it) improves the manager's recommendations on real situations we've seen, with stratified scoring per case kind (A waiting-Q, B idle, C broken, D limit-paused, E running).\n\n## What a \"test case\" is\nA self-contained snapshot \u2014 no live disk dependency \u2014 with these fields:\n\n```jsonc\n{\n  \"id\": \"cse_abc...-q7f3\",            // case_id (action_sig at capture time)\n  \"captured_at\": \"2026-05-26T...\",\n  \"captured_by\": \"manager-ui\",\n  \"tags\": [\"A-waiting-q\", \"ANSWER\", \"managed\"],\n  \"notes\": \"user free-text\",\n  \"input\": {                          // everything analyze_action() needs\n    \"action\": { ...Action._asdict() }, // kind, reason, repo, title, fresh, managed\n    \"questions\": [ {...} ],            // RequiredAction.questions snapshot\n    \"transcript_tail\": [               // last_messages() output, frozen\n      {\"role\":\"assistant\",\"text\":\"...\"},\n      {\"role\":\"user\",\"text\":\"...\"}\n    ],\n    \"session_meta\": {                  // for \"now-relative\" stuff\n      \"idle_secs\": 1834, \"status\": \"...\", \"limit_text\": \"...\"\n    }\n  },\n  \"actual_at_capture\": {               // what the current run produced\n    \"rec_manager\": \"...\", \"rec_session\": \"...\", \"analysis\": \"...\"\n  },\n  \"expected\": {                        // editable by reviewer\n    \"rec_manager\": \"...\",\n    \"rec_session\": \"...\",\n    \"must_contain\": [\"fork\", \"auth\"],  // optional cheap-check substrings\n    \"must_not_contain\": [\"archive\"],\n    \"preferred_option_label\": \"Yes\"    // for ANSWER cases (option-match score)\n  }\n}\n```\n\nStorage: `tests/manager_cases/<case_id>.json` (committed \u2014 these are review artifacts, not logs). New directory; `dump_scenario()` at `manager.py:932` already does a sibling thing for the questions-only payload, so reuse the slugify logic.\n\n## Phase 1 \u2014 Capture in the UI\n\n**Backend** (`remote_control/manager_ui.py`):\n- New `POST /api/test_case` \u2192 `api_save_test_case(cfg, payload)`. Payload: `{session_id, expected_*, tags, notes}`. The handler rebuilds the snapshot by re-fetching the cached analysis from `state[\"sessions\"][sid]` (already there) and freezing the current transcript tail via `last_messages()`.\n- Refactor `analyze_action` (`manager.py:407`) to take `transcript_tail` as an optional param \u2014 today it implicitly reads from disk via the prompt builder. This is the key extraction that makes everything else testable; ~30 lines, low risk.\n\n**Frontend** (same file \u2014 the inlined HTML/JS):\n- Add a \"Save as test case\" button next to the existing thumbs-up/feedback button (around `manager_ui.py:659`). Opens a small inline editor with: expected_manager (prefilled from current `rec_manager`), expected_session (prefilled), tags multi-select (case kinds), notes.\n- \"Default expected = current rec\" supports the easy path \"this one was right, lock it in.\" The editor lets you correct rather than only thumbs-up \u2014 important because the corpus is what we're optimizing against, so corrections must be possible at capture time.\n\n**Why a button vs. promoting all `feedback` entries:** feedback is signal-noisy (\"yeah good\", \"no\"). A test case is a contract \u2014 input + expected output \u2014 and needs the reviewer to confirm the expected, not just react.\n\n## Phase 2 \u2014 Offline runner\n\nNew module `remote_control/eval.py` + CLI subcommand:\n\n```\npython -m remote_control eval run [--guidelines docs/session-manager-cases.md] [--out out/eval/<hash>/]\npython -m remote_control eval compare --baseline <hash-A> --candidate <hash-B>\npython -m remote_control eval show <case_id>\n```\n\n- Loads all `tests/manager_cases/*.json`, reconstructs the `Action`, calls the refactored `analyze_action(...)` with the snapshotted transcript_tail injected. Writes per-case `out/eval/<guidelines-hash>/<case_id>.json` with `{actual_rec_manager, actual_rec_session, actual_analysis, scores}`.\n- `<guidelines-hash>` is sha256 of the guidelines file so runs are content-addressed and cacheable.\n- Concurrency: run cases in a thread pool, default n=4 (each is a `claude -p` subprocess).\n\n## Phase 3 \u2014 Scoring (two tiers)\n\n**Cheap structural checks** (always run, free):\n- `must_contain` / `must_not_contain` substring match on the actual rec.\n- For ANSWER cases with `preferred_option_label`: parse the actual `rec_session` for the chosen option string. Yes/no match.\n- Sentinel-keyword score per case kind (e.g. case D must mention `resume`).\n\n**LLM judge** (opt-in, `--judge`, $$$):\n- One `claude -p` per case with `(input, expected, actual)` \u2192 JSON `{score: 1-5, verdict: equivalent|better|worse, reason: \"...\"}`.\n- Cache by `(case_id, guidelines_hash, sha256(actual))` so re-runs are free.\n- Non-determinism: sample n=3 (configurable), report mean+stdev.\n\nAggregate: per case-kind table + overall. A run is a \"regression\" if any case drops \u22651 point or flips equivalent\u2192worse vs. baseline.\n\n## Phase 4 \u2014 Wiring\n\n- `Makefile` (or `scripts/`): `make eval-baseline`, `make eval-pr` (runs against current `docs/session-manager-cases.md`, diffs vs. the committed baseline hash).\n- `tests/test_manager_eval.py`: unit-test the runner/scoring logic against 2-3 hand-crafted cases (no LLM \u2014 uses a `analyze_action` fake).\n- Optional later: GH Action that posts the diff as a PR comment when `docs/session-manager-cases.md` or `manager.py` prompts change.\n\n## Phasing (smallest-first)\n\n1. **Refactor `analyze_action` to accept `transcript_tail`** (\u224830 LOC). No behavior change. Land first, has its own tests.\n2. **Capture UI + `/api/test_case` + storage format** \u2192 start collecting cases manually for 1-2 weeks. No runner yet. Get ~20 real cases.\n3. **Runner + structural scoring**. Run against current guidelines to set baseline.\n4. **LLM judge + compare command**. First real A/B: try one guideline tweak, see if score moves.\n5. **CI wiring**.\n\nStop after step 2 if the corpus turns out to be thin; the runner is wasted without coverage.\n\n## Decisions to flag for you\n\n- **Expected = editable on capture, or thumbs-up only?** I'd do editable \u2014 corrections are the whole point. (Plan assumes this.)\n- **Corpus in repo (`tests/manager_cases/`) vs. `logs/`?** I'd do in repo: reviewable, durable, diffable. ~5 KB/case so 200 cases is still 1 MB. (Plan assumes this.)\n- **Snapshot the transcript tail at capture, or store only session_id?** Snapshot \u2014 sessions get archived, and we want the test to keep working. (Plan assumes this.)\n- **Should the `expected` include the executor action too** (i.e., what `execute_manager_rec` would do), or only the recommendation text? Recommendation only for v1; executor-action scoring is a follow-up because it requires faking the live API.\n- **One open question I don't have a strong answer to:** how to keep the corpus from skewing to oddities. Worth seeding with 5-10 deliberately-boring \"happy path\" cases (idle session \u2192 defer; running session \u2192 skip) so a guideline change that breaks the common path can't sneak through.\n\nIf this shape looks right I can break it into ai-harness#2 board tickets (one per phase)."
+      },
+      {
+        "role": "user",
+        "text": "Ask those questions iteratively because, um, I'm driving right now. The second thing is, um, the test infrastructure, the... to prove that the guidelines are better or worse, we will have to use AI to to compare the recommendation and expected recommendation. Right? Make sure that is baked in."
+      },
+      {
+        "role": "assistant",
+        "text": "Got it \u2014 LLM judge is baked in as the primary scorer, not opt-in. I'll ask the decisions one at a time."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "New subcommand: python -m remote_control eval ... (Recommended)"
+  }
+}

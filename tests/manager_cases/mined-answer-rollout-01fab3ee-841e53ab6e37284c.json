@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-01fab3ee-841e53ab6e37284c",
+  "sig": "answer:rollout-01fab3ee:841e53ab6e37284c",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 01fab3ee-0121-4e1b-a3a0-37a03ea213cf.jsonl turn #57",
+  "input": {
+    "action": {
+      "session_id": "rollout-01fab3ee",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01WVA8Jq7nfweaodLWBqd19w",
+      "question": "How should the trigger reach the remote host?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_0176hcwxNsH2vdqsinL3RHnE",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the trigger reach the remote host?",
+            "header": "Mechanism",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "SSH (Recommended)",
+                "description": "Skill SSHes mini\u2192note (or vice versa) and runs `python3 -m remote_control work start --go ...` over there. Reuses the existing local trigger primitive verbatim. Needs `ssh note` / `ssh mini` aliases \u2014 your ssh config currently has neither, so step 1 is adding them."
+              },
+              {
+                "label": "Cloud sessions API",
+                "description": "Hit `/v1/code/sessions` directly to create a new cse_ session bound to a server published by the other host's supervisor. Produces a real desktop-visible session \u2014 but I'd need to confirm the API actually allows creating-and-bonding to a specific server (today list-sessions only reads)."
+              },
+              {
+                "label": "LAN HTTP on supervisor",
+                "description": "Expose a tiny HTTP trigger endpoint on each supervisor, listening on the LAN (not just loopback). Largest blast radius (a new always-on listener), and the LAN posture isn't established for the rest of the stack \u2014 would set a precedent."
+              }
+            ]
+          },
+          {
+            "question": "What should land on the remote host when triggered?",
+            "header": "What runs",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Headless `claude -p` run (Recommended)",
+                "description": "Exactly what `work start --engine claude --go` already spawns: a one-shot `claude -p --permission-mode acceptEdits \"<prompt>\"` in the target repo. No desktop-visible cse_ session; output goes to a log file under LOGDIR/work-start. Matches the existing primitive \u2014 least surface area."
+              },
+              {
+                "label": "A new cse_ session visible in the desktop app",
+                "description": "Land the trigger as a real resumable Claude Code session in one of the target host's `claude remote-control` server slots, so you can pick it up by hand later in the desktop app. More integrated with your normal workflow, but the creation path is unproven \u2014 may need API spelunking."
+              },
+              {
+                "label": "Codex (`codex exec`) instead of Claude",
+                "description": "Use the Codex engine on the remote side. Useful if the trigger is heavy enough that you want Codex's longer runway over Claude's headless mode."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I want to create a skill that, um, now that I'm running the remote control on different machines, uh, one remote control on one machine could actually trigger the remote control, trigger a session on the other machine. So how could we make a skill that enables the mini to trigger a note machine, a note session?"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me look at the current remote-control setup to understand what's there before proposing."
+      },
+      {
+        "role": "assistant",
+        "text": "The `work start` subcommand looks like exactly the trigger primitive. Let me see what it does and whether it has a cross-host story."
+      },
+      {
+        "role": "assistant",
+        "text": "Good context. Two key design forks before I write this \u2014 they change the skill substantially."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "trigger cloude session using the remote env, A new cse_ session visible in the desktop app"
+  }
+}

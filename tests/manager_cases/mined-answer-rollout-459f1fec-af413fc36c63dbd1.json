@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-459f1fec-af413fc36c63dbd1",
+  "sig": "answer:rollout-459f1fec:af413fc36c63dbd1",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 459f1fec-e26b-4c3c-99d0-4b85fd00ac40.jsonl turn #265",
+  "input": {
+    "action": {
+      "session_id": "rollout-459f1fec",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01AR6eAaTtitjTLsypSCiF8N",
+      "question": "close-work + resume-work currently only release/sweep the DEV pool (pool.sh), never the TEST pool (testpool.sh) \u2014 so test slots leak on close. Fix that parity before closing?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_013j94rygAATcPeUEnciDwf5",
+        "description": "",
+        "questions": [
+          {
+            "question": "close-work + resume-work currently only release/sweep the DEV pool (pool.sh), never the TEST pool (testpool.sh) \u2014 so test slots leak on close. Fix that parity before closing?",
+            "header": "Test-pool parity",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, add testpool to both",
+                "description": "Add testpool.sh release to close-work and the testpool zombie/orphan sweep to resume-work, then close. A behavioral change to two shared skills."
+              },
+              {
+                "label": "No, just the doc fix",
+                "description": "Keep only the slot-count doc fixes already made; close the thread now. I'll note the gap as a follow-up issue if you want."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Done. Here's the complete picture of this session.\n\n## What got done\n\n**1. Reviewed test + dev slots and reclaimed the unused one**\n- Cross-checked every leased slot against *agent liveness*, not just container/worktree existence (which is all `gc` checks).\n- Found **pool0** stale: its codex `acl-impersonation` session had been idle ~2 days with no live process. Released it (with your confirmation). It's since been re-leased by a live Claude session \u2014 back in productive use.\n- All three test-slot holders were live, connected sessions \u2192 left alone. No stale Claude session existed.\n\n**2. Reviewed active Claude sessions** \u2014 7 live, all `running`+`connected` on macmini. Surfaced the real bottleneck: **6 FamilyFund agents vs. only 3 test slots**.\n\n**3. Added 2 test slots** \u2014 `test3` (3013) / `test4` (3014). Both were claimed within minutes by the previously slot-starved #78 and #81 sessions \u2014 contention relief confirmed live.\n\n**4. Vendored the pool code into ai-harness** (your \"should be in ai-harness\"):\n- `scripts/pool/{pool.sh,testpool.sh,link.sh,README.md}` \u2014 repo is now the source of truth.\n- Committed \u2192 merged to `main` (merge `b15d6cc`) \u2192 ran `link.sh`: `~/.familyfund-pool/{pool,testpool}.sh` are now symlinks into the repo (originals backed up to `*.bak.<ts>`).\n- Runtime state (`*.tsv`, locks, `testdb/`, `warm/`) stays in `~/.familyfund-pool/` \u2014 only code moved.\n- Fixed the now-stale `test-env` skill doc (3\u21925 slots), committed on `main` (`5b692c8`).\n- Saved a memory so future sessions edit the repo copy, not the symlinked path.\n\n## Important note on `gc` vs. what you actually wanted\nNeither `pool.sh gc` nor `testpool.sh gc` reclaims by **agent liveness** \u2014 they only catch a slot whose *worktree is gone or container is absent*. A slot held by a cleanly-dead session (worktree + idle container still present, like pool0 was) slips past `gc`. That gap is currently a manual check (the kind I just did, or the `resume-work` zombie sweep). If you want, I could add a `testpool.sh/pool.sh gc --agents` mode that joins the lease table against the Claude `sessions` API + `~/.codex` rollouts to auto-reclaim dead-agent slots \u2014 but that's a real feature, not a one-liner.\n\n## One open item\nLocal `main` is now **3 commits ahead of `origin/main`** (the merge wasn't pushed \u2014 you said \"commit + merge + activate\", not push). The other Mac (macbook) won't see the vendored scripts until it's pushed + pulled there. **Want me to push to origin?**"
+      },
+      {
+        "role": "user",
+        "text": "Yeah. Let's also add that to the other skills and then close thread after."
+      },
+      {
+        "role": "assistant",
+        "text": "On it \u2014 push to origin, and let me find what the other skills say about the pools so I can sync them."
+      },
+      {
+        "role": "assistant",
+        "text": "Pushed \u2014 `main` is in sync with origin. Now let me see exactly what the other 4 files say about the pools, to know what needs syncing."
+      },
+      {
+        "role": "assistant",
+        "text": "Push is in. Now the slot-count sync. Here's what I found across the other 4 files:\n\n- **`skills/README.md:21`** \u2014 \"test slot (**test0..test2**)\" \u2192 **stale**, needs the 3\u21925 fix (the direct analog of \"that\").\n- **`lease-env`** \u2014 all about the *dev* pool (6 slots `pool0..pool5`), count **unchanged and correct** \u2014 nothing to fix.\n- **`resume-work` / `close-work`** \u2014 reference `pool.sh` generically (no hardcoded test count), but I noticed a **functional gap**: both only release/sweep the **dev** pool (`pool.sh`). Neither touches the **test** pool (`testpool.sh`) \u2014 so a bridge worktree that leased a test slot leaks it on close. That directly undercuts the slot-reclamation goal of this whole session.\n\nLet me fix the unambiguous doc-count first:"
+      },
+      {
+        "role": "assistant",
+        "text": "Doc-count fixed in `skills/README.md`. Before I close the thread, one scope decision on that functional gap I flagged:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Yes, add testpool to both"
+  }
+}

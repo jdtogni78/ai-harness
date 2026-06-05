@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-af8ccd95-190bb7d6d007fd27",
+  "sig": "answer:rollout-af8ccd95:190bb7d6d007fd27",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from af8ccd95-1839-48fe-912d-d78959288340.jsonl turn #22",
+  "input": {
+    "action": {
+      "session_id": "rollout-af8ccd95",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "What session naming convention should I use? (your example was \"mm-family-fund\" for FamilyFund)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01TsSG39TsqnDth9rZJfHAuL",
+        "description": "",
+        "questions": [
+          {
+            "question": "What session naming convention should I use? (your example was \"mm-family-fund\" for FamilyFund)",
+            "header": "Naming",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "mm-<kebab-dir>",
+                "description": "FamilyFund\u2192mm-family-fund, dstrader\u2192mm-dstrader, dev\u2192mm-dev. Matches your example."
+              },
+              {
+                "label": "<dir> as-is",
+                "description": "FamilyFund, dstrader, fin-export, dev. No prefix."
+              },
+              {
+                "label": "mm-<dir> as-is",
+                "description": "mm-FamilyFund, mm-dstrader, mm-dev. Prefix but keep original casing."
+              }
+            ]
+          },
+          {
+            "question": "Permission mode for the remotely-spawned sessions?",
+            "header": "Permissions",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "default",
+                "description": "Prompts for approval; you approve from phone/browser. Safest for unattended startup."
+              },
+              {
+                "label": "acceptEdits",
+                "description": "Auto-accepts file edits, still prompts for other actions."
+              },
+              {
+                "label": "dontAsk",
+                "description": "Minimal prompting. Convenient but riskier for unattended servers."
+              },
+              {
+                "label": "bypassPermissions",
+                "description": "No prompts at all. Most convenient, least safe."
+              }
+            ]
+          },
+          {
+            "question": "How should the startup job behave over time?",
+            "header": "Restart mode",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Self-healing (recommended)",
+                "description": "Runs at login + re-checks every 5 min: restarts any crashed server and auto-picks up newly added dirs under dev."
+              },
+              {
+                "label": "Login only (one-shot)",
+                "description": "Launches all 5 once at login. No auto-restart if one crashes; new dirs need re-login."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "claude remote-control --name \"mm-family-fund\" --spawn worktree\n\nI want to make claude remote run as the mac starts for each dir under dev, and one run under dev itself"
+      },
+      {
+        "role": "assistant",
+        "text": "Everything checks out. `claude remote-control` is a persistent server; you want 5 of them at startup:\n\n- 4 git repos (`FamilyFund`, `dstrader`, `dstrader-docker`, `fin-export`) \u2192 can use `--spawn worktree`\n- `/Users/claudio1/dev` itself is **not** a git repo, so it can't use `worktree` \u2014 I'll use `--spawn same-dir` for that one.\n\nA few choices before I build the LaunchAgent:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "mm-<dir> as-is, acceptEdits, Self-healing (recommended)"
+  }
+}

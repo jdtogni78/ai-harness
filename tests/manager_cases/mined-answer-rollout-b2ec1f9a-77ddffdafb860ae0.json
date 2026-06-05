@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b2ec1f9a-77ddffdafb860ae0",
+  "sig": "answer:rollout-b2ec1f9a:77ddffdafb860ae0",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b2ec1f9a-57e6-48f5-ad57-30cfc5dc815d.jsonl turn #21",
+  "input": {
+    "action": {
+      "session_id": "rollout-b2ec1f9a",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control",
+      "question": "What do you mean by \"restore prev server\"?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01KLhzDWUs9B7noZi2h7KkJw",
+        "description": "",
+        "questions": [
+          {
+            "question": "What do you mean by \"restore prev server\"?",
+            "header": "Goal",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Reconnect old session",
+                "description": "A remote-control server (e.g. mm-FamilyFund) restarted or crashed and you want to get back the previous Claude conversation/session it was running."
+              },
+              {
+                "label": "Restart a stopped server",
+                "description": "One of the per-dir servers is no longer running and you want it back up (independent of conversation history)."
+              },
+              {
+                "label": "Roll back config",
+                "description": "Revert the startup script / plist to a previous version that worked before recent changes."
+              },
+              {
+                "label": "Recover crashed work",
+                "description": "A session was interrupted mid-task and you want to rescue/resume the uncommitted work it was doing."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "is there a way to restore prev server?"
+      },
+      {
+        "role": "assistant",
+        "text": "Your question could mean a couple of different things. Let me clarify before I dig in:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Reconnect old session"
+  }
+}

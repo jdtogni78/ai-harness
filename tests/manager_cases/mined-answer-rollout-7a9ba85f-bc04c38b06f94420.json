@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-7a9ba85f-bc04c38b06f94420",
+  "sig": "answer:rollout-7a9ba85f:bc04c38b06f94420",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 7a9ba85f-b0b8-47b4-bcdb-e0a24b34855b.jsonl turn #114",
+  "input": {
+    "action": {
+      "session_id": "rollout-7a9ba85f",
+      "repo": "dstrader-docker",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/dstrader-docker",
+      "question": "What should I do with the uncommitted in-place PROD-CUTOVER-RUNBOOK.md in the worktree?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01NqKjsh9VenUcvU1nWDvF82",
+        "description": "",
+        "questions": [
+          {
+            "question": "What should I do with the uncommitted in-place PROD-CUTOVER-RUNBOOK.md in the worktree?",
+            "header": "Runbook",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Discard it",
+                "description": "Delete the file from the worktree \u2014 the #18 comment is now the source of truth, and the new sub-tickets will spawn proper runbooks under the stage-mirror pattern."
+              },
+              {
+                "label": "Rewrite under new pattern + commit",
+                "description": "Rewrite the 220-line runbook end-to-end to follow stage-mirror-then-decom, commit to main now."
+              },
+              {
+                "label": "Leave it in the worktree",
+                "description": "Don't touch it; you'll decide later. Worktree stays as-is."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Posted: #36 comment.\n\ncheck the ticket for FF stage and lets have a similar plan / we would do together"
+      },
+      {
+        "role": "assistant",
+        "text": "Read FF #36 + your stage-mirror-then-decom comment. The pivot mirrors well here \u2014 dstrader actually already has a paper-trading profile, which makes the parallel-run window almost free. Drafted the equivalent plan-change comment for `dstrader-aws#18` below. Review it; I'll post once you ack.\n\n---\n\n## Draft comment for `dstrader-aws#18`\n\n> ## \ud83d\udd04 Plan change (2026-05-26): stage-mirror-then-decom instead of in-place prod cutover\n>\n> Mirroring FamilyFund #36's pivot. The current draft `docs/security/PROD-CUTOVER-RUNBOOK.md` (in worktree `bridge-cse_01YNBzaec8QHhqgG4qpSv65K`, not yet committed) follows the in-place pattern \u2014 Phase 3b flips the live prod compose service to `SECRETS_BACKEND=sops`, Phase 4 re-clones the prod host from the new origin. Replacing that with:\n>\n> 0. **Full prod backup first** \u2014 DB dump (FamilyFund DB on spirit), `~/.gnupg` keyring, all `*.encr` property files, current `docker-compose.{yml,prod.yml}` rendered values, `/var/log/dstrader/prod/` snapshot, current `start_dstrader.sh` + cron entry, the existing `$DSTRADER_ROOT/dstrader-docker` checkout (still on dirty origin). Stored offline, not on `spirit`. Rollback floor for everything below.\n> 1. **Stand up a fresh stage-mirror stack on `spirit`** from the new clean origin (`jdtogni78/dstrader-docker`), separate compose project name, separate paths, **paper-trading mode** (port 4002 \u2014 existing stage profile). Same Dockerfile as prod.\n>    - **Filesystem isolation is mandatory** (same host as live prod). Namespace every host path: bind mounts, named volumes, log dirs, backup dirs, VNC port, MariaDB volume. Targets to audit on `spirit`: the dstrader checkout dir, MariaDB data volume, `/var/log/dstrader/{prod,stage-mirror}/`, `~/familyfund_db_backups/`, VNC display number, `~/.config/sops/age/` (shared read-only is fine), `~/.gnupg` (old stack only).\n> 2. **No prod DB restore needed** \u2014 dstrader's state-of-record is at IB. Local \"state\" is portfolios JSON (tracked in git), encrypted property files (will be re-encrypted under SOPS for the new stack), and run-log history (no need to carry forward). FamilyFund DB stays with FamilyFund's own cutover.\n> 3. **Fresh `secrets/{stage,prod}/*.sops`** under the spirit age recipient. New stack is born on SOPS+age; **old stack stays on GPG** until decom \u2014 no flip on the live service. The IB credential used here is the rotated, least-privileged user from #10 + #12 (the standup *is* the rotation).\n> 4. **Parallel-run window \u2014 both stacks run, N days.** Old prod cron keeps driving live trading on the old stack/old origin. New stack runs **paper-mode** daily on an offset schedule (e.g. +30min) or via manual `start_dstrader.sh restart stage`; verify: SOPS decrypt clean, auto-login isUp, runtime_dlgs healthy, strategy outputs match prod's portfolios, paper orders shape-match what prod placed live. Defines \"100% working.\"\n> 5. **Cutover:** take another fresh prod backup \u2192 pause prod cron \u2192 final GPG-mode prod run completes \u2192 swap cron entry to the new stack's `start_dstrader.sh restart prod` path \u2192 first live SOPS+age run on the new stack \u2192 verify a green scheduled run.\n> 6. **Decom old stack:** stop old containers, retain a final logs+state snapshot offline (in addition to Step 0), revoke the old GPG passphrase / drop `~/.gnupg` bind mount, remove the old `$DSTRADER_ROOT/dstrader-docker` checkout (dirty-origin clone), archive image tag.\n>\n> ### Ticket impact\n> | # | New status | Why |\n> |---|---|---|\n> | **#7** age key on spirit | Unchanged | Still Phase 1 prereq; both stage-mirror + cutover need it. |\n> | **#10** rotate IB/mail creds \u2192 SOPS | **Folded into standup** | Rotation happens *as* the new stack is built (Step 3); no separate window. |\n> | **#11** cut prod over to SOPS, retire GPG | **Reframed** | No in-place flip. Becomes: the new stack is born on SOPS; GPG-retirement code drop (`docker-compose.yml` `~/.gnupg` mount, `dstrader.passphrase` plumbing, `gpg_decr`/`gpg_encr`, the `SECRETS_BACKEND=gpg` fallback) lands *after* decom in Step 6. |\n> | **#15** re-clone prod host from new origin | **Superseded** | No re-clone-in-place. The new stack *is* a fresh clone from the new origin in a separate path; cutover is a cron-entry swap, not a remote re-point. |\n> | **#12** IB least-priv user | Unchanged | The credential that gets vaulted in `secrets/prod/auto_login.properties.sops` is the restricted user from day one. |\n> | **#8** de-hardcode compose DB creds | \u2705 Closed | Already landed (commits `7b0b2c7`, `1afb6b9`). Epic body still shows Open \u2014 to fix. |\n> | **#16** flip visibility | **Unblocked sooner** | Hard gate is the final audit on the live remote, not the prod cutover. The flip can happen as soon as the audit signs off, independent of the stage-mirror work. |\n> | **#17** enable CodeQL post-flip | Unchanged | Still depends on #16. |\n>\n> ### New work to file (sub-tickets under this epic)\n> - [ ] **Pre-flight: full prod backup + verified restore drill** (Step 0; gates everything else)\n> - [ ] **Filesystem-isolation audit on `spirit`** \u2014 enumerate every host path the live prod stack touches; design `prod/` vs `stage-mirror/` namespacing; pick a distinct VNC display + container/volume name prefix; document in a runbook\n> - [ ] Stage-mirror compose project on `spirit` (separate project name, ports, container names, namespaced volumes/logs)\n> - [ ] `secrets/{stage,prod}/*.sops` built from rotated #10 outputs + #12 restricted user\n> - [ ] Parallel-run acceptance checklist (what \"100% working\" means: SOPS decrypt, login, runtime_dlgs, strategy parity vs prod, no log/IB-API regressions over N days)\n> - [ ] Cutover runbook: pre-cutover backup, last GPG-prod run, cron-entry swap, first SOPS-prod run\n> - [ ] Decom-old-stack runbook: stop, snapshot, revoke GPG, drop bind mount, archive image, delete old checkout\n> - [ ] GPG-retirement code drop PR (lands after Step 6 \u2014 drops `~/.gnupg` mount, `dstrader.passphrase`, `gpg_decr`/`gpg_encr`, `SECRETS_BACKEND=gpg` fallback)\n>\n> ### Hard gates before cutover (not before repo-public)\n> Stage-mirror work is independent of #16. The repo can go public as soon as the final audit on the live remote signs off (`HISTORY-AUDIT.md` \u00a73 grep + gitleaks `--all` \u2192 0 findings).\n>\n> ### Doc impact\n> The draft `docs/security/PROD-CUTOVER-RUNBOOK.md` (uncommitted, in worktree `bridge-cse_01YNBzaec8QHhqgG4qpSv65K`) was written under the in-place pattern. To rewrite under stage-mirror-then-decom before committing, or discard and re-draft from this comment.\n\n---\n\nTwo follow-ups for you:\n1. Want me to post this verbatim on [dstrader-aws#18](https://github.com/jdtogni78/dstrader-aws/issues/18), or edit first?\n2. For the uncommitted `PROD-CUTOVER-RUNBOOK.md` in the worktree \u2014 rewrite under the new pattern and commit, or discard?"
+      },
+      {
+        "role": "user",
+        "text": "go ahead"
+      },
+      {
+        "role": "assistant",
+        "text": "Posted: [#18 comment](https://github.com/jdtogni78/dstrader-aws/issues/18#issuecomment-4551432325).\n\nStill open from my earlier message \u2014 what to do with the uncommitted in-place [`PROD-CUTOVER-RUNBOOK.md`](.claude/worktrees/bridge-cse_01YNBzaec8QHhqgG4qpSv65K/docs/security/PROD-CUTOVER-RUNBOOK.md) in the worktree:"
+      },
+      {
+        "role": "assistant",
+        "text": "No response requested."
+      },
+      {
+        "role": "user",
+        "text": "retry"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Rewrite under new pattern + commit"
+  }
+}

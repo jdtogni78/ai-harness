@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-8e4f1e0f-97d15294038b8420",
+  "sig": "answer:rollout-8e4f1e0f:97d15294038b8420",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 8e4f1e0f-c7e1-49fb-a9d4-6aa0d5347886.jsonl turn #65",
+  "input": {
+    "action": {
+      "session_id": "rollout-8e4f1e0f",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_016jWuP6iX3tAvw16fRokLs5",
+      "question": "How should the per-row 'Register payment' action coexist with a new top-of-card 'Make payment' button?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_014yytGDxaBpXxvVWdRH88j1",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the per-row 'Register payment' action coexist with a new top-of-card 'Make payment' button?",
+            "header": "Per-row button",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Replace per-row entirely",
+                "description": "Remove the per-row 'Register payment' icon (the money-bill button on each row). Only one 'Make payment' button at the top, always oldest-first cascade. Edit/Delete per-row stays (for already-registered payments). Admin manual-split remains as override."
+              },
+              {
+                "label": "Keep per-row, exact-row only",
+                "description": "Top 'Make payment' button is the primary flow (oldest-first). Per-row button stays but is constrained to shares == row.shares_due (no overflow, no cascade) \u2014 it becomes a literal 'mark this row paid' shortcut."
+              },
+              {
+                "label": "Add top, keep per-row as-is",
+                "description": "Add the top 'Make payment' button (oldest-first) but leave per-row register-payment with its current target-first cascade behavior. Doesn't fix the screenshot's confusion if users keep clicking per-row."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Important finding \u2014 the default is already oldest-first. Let me check what the UI exposes so I understand which path produced the screenshot."
+      },
+      {
+        "role": "assistant",
+        "text": "Important context before I change anything \u2014 the default is already oldest-first.\n\nLooking at the code:\n- **General repayment** (`RepayService::repay`, AccountCreditLineControllerExt.php:475) \u2014 oldest-first cascade. \u2713\n- **Matcher-applied REPs** (`applyToSchedule`) \u2014 oldest-first cascade. \u2713\n- **Register payment against a specific row** (`RepayService::repayRow`, controller:538/640) \u2014 fills the **target row first**, then cascades overflow oldest-first. **This is what produced the screenshot**: payment #1215 (100 sh) was registered against row 6 (April) \u2192 row 6 filled (83.3333), overflow 16.6667 cascaded back to row 5.\n- **Admin manual re-allocate UI** (controller:833) \u2014 arbitrary per-row split (already an override mechanism).\n\nSo before I touch code, I need to confirm what you want, because \"default\" depends on which entry point you mean:"
+      },
+      {
+        "role": "user",
+        "text": "[Request interrupted by user]"
+      },
+      {
+        "role": "user",
+        "text": "maybe we should have a single pament bt on the top"
+      },
+      {
+        "role": "assistant",
+        "text": "Good call \u2014 that sidesteps the whole confusion. Let me look at the current per-row action partial and any existing \"make a payment\" UI before recommending a precise change."
+      },
+      {
+        "role": "assistant",
+        "text": "Quick clarification before I touch anything \u2014 the per-row register button exists specifically to settle *one* external installment. If we replace it with a single top button, that use case shifts to \"general repayment + admin manual-split if needed.\" I want to make sure that's the intent."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Replace per-row entirely"
+  }
+}

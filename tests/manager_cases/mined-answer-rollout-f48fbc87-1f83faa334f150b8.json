@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f48fbc87-1f83faa334f150b8",
+  "sig": "answer:rollout-f48fbc87:1f83faa334f150b8",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f48fbc87-69f2-435d-aeae-1cad21446e59.jsonl turn #861",
+  "input": {
+    "action": {
+      "session_id": "rollout-f48fbc87",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01H9L9XjemcbagSpDhnBZxye",
+      "question": "The remaining DB files are schema-only (PII-free). How should the 3 DDL schema snapshots be handled for the public repo?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01GW56RxbRNAzq8gzZ3WqnPg",
+        "description": "",
+        "questions": [
+          {
+            "question": "The remaining DB files are schema-only (PII-free). How should the 3 DDL schema snapshots be handled for the public repo?",
+            "header": "DDL dumps",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Drop the 2 dated, keep current",
+                "description": "Remove familyfund_ddl_20220806.sql + _20260110.sql (redundant dated schema dumps) via #36's path-purge; keep familyfund_ddl.sql as a convenience + the dump_ddl.sh generator. Recommended tidy-up."
+              },
+              {
+                "label": "Drop all 3 DDL dumps",
+                "description": "Remove all three schema dumps (migrations fully define the schema); keep the dump_ddl.sh generator so they can be regenerated. Cleanest."
+              },
+              {
+                "label": "Keep all",
+                "description": "Leave the DDL schema dumps as-is \u2014 they're PII-free and public-safe. No change."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Cherry-pick clean (no SETUP.md conflict \u2014 #37 and the repoint touched different sections). Now remove the 4 `.sops` from `main` and harden `.gitignore` so secrets can't be re-committed to the public repo. Let me check the current `.gitignore` `.sops` handling first."
+      },
+      {
+        "role": "assistant",
+        "text": "`.gitignore` hardened (SOPS artifacts now ignored, not re-included). Removing the `.sops` from `main` and folding into one clean commit:"
+      },
+      {
+        "role": "assistant",
+        "text": "Commit `63f5634b` is clean. Now the verification \u2014 decrypt against the real `~/dev/familyfund-secrets` clone (external mode):"
+      },
+      {
+        "role": "assistant",
+        "text": "\u2705 **Verification passed** \u2014 external mode resolves to `~/dev/familyfund-secrets`, and `decrypt` pulled all 3 twins from the private repo into the app paths (52-line `.env.dev` etc.). Plaintext cleaned, none tracked. Pushing to `main` and closing #16:"
+      },
+      {
+        "role": "assistant",
+        "text": "#16 is done \u2014 pushed to `main` (`63f5634b`), **`.sops` gone from `origin/main`** (0 tracked), secrets repo has no stray plaintext, worktree cleaned, canonical synced. Closing the ticket:"
+      },
+      {
+        "role": "assistant",
+        "text": "#16 is fully done (secrets in private `familyfund-secrets`, gone from `main`, ticket closed, board Done, memory updated). Now your database-backup question:\n\n## DB-backup review \u2014 answer: no data backups remain\n\nI checked every tracked `.sql / .sql.gz / .csv / dump / datadir` path on `origin/main`. **All real data dumps are already gone** (removed by `#66` and `#35` \u2014 no `.sql.gz`, no `*_data.sql`, no `datadir_acl`, no `restore_dev_funds`). What's left under `database/` is **schema/scripts only, verified PII-free** (0 INSERTs, 0 hashes/emails/IDs):\n\n| File | What it is | Sensitive? |\n|---|---|---|\n| `familyfund_ddl.sql`, `..._20220806.sql`, `..._20260110.sql` | **schema dumps** (CREATE TABLEs, output of `dump_ddl.sh`) \u2014 no rows | No (schema only) |\n| `drop_all.sql`, `truncate_all.sql`, `delete_test_data.sql` | ops scripts (DDL/DML, no data) | No |\n| `prod_to_dev.sql` | the anonymizer script (only synthetic dev-password targets) | No |\n| `tests/.../sample_cashdep.csv` | synthetic test fixture (#33-scrubbed) | No |\n\nSo **nothing data-bearing needs moving to a private repo** \u2014 your instinct was right to check, but the prior purges already covered it. The only thing resembling \"database backups\" are the 3 **schema** DDL dumps (no data). They're public-safe, but the 2 dated ones are redundant clutter (migrations already define the schema)."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Keep all"
+  }
+}

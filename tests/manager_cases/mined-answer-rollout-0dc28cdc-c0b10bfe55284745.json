@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-0dc28cdc-c0b10bfe55284745",
+  "sig": "answer:rollout-0dc28cdc:c0b10bfe55284745",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 0dc28cdc-92c0-4986-966c-ee04f05d1f67.jsonl turn #145",
+  "input": {
+    "action": {
+      "session_id": "rollout-0dc28cdc",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01GiA8bUcq41ka9jHic7mM9R",
+      "question": "Draft issues can't take comments. How should I record what's pending?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_019NQjtrrit3GB8rkjTQpseW",
+        "description": "",
+        "questions": [
+          {
+            "question": "Draft issues can't take comments. How should I record what's pending?",
+            "header": "Method",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Append to body",
+                "description": "Add a '## Pending' section to the draft issue's body listing what's left (push branch + run install.sh on prod/stage to deploy). Stays a draft, no new issue number, fully reversible."
+              },
+              {
+                "label": "Convert + comment",
+                "description": "Convert the draft to a real GitHub issue (requires picking a repo, e.g. dstrader-aws \u2014 creates a permanent issue number & may notify), then post the pending note as an actual comment."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "dont deploy, update tickets"
+      },
+      {
+        "role": "assistant",
+        "text": "Got it \u2014 no deploy. I'll move the self-heal ticket's status (implemented but not deployed \u2192 In Progress). Let me get the board's Status field/option IDs first."
+      },
+      {
+        "role": "assistant",
+        "text": "Now set the self-heal ticket to **In Progress** (item ID `PVTI_\u2026ni4U`)."
+      },
+      {
+        "role": "assistant",
+        "text": "Done \u2014 no deploy touched.\n\n## Ticket updated\n**[Enhancement] Widen gap self-heal window (GAP_DETECT_DAYS 30 -> 60)** \u2192 **In Progress**\n\nThat reflects reality: code is committed on branch `widen-gap-self-heal-window` but not pushed/deployed. Body already documents the fix + the pending `install.sh` deploy step.\n\nThe other three data-gap tickets (backfill, root-cause bug, alerting) still show **Todo** \u2014 I didn't touch them since no work was done there. If by \"tickets\" (plural) you meant any of those, tell me which and to what status."
+      },
+      {
+        "role": "user",
+        "text": "add a comment mentioning what is pending"
+      },
+      {
+        "role": "assistant",
+        "text": "Heads-up: this is a **draft issue** on the project board (`DI_\u2026`), and draft issues don't have a comment thread \u2014 only real (numbered) GitHub issues do. So \"add a comment\" needs one of two routes. Which do you want?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Append to body"
+  }
+}

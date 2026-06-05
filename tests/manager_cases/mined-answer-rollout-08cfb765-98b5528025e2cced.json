@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-08cfb765-98b5528025e2cced",
+  "sig": "answer:rollout-08cfb765:98b5528025e2cced",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 08cfb765-0412-4d76-880c-43cfb22d4c43.jsonl turn #99",
+  "input": {
+    "action": {
+      "session_id": "rollout-08cfb765",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01BajQ2XB1Apigua3dTcogpU",
+      "question": "Tracking-ticket handling for the gh static-allow expansion?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_018bgUicnoHchLAuwdhcy3uE",
+        "description": "",
+        "questions": [
+          {
+            "question": "Tracking-ticket handling for the gh static-allow expansion?",
+            "header": "Tracking",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Mention under #25 (Recommended)",
+                "description": "Add a comment to ai-harness#25 referencing the merge SHA \u2014 this is a small follow-up that fits under the existing perm-gate umbrella, no new ticket needed."
+              },
+              {
+                "label": "File a new issue + close it",
+                "description": "Create a fresh Remote Control #2 issue, add it to the board, and close it on delivery."
+              },
+              {
+                "label": "Skip \u2014 just merge",
+                "description": "No board update at all. Memory note in `project_perm_gate.md` is enough."
+              }
+            ]
+          },
+          {
+            "question": "OK to commit, merge to main, and push?",
+            "header": "Deliver",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 proceed (Recommended)",
+                "description": "Commit on this branch, switch to main repo dir, merge --no-ff, push to origin/main, then bridge-release this worktree (switch back to its bridge branch + delete the feature branch \u2014 no `worktree remove`)."
+              },
+              {
+                "label": "Commit only, don't merge yet",
+                "description": "Stop after the commit so I can review on the branch first."
+              },
+              {
+                "label": "Hold \u2014 don't change anything",
+                "description": "Abort delivery; leave the working tree dirty as-is."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now add tests covering both the newly-allowed read-only verbs and the mutating-verb fallthrough."
+      },
+      {
+        "role": "assistant",
+        "text": "The existing ASK pattern already catches `deploy` substrings \u2014 `gh workflow run deploy.yml` correctly hits static-ask. That's a feature; I'll swap the test to a workflow name that genuinely falls through."
+      },
+      {
+        "role": "assistant",
+        "text": "All 61 tests green. Summary of the change:\n\n**`remote_control/perm_gate.py`** \u2014 expanded `ALLOW_PATTERNS` from a single line (`gh pr|issue|project view|list|status`) to a curated 7-line block covering the full read-only `gh` surface the skills actually use:\n- `gh pr {view,list,status,checks,diff}` / `gh issue {view,list,status}`\n- `gh project {view,list,item-list,field-list}` (item-list is what start-work uses)\n- `gh {repo,release,workflow,run,gist} {view,list}`\n- `gh search {code,commits,issues,prs,repos}`\n- `gh {label,secret,variable} list`\n- `gh auth status` / `gh browse`\n\nDeliberately **not** added: `gh api` (wildcard HTTP verb), all `create|edit|close|delete|merge|comment|run|set|add` verbs. Those keep falling through to no-rule so `PERM_GATE_ENFORCE_AI=1` will bind them to ASK.\n\n**`tests/test_perm_gate.py`** \u2014 two new test cases: `test_gh_readonly_surface_is_green` (21 read-only commands assert ALLOW/GREEN) and `test_gh_mutating_verbs_fall_through_to_ai_tier` (19 mutating commands assert no static verdict, including both `gh api -X POST` and `-X DELETE` to lock the wildcard out of static-allow).\n\nThe existing `\\bdeploy\\b` ASK pattern already catches `gh workflow run deploy.yml` \u2014 bonus correctness the test surfaced."
+      },
+      {
+        "role": "user",
+        "text": "Close thread to close work."
+      },
+      {
+        "role": "assistant",
+        "text": "Starting Phase 1 \u2014 gathering branch state, diff, and tracking ticket."
+      },
+      {
+        "role": "assistant",
+        "text": "## Phase 1\u20133 review\n\n**Where**: `bridge-cse_01BajQ2XB1Apigua3dTcogpU` \u2014 supervisor-managed bridge worktree (locked). Per [[project-bridge-worktree-close]], delivery here **switches the branch back, not `worktree remove`**.\n\n**Branch state**:\n- HEAD `87ba1ef` is behind `origin/main` (`34deba6`) by 1 commit \u2014 `e666b5c` (agent_claims cross-repo item-id fix, merged elsewhere while we worked). Clean text \u2014 no overlap with our files.\n- **Uncommitted**: `remote_control/perm_gate.py` (+12/-1) and `tests/test_perm_gate.py` (+58/0) \u2014 the gh static-allow expansion. Nothing else in working tree. No `.env`/pool artifacts swept in.\n\n**What this thread delivered**: addressed the loose end from the parent perm-gate thread \u2014 static-allow only covered `gh pr|issue|project view|list|status`, leaving `gh project item-list`, `gh pr checks/diff`, `gh search`, etc. in the no-rule path. Expanded the curated read-only `gh` surface (8 lines, conservative \u2014 no `gh api`, no mutating verbs). Added two tests (21 read-only commands assert ALLOW/GREEN; 19 mutating commands assert no static verdict). Discovered as a bonus that `gh workflow run deploy.yml` already gets caught by the existing `deploy` ASK pattern.\n\n**Tracking ticket**: \u26a0\ufe0f none claimed for this thread. The work is a direct follow-up to **ai-harness#25** (perm-gate follow-ups: tune lists, ENFORCE_AI, manager-ui) per memory. Two options for closing:\n- file a new issue and close-on-delivery, or\n- mention it in a follow-up comment on #25 without a new ticket (it's a small surgical edit that fits inside the #25 umbrella).\n\n**Tests**: ran `python3 -m unittest tests.test_perm_gate` after the last edit. 61/61 green. Python-only \u2014 no Docker requirement (that's FamilyFund-specific).\n\n**TODOs / half-done scope**: nothing deferred. Re-read: user offered to file, I said file, user said \"fix it\", I fixed. Complete thread, no silent backlog.\n\n## Phase 4 verdict: **READY TO CLOSE**\n\nNo blockers \u2014 just needs commit, merge to main (catching up the 1-commit lag), push, and bridge-style worktree release.\n\n## Phase 5 \u2014 confirm before I act"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Mention under #25 (Recommended), Yes \u2014 proceed (Recommended)"
+  }
+}

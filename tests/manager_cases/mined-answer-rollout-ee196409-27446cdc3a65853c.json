@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-ee196409-27446cdc3a65853c",
+  "sig": "answer:rollout-ee196409:27446cdc3a65853c",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from ee196409-f641-4e6f-bbda-c8d023ea3c16.jsonl turn #62",
+  "input": {
+    "action": {
+      "session_id": "rollout-ee196409",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01JJ8noiwzS1ZMJR6E4o7yCp",
+      "question": "Send the \"continue\" turn into cse_015ZNHAuJi5RoSP2a27ao49d ([JOB.mini] Resume preparation, idle)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01F17fTQ9mSi3CZGdtxNq3kE",
+        "description": "",
+        "questions": [
+          {
+            "question": "Send the \"continue\" turn into cse_015ZNHAuJi5RoSP2a27ao49d ([JOB.mini] Resume preparation, idle)?",
+            "header": "Send turn?",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Send it",
+                "description": "Drop --dry-run and POST the user turn \u2014 this matches what the usage-limit monitor sends on relaunch"
+              },
+              {
+                "label": "Skip",
+                "description": "Don't send; dry-run was the whole test"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "The URL format `session_015...` is the claude.ai/code session ID (different from local `cse_` or uuid forms). Let me check the API-based resume path."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me check what session-ID format the API actually uses, and check the send-to-session skill since that's the relaunch primitive."
+      },
+      {
+        "role": "assistant",
+        "text": "Found it \u2014 claude.ai URLs use `session_<id>?from=cli` form, the API uses `cse_<id>` (same ULID, different prefix). So that URL maps to API id `cse_015ZNHAuJi5RoSP2a27ao49d`. Let me confirm it exists and what state it's in."
+      },
+      {
+        "role": "assistant",
+        "text": "Found it: idle session `cse_015ZNHAuJi5RoSP2a27ao49d` ('[JOB.mini] Resume preparation', job-search repo, this host). Let me check what the usage-limit \"relaunch\" actually sends."
+      },
+      {
+        "role": "assistant",
+        "text": "The relaunch sends the literal string `\"continue\"` as a user turn. The session is idle (safe to send to). Let me dry-run first to show the exact body."
+      },
+      {
+        "role": "assistant",
+        "text": "That's the exact body the usage-limit monitor's `attempt_resume` POSTs. Target: idle `[JOB.mini] Resume preparation` session.\n\nConfirm before I drop `--dry-run` and actually send the `\"continue\"` turn?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Send it"
+  }
+}

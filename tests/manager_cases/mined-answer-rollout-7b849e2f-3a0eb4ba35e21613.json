@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-7b849e2f-3a0eb4ba35e21613",
+  "sig": "answer:rollout-7b849e2f:3a0eb4ba35e21613",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 7b849e2f-db1e-4d0f-85c9-b211a7de0d15.jsonl turn #85",
+  "input": {
+    "action": {
+      "session_id": "rollout-7b849e2f",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_016sw9GJsprdtJWad9DPwp7X",
+      "question": "What should the borrowing demo focus on, given account.demo.yaml already touches it briefly?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01YHKrdtGzaScMuki3eP7Sqm",
+        "description": "",
+        "questions": [
+          {
+            "question": "What should the borrowing demo focus on, given account.demo.yaml already touches it briefly?",
+            "header": "Demo scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Standalone borrowing deep-dive",
+                "description": "Flesh out credit-lines.demo.yaml as a focused walkthrough \u2014 what it is, how shares (not dollars) work, payment plan options, share-price exposure, repayment buying back own shares. Uses the account page + /credit-lines + a single loan show. ~3-5 min."
+              },
+              {
+                "label": "Admin lens specifically",
+                "description": "Focus on what the ADMIN sees/does \u2014 global /credit-lines view across the fund, how an admin sets up or readjusts a loan, oversight of the schedule. Less about borrower experience."
+              },
+              {
+                "label": "Account-page borrowing story",
+                "description": "Walk a single account end-to-end showing how borrowing impacts the highlights (net), shares chart, transactions, and the loan-share section \u2014 basically a richer version of account.demo.yaml's last scene."
+              }
+            ]
+          },
+          {
+            "question": "Should I also fix the 'interest accrued' line in account.demo.yaml?",
+            "header": "Account demo fix",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Fix narration + re-render to onyx",
+                "description": "Edit the line to remove 'interest accrued' (say 'share-price exposure' or just 'the shares borrowed and the repayment schedule'), re-render (~2\u00a2), update the site asset."
+              },
+              {
+                "label": "Just edit the YAML, defer re-render",
+                "description": "Update the storyboard now so future renders are correct, but leave the existing mp4 alone until next refresh."
+              },
+              {
+                "label": "Leave it for now",
+                "description": "Skip the fix \u2014 handle when we revisit account.demo.yaml."
+              }
+            ]
+          },
+          {
+            "question": "File a tracking ticket for this work?",
+            "header": "Ticket",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, file on v2-archive board",
+                "description": "Create a new issue on jdtogni78/FamilyFund-v2-archive \u2014 since you thought one existed and there isn't, file it now so the work is tracked alongside the demo backlog."
+              },
+              {
+                "label": "No, just track in this session",
+                "description": "Skip the ticket \u2014 work directly from demos/README.md backlog notes."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Okay. So, uh, how does the borrowing work? You were borrowing shares from your own account. There will be no interest, but you have to repay shares and not a dollar amount. Uh, you can commit to repay, uh, shares... payment plan that is based on shares or dollar amount. And, um, you will be repurchasing your own borrowed shares."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me cross-check that against the code so I'm grounded before we shape the demo."
+      },
+      {
+        "role": "assistant",
+        "text": "Code confirms your model \u2014 `account_credit_lines` is denominated in `principal_shares` / `outstanding_shares` (not dollars), has `term_months` + `payment_frequency` for the plan, and an `imputed_interest_rate` that's a tax/accounting figure rather than a real charge. So:\n\n**Mental model I'll work from:**\n- A beneficiary borrows **shares** from their own balance \u2014 same fund, same NAV moves apply.\n- **No real interest.** `imputed_interest_rate` exists for imputed/accounting purposes, but the borrower owes shares, not interest.\n- **Repayment is in shares.** A payment plan can be expressed as either a share quantity or a dollar amount (which converts to shares at the payment-date NAV).\n- Each payment **buys back the borrower's own shares** \u2014 closing out the loan unwinds the original share movement.\n\nI'll save this as a project memory so future demo/doc work doesn't re-derive it."
+      },
+      {
+        "role": "assistant",
+        "text": "Important refinement \u2014 let me update the memory and look at how the account page already structures this."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me fold your refinements into the memory."
+      },
+      {
+        "role": "assistant",
+        "text": "Two things worth flagging before we shape the demo:\n\n**1. There's an inaccuracy in `account.demo.yaml` (line 99\u2013105)** \u2014 the already-onyx-final account demo says of the borrowing section: *\"you can see the shares borrowed, the **interest accrued**, and the repayment schedule.\"* By your model, that's wrong \u2014 there's no interest accrued, only share-price exposure. This will need a re-render to fix (~2\u00a2 on onyx). I won't touch it without your nod since it's a finalized asset.\n\n**2. The account-page sections already surface the borrowing story** in the right places:\n- `#section-details` highlights: market value is **already** \"net of borrowed shares\" \u2705\n- `#section-charts`: \"shares it owns versus any it has borrowed\" \u2705\n- `#section-transactions`: every borrow/repay logged \u2705\n- `#section-credit-lines`: the loan lines + schedule\n\nSo the question becomes what the **new** demo adds beyond what `account.demo.yaml` already covers in its borrowing closer."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Standalone borrowing deep-dive, Fix narration + re-render to onyx, Yes, file on v2-archive board"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-71be1d6c-cfdc2f2571b19464",
+  "sig": "answer:rollout-71be1d6c:cfdc2f2571b19464",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 71be1d6c-c32e-4927-9f32-0c1554fdda86.jsonl turn #741",
+  "input": {
+    "action": {
+      "session_id": "rollout-71be1d6c",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How deep should the fork-script review be?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01PKj4xQoP1qVd6X1wkrNLLP",
+        "description": "",
+        "questions": [
+          {
+            "question": "How deep should the fork-script review be?",
+            "header": "Review depth",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Triage scan (Recommended)",
+                "description": "Spawn an Explore agent: read-only pass over session_fork.py, session_fork_all.py, session_resume.py + their tests. Output a prioritized punch list (severity \u00d7 effort). 5-10 min. Fold must-fixes into Phase B; backlog the rest."
+              },
+              {
+                "label": "Deep audit",
+                "description": "Full code review of all 3 modules + the Phase B refactor targets in config.py/installer.py. Includes proposing test gaps and edge-case fixes. 20-30 min. More thorough but bigger context spend."
+              },
+              {
+                "label": "Skip review, fix known bugs only",
+                "description": "Phase B as scoped, plus the 2 known session_resume bugs. Don't go looking for more. Fastest."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "4 Terminal tabs should now have `claude -r <fork>` actually running. If those work, the `--open-terminal` bug fix is another Phase B item."
+      },
+      {
+        "role": "assistant",
+        "text": "Phase B task updated to include both `session_resume` bugs (the `--open-app` silent-drop + `--open-terminal` no-op-on-Terminal.app). Ready to start the refactor when you confirm those 4 terminals are running `claude -r` now."
+      },
+      {
+        "role": "user",
+        "text": "kinda worked, but required interaction (resume from summary)"
+      },
+      {
+        "role": "assistant",
+        "text": "That's the expected `claude -r` UX \u2014 Claude always shows the summary + confirm prompt before resuming a session (intentional safety, no `--auto-continue` flag exists in the CLI for `-r`). So \"kinda worked, but required interaction\" is the best you can get from `claude -r` today; nothing to fix on our side.\n\n(Side note for the future: `claude --fork-session -r <uuid>` is a built-in flag that resumes + assigns a new session id, but it doesn't do the cwd-relocation our `fork-all --into-main` does \u2014 different tool.)\n\nReady to start Phase B (the host-derived defaults + docs revalidation in the worktree)?"
+      },
+      {
+        "role": "user",
+        "text": "should we review the fork scripts?"
+      },
+      {
+        "role": "assistant",
+        "text": "Yes \u2014 given we already hit 2 bugs in `session_resume.py` + the FF fork needed manual `--dest-dir` for what should've been the common case, signal is strong that there's more in there. Quick recommendation:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Triage scan (Recommended)"
+  }
+}

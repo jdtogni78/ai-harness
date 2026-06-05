@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-9150b997-9a3dc57dec47c55b",
+  "sig": "answer:rollout-9150b997:9a3dc57dec47c55b",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 9150b997-f925-41b1-bbf7-f5ef78ddc689.jsonl turn #23",
+  "input": {
+    "action": {
+      "session_id": "rollout-9150b997",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_015MduBVqyW8f9jfqwckJpT8",
+      "question": "Which session/worktree do you want to resume?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_012SgmQRdMtLG3crMBYr8Cxm",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which session/worktree do you want to resume?",
+            "header": "Resume target",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Manager outdated-analysis (4 dirty)",
+                "description": "999be634 \u2014 bridge-cse_01KEWoeHzSKtc3YEiNRgKDxj, has 4 uncommitted files; detect stale analyses when sessions update"
+              },
+              {
+                "label": "Manager recommendations system",
+                "description": "eb8a0d62 \u2014 bridge-cse_01UosQJUfmip9nh8oJFxdqvQ; per-session + per-manager recs"
+              },
+              {
+                "label": "Manager 2-col Outlook layout",
+                "description": "1b330640 \u2014 bridge-cse_01GKTKEfm7DPDj1BVvoSRPLB; markdown two-column view"
+              },
+              {
+                "label": "Repo docs / portfolio overview",
+                "description": "d3a717ce \u2014 bridge-cse_01K5KvV7qdfBcZByfrPGiTiq; main documentation review"
+              }
+            ]
+          },
+          {
+            "question": "Or do cleanup first?",
+            "header": "Cleanup",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Skip cleanup, just pick above",
+                "description": "Resume the selected session; ignore cleanup for now"
+              },
+              {
+                "label": "Clean up merged worktrees first",
+                "description": "Scan for MERGED+clean worktrees (e.g. nickname-prefix fork already in d432d59) and remove them"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "resume work"
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the picture:\n\n**Active sessions** (potentially live work elsewhere \u2014 don't stomp):\n- `cse_012vKA7LhjhePD8H76x6pyRA` \u2014 \"Planner fix deployment to note\" (on **note**, connected)\n- `cse_0164WQtyStdUtXwjG9MCGaTV` \u2014 \"[AH] Automate Claude session preservation on launchd reset\" (on **note**, requires_action)\n- `cse_01SseXL4fDzW92XK7sSGosPh` \u2014 \"ai-harness reinstall + manager LaunchAgent\" (on **note**, idle)\n\n**Disconnected on this host (mini), look resumable:**\n- `cse_01K5KvV7qdfBcZByfrPGiTiq` \u2014 \"[AH] Repository documentation and portfolio overview \u2192 forked to d3a717ce\" \n- `cse_01UosQJUfmip9nh8oJFxdqvQ` \u2014 \"[AH.mini] Manager recommendations system \u2192 forked to eb8a0d62\"\n- `cse_01KEWoeHzSKtc3YEiNRgKDxj` \u2014 \"[AH.mini] Manager detection of outdated analysis \u2192 forked to 999be634\" (worktree has 4 dirty files)\n- `cse_01GKTKEfm7DPDj1BVvoSRPLB` \u2014 \"[AH.mini] Manager two-column layout with markdown \u2192 forked to 1b330640\"\n- `cse_01XtFhCtBTr4fEzBmXVUdFgj` \u2014 \"[AH.mini] Session nickname prefixes \u2192 forked to af2a953b\" (note: recent commit `d432d59` merged the rename)\n\nSeveral of these are already-merged forks. Want me to pick one to brief, or skip to cleanup of the merged ones?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Manager outdated-analysis (4 dirty), Clean up merged worktrees first"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a93ca6e3-1d067902e0e290d8",
+  "sig": "answer:rollout-a93ca6e3:1d067902e0e290d8",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a93ca6e3-1d6d-4011-a7c7-f7a34510daac.jsonl turn #113",
+  "input": {
+    "action": {
+      "session_id": "rollout-a93ca6e3",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01J4raNmzhpmMenDhwQdrQUq",
+      "question": "Which session should I resume with `claude -r --fork-session`?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_016idcWdLee4w4kXcBDh7Qv6",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which session should I resume with `claude -r --fork-session`?",
+            "header": "Session",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "[FF] Bug fixes from open bugs doc",
+                "description": "cse_01444h6wuRxTg6bJr8GQJyJL \u2014 FamilyFund bug-fixing session driven from an open-bugs doc. idle / connected."
+              },
+              {
+                "label": "[JOB] Dstrader docs",
+                "description": "cse_01KAWgmqDG6Tm8oQGYMzD18o \u2014 Job-search 'Dstrader docs' session. idle / connected."
+              },
+              {
+                "label": "Different one \u2014 I'll give the title/id",
+                "description": "Neither is right; you'll tell me the exact session title or cse_ id (or paste the local session uuid)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "On it. First I need to find the session ID for \"FF DocS\". Let me locate it via the repo's session tooling and local transcripts."
+      },
+      {
+        "role": "assistant",
+        "text": "Lots of FamilyFund worktrees. Let me query the session list with titles to pinpoint \"FF DocS\"."
+      },
+      {
+        "role": "assistant",
+        "text": "No match \u2014 let me look at the raw JSON shape first."
+      },
+      {
+        "role": "assistant",
+        "text": "It's a JSON array. Let me parse it properly and find \"FF DocS\"."
+      },
+      {
+        "role": "assistant",
+        "text": "Neither is an exact match. Let me list all `[FF]` session titles so we pick the right one."
+      },
+      {
+        "role": "assistant",
+        "text": "There's no session titled exactly **\"FF DocS\"** in the list. The two closest \"doc\" matches are:\n\n| Title | Session ID | Status |\n|---|---|---|\n| `[FF] Bug fixes from open bugs doc` | `cse_01444h6wuRxTg6bJr8GQJyJL` | idle / connected |\n| `[JOB] Dstrader docs` | `cse_01KAWgmqDG6Tm8oQGYMzD18o` | idle / connected |\n\nBefore I resume the wrong thing \u2014 which did you mean?\n\nOne heads-up that affects how I run this: these are **cloud bridge sessions** (`cse_\u2026` ids tied to worktrees), and your own memory notes that local uuid-resume is flaky for them \u2014 the reliable resume path is the `/v1/code/sessions` API, not `claude -r`. I'll still attempt the `claude -r \u2026 --fork-session` you asked for (from the session's worktree), but if it can't pick up the cloud session locally I'll tell you and fall back."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "[JOB] Dstrader docs"
+  }
+}

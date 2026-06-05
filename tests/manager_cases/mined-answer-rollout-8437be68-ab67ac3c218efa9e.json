@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-8437be68-ab67ac3c218efa9e",
+  "sig": "answer:rollout-8437be68:ab67ac3c218efa9e",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 8437be68-aa03-4230-9133-7fb7f1754333.jsonl turn #245",
+  "input": {
+    "action": {
+      "session_id": "rollout-8437be68",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control/.claude/worktrees/bridge-cse_01FHeo16QLs2JcCt3GXN3SaQ",
+      "question": "How do you want to go live with the Codex resume?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Xra1phVk67njV34Fpv3BjS",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want to go live with the Codex resume?",
+            "header": "Go-live",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Deploy live now",
+                "description": "Commit, merge worktree\u2192main, push, restart the monitor. Codex auto-resume goes live immediately (any blocked session, any repo)."
+              },
+              {
+                "label": "Deploy but Codex dry-run",
+                "description": "Merge + restart, but start Codex with USAGE_LIMIT_CODEX_ENABLED on and dry-run, so it logs 'would resume' on real limits for a while before you flip it live. Claude stays live as today."
+              },
+              {
+                "label": "Commit to branch, don't deploy",
+                "description": "Save the work on the worktree branch but don't merge or restart anything yet. Nothing changes in the running system."
+              },
+              {
+                "label": "Leave as-is for close-thread",
+                "description": "Leave changes uncommitted in the worktree; you'll run /close-thread later to review and merge."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "All 75 pass. There's one `ResourceWarning` (unclosed log file handle) worth fixing \u2014 the parent should close its copy after spawning. Let me read the worktree's `monitor.py` and tighten that:"
+      },
+      {
+        "role": "assistant",
+        "text": "All green, warning gone. Now a **live read-only smoke test** of the actual wired code path against your real `~/.codex` data \u2014 threshold lowered to 85% so it catches your 90% session, dry-run on, writing to a temp dir so nothing real is touched:"
+      },
+      {
+        "role": "assistant",
+        "text": "The full production path works on real data: it found your 90% session, resolved its cwd (`/Users/claudio1/dev/FamilyFund`) and title from the index, computed the reset time, and the dry-run resume logged correctly without spawning.\n\nOne correctness refinement before I wrap: in `evaluate_block`, when `rate_limit_reached_type` names a specific window I should wait on *that* window's reset, not the latest of all windows (otherwise a 5h-limit hit would wrongly wait for the weekly reset). Let me read and tighten it:"
+      },
+      {
+        "role": "assistant",
+        "text": "Now update the test expectation to match the corrected behavior (reached=\"primary\" \u2192 wait on primary's reset):"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me record this in memory (the build state and the key insight aren't derivable from code alone):"
+      },
+      {
+        "role": "assistant",
+        "text": "Done \u2014 and everything now lives in the worktree, so no more approval prompts. Here's where it landed.\n\n## What I built (all in our worktree, `main` left clean)\n\n- `remote_control/usage_limit/codex.py` \u2014 pure detection: reads `~/.codex/sessions/**/rollout-*.jsonl`, pulls each session's last `rate_limits`, flags blocked windows, picks the right `resets_at`, computes reset-aware backoff.\n- `CodexConfig` in `config.py` \u2014 `~/.codex` paths, the codex binary, threshold, intervals, skip-list; shares the global `USAGE_LIMIT_DRY_RUN` switch.\n- `detect_codex` / `attempt_resume_codex` / `pick_codex_target` in `monitor.py`, wired into the existing loop (own state file `paused-codex-sessions.json`). Resume spawns `codex exec resume <uuid> \"continue\"` **detached** in the session's recorded cwd, with a live-pid guard so it never double-fires.\n- `tests/test_codex_detect.py` \u2014 **76 tests green** (15 new). The Claude path is byte-for-byte unchanged.\n\n**Real-data validation (read-only):** the production code path detected your live 90% session, resolved its cwd (`/Users/claudio1/dev/FamilyFund`), title, and reset time, and the dry-run resume logged correctly without spawning anything.\n\n**The one thing I could not safely verify:** an actual live `codex exec resume` against a *truly* exhausted (100%) session \u2014 nothing is at the wall right now, and forcing a real autonomous edit run blind isn't something to do without you watching.\n\n## To answer your original question directly\nWe can now resume **both** \u2014 Claude (cloud, via the events API, already live) and Codex (local, via `codex exec resume`, built here). The retired \"codex-relay\" was unrelated.\n\nThe remaining step is go-live: merge worktree \u2192 `main`, push, and restart the monitor (PID 20809) so it loads the new code. That's outward-facing and, once live with `DRY_RUN=0` + \"any blocked session\", it will autonomously spawn `codex exec resume` in any repo with a maxed-out Codex session. So I want your call:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Deploy live now"
+  }
+}

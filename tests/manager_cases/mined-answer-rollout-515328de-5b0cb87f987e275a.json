@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-515328de-5b0cb87f987e275a",
+  "sig": "answer:rollout-515328de:5b0cb87f987e275a",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 515328de-d175-4f9e-8da7-f459c32dffc8.jsonl turn #24",
+  "input": {
+    "action": {
+      "session_id": "rollout-515328de",
+      "repo": "dstrader",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/dstrader",
+      "question": "Which OSS license should DSTrader ship with?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01FKo8G5kpv345ov2QuR9R4L",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which OSS license should DSTrader ship with?",
+            "header": "License",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "MIT (Recommended)",
+                "description": "Permissive, short, widely understood. Lets anyone use, modify, distribute with attribution."
+              },
+              {
+                "label": "Apache 2.0",
+                "description": "Permissive + explicit patent grant + NOTICE file. Common in larger/enterprise OSS."
+              },
+              {
+                "label": "GPL v3",
+                "description": "Copyleft. Derivative works must also be GPL. Restricts commercial closed-source use."
+              }
+            ]
+          },
+          {
+            "question": "What contact should SECURITY.md list for reporting vulnerabilities?",
+            "header": "Security contact",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "jdtogni@gmail.com (the user email in CLAUDE.md)",
+                "description": "Use the personal email already on file."
+              },
+              {
+                "label": "GitHub private vuln reporting only",
+                "description": "Direct reporters to use GitHub's \"Report a vulnerability\" feature on the repo; no email."
+              },
+              {
+                "label": "Both: GitHub private reporting + jdtogni@gmail.com",
+                "description": "Prefer GitHub flow, fall back to email."
+              }
+            ]
+          },
+          {
+            "question": "Should I open one umbrella tracking ticket or one ticket per work item on Project #1?",
+            "header": "Ticket layout",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "One ticket per item (Recommended)",
+                "description": "Separate issues for LICENSE, README, SECURITY.md, CONTRIBUTING.md, COC, templates, checklist, dtogni295 scrub, final gitleaks pass. Easier to close individually."
+              },
+              {
+                "label": "One umbrella ticket with a checklist",
+                "description": "Single \"go-public prep\" issue with a Markdown task list. Less board noise but coarser tracing."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I want you to review all the tickets and, um, notes and files related to making this repo public and, um, do... and review all the work that is missing, especially work that can be done on lower environment or on the repos before going to prod."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll investigate what's been done and what's outstanding for the go-public effort. Let me kick off research in parallel."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the audit. The security work is largely done; what's left is mostly community/OSS housekeeping that can all be done locally on a branch before flipping the repo to public.\n\n## What's already done\n- **Secret/PII scrub** (commits e84c9dd, 97ec1d8, 9890383): `/Users/dtogni` paths removed; prod-host IP redacted; emails replaced with `noreply` placeholders; `ib.path` removed from pom.xml; portfolio file paths stored as basenames. Issue #2 merged.\n- **Gitleaks layered defense**: `.gitleaks.toml` + `.githooks/pre-commit` + `.githooks/pre-push` + `.github/workflows/security-scan.yml` (PRs, pushes to main, daily 10:17 UTC).\n- **Hardened `.gitignore`** for `*.pem`, `*.key`, `*.jks`, `.env*`, DB dumps, keystores.\n- **Config files**: `mail.properties` gitignored with `.template`; `familyfund.properties` uses `FF_API_TOKEN` env var; `portfolios/*.json` carry mock allocations only.\n\n## Outstanding \u2014 all doable on a branch (no prod coordination)\n\n| Item | Status | Effort |\n|---|---|---|\n| **LICENSE** missing | OUTSTANDING | Low \u2014 pick MIT/Apache 2.0 |\n| **README.md** is a 27-line stub with an outdated Trello link, no project description, build, or run steps | OUTSTANDING | Medium \u2014 seed from `docs/SETUP.md` and `CLAUDE.md` |\n| **CONTRIBUTING.md** missing | OUTSTANDING | Low |\n| **SECURITY.md** missing (gitleaks setup is undocumented for outsiders) | OUTSTANDING | Low |\n| **CODE_OF_CONDUCT.md** missing | OUTSTANDING | Low \u2014 Contributor Covenant |\n| **`.github/ISSUE_TEMPLATE/` + PR template** missing | OUTSTANDING | Low |\n| No standalone **go-public checklist doc** \u2014 work tracked only in commit messages and closed issue #2 | OUTSTANDING | Low \u2014 add `docs/GO_PUBLIC_CHECKLIST.md` |\n\n## Worth verifying before flipping the switch (low risk, do on branch)\n- `DU0000001` paper account in `TestUtils.java` has a `// dtogni295` comment \u2014 scrub the comment.\n- Confirm no real broker account IDs in `portfolios/*.json` (audit says mock; double-check `portfolio_growth.json` etc.).\n- Run `gitleaks detect` against full history one more time on the worktree just to confirm zero findings post-scrub.\n- Verify the README's outdated Trello link doesn't leak a board name.\n\n## Requires prod coordination (NOT pre-public)\n- Nothing identified. No real secret was committed (per audit), so no rotation needed. If you want belt-and-suspenders, you could rotate `FF_API_TOKEN` and any IB-side credentials after the flip, but it isn't blocking.\n\n## Suggested order of operations\n1. Add LICENSE (smallest, unblocks everything else legally).\n2. Expand README (highest visibility, sets first impression).\n3. Add SECURITY.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, issue/PR templates (parallel, all boilerplate-ish).\n4. Sweep the `dtogni295` comment + run a final gitleaks pass on full history.\n5. Add `docs/GO_PUBLIC_CHECKLIST.md` capturing what was done, so future contributors see the trail.\n6. Flip repo visibility.\n\nWant me to open tickets on Project #1 for each of the outstanding items, or just start implementing them?"
+      },
+      {
+        "role": "user",
+        "text": "Do everything before publishing it, um, or making it public. Uh, if there are no tickets, make sure there are tickets so we trace that too."
+      },
+      {
+        "role": "assistant",
+        "text": "Before I start, I need a couple of decisions that affect what gets written."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "MIT (Recommended), GitHub private vuln reporting only, One ticket per item (Recommended)"
+  }
+}

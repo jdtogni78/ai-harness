@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b88d1262-57161b0acf366068",
+  "sig": "answer:rollout-b88d1262:57161b0acf366068",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b88d1262-26e5-4b95-9f1c-55489eb61d38.jsonl turn #85",
+  "input": {
+    "action": {
+      "session_id": "rollout-b88d1262",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control/.claude/worktrees/bridge-cse_019PCrwK6Et7rwqX1BYJL6Nu",
+      "question": "Which workspace dir should the codex-relay bridge run from?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Npb1SbSyg8SR2SJVXnycSW",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which workspace dir should the codex-relay bridge run from?",
+            "header": "Workspace",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "~/dev (Recommended)",
+                "description": "Matches the claude supervisor's root and is the broadest scope for the mobile app's file/session view."
+              },
+              {
+                "label": "$HOME",
+                "description": "Even broader scope; pairs the relay at the user-home level."
+              },
+              {
+                "label": "A specific repo dir",
+                "description": "Constrain the relay to a single project (you'll tell me which)."
+              }
+            ]
+          },
+          {
+            "question": "How should the codex-relay supervisor relate to the claude one?",
+            "header": "Layout",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Separate script + plist (Recommended)",
+                "description": "New codex-relay-supervisor.sh and com.claudio1.codex-relay.plist alongside the claude pair; install.sh installs both. Keeps the two bridges independent \u2014 restart one without touching the other."
+              },
+              {
+                "label": "Fold into existing supervisor",
+                "description": "Extend remote-control-supervisor.sh to also manage codex-relay. Single process, fewer plists, but couples the two lifecycles and conflates discovery (per-dir claude vs single-instance codex)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "is codex relay ran as a service? if not what is needed to do it?\n\nif a project is needed let add to remote control dir"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me check what \"codex relay\" might refer to on this system."
+      },
+      {
+        "role": "assistant",
+        "text": "The user clarified \u2014 they mean `codex-relay` (the npm package). Let me check it."
+      },
+      {
+        "role": "assistant",
+        "text": "No \u2014 `codex-relay` ships as a CLI you launch yourself (`npx codex-relay@latest`). It has a `--bg` flag that daemonizes (drops `.codex-relay/server.pid|server.log|server-state.json|auth.db` in the CWD, binds `0.0.0.0:8787`), but **it does not register with launchd**, doesn't survive logout/reboot, and doesn't auto-restart on crash. There's no official launchd/systemd guidance from upstream.\n\nSo to run it \"as a service\" you'd add roughly the same pattern that's already here for `claude remote-control`:\n\n- `codex-relay-supervisor.sh` \u2014 keeps one `codex-relay --bg` alive in a chosen workspace dir; respawn on exit; SIGTERM forward on shutdown so the pairing/auth state stays consistent.\n- `com.claudio1.codex-relay.plist` \u2014 LaunchAgent (`RunAtLoad` + `KeepAlive`) that runs the supervisor at login.\n- Wire both into the existing `install.sh` so one install gets both bridges.\n\nOne real constraint to decide before building: codex-relay binds **a single fixed port (8787)**, so unlike the claude supervisor (which spawns one server per `~/dev` subdir), this one is fundamentally single-instance \u2014 it should run once, in one workspace dir (most likely `~/dev` itself, since the mobile app pairs to the host, not per-project). That makes the supervisor much simpler than the claude one (no discovery loop, just one child).\n\nWant me to add it now? If yes, two quick choices:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "remote control dir, Separate script + plist (Recommended)"
+  }
+}

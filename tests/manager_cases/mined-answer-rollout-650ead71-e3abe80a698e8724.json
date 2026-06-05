@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-650ead71-e3abe80a698e8724",
+  "sig": "answer:rollout-650ead71:e3abe80a698e8724",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 650ead71-3e8a-4a02-8b7d-cc2f75aaa8a3.jsonl turn #519",
+  "input": {
+    "action": {
+      "session_id": "rollout-650ead71",
+      "repo": "dstrader-docker",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/dstrader-docker",
+      "question": "How should I handle the JARs being on the public mirror?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_011h2jVmFCTAw1NdBzNHNhiY",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I handle the JARs being on the public mirror?",
+            "header": "JAR remediation",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Re-private + fix + republish (Recommended)",
+                "description": "Immediately set dstrader-docker-public to private via API. File a small PR on daily-driver introducing `sync-exclude.txt` mechanism (per SOP \u00a76 \"Exclusion mechanism\") listing the JARs. After merge, re-run Step 6b with exclusion, set public again. Matches `public-track-rollback-acceptable` playbook. Minimizes ongoing exposure."
+              },
+              {
+                "label": "Force-push re-sync without JARs (stay public)",
+                "description": "Leave dstrader-docker-public public. File the same daily-driver `sync-exclude.txt` PR. Immediately force-push a new single-commit snapshot without the JARs (6b allows this). JARs stay technically retrievable from GitHub's server-side dangling refs for some hours until GC, but cloners of the new state won't see them. Faster, less ceremony, slightly leakier."
+              },
+              {
+                "label": "Accept \u2014 dstrader Java is going public anyway",
+                "description": "Per three-tier strategy, `jdtogni78/dstrader` (Java source) is also slated for public sync. The JARs being public now is just earlier. Skip remediation; let dstrader Java go public on its own timeline. Note this decision on #16."
+              },
+              {
+                "label": "Re-private only, plan remediation later",
+                "description": "Set dstrader-docker-public to private right now to stop the bleed. Don't rush the daily-driver PR or re-sync. Owner decides timeline. Conservative; pauses progress."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Secret Scanning + Push Protection enabled. Now branch protection (minimal: deny deletions, allow force-push for 6b re-syncs)."
+      },
+      {
+        "role": "assistant",
+        "text": "Branch protection set (force-push allowed for 6b re-syncs; deletions denied). Trying CodeQL default-setup."
+      },
+      {
+        "role": "assistant",
+        "text": "CodeQL supports Python + Actions in this repo (Shell/Dockerfile aren't CodeQL-supported). Enabling default-setup."
+      },
+      {
+        "role": "assistant",
+        "text": "## \u2705 Public-track complete\n\n**dstrader-docker-public is live:** https://github.com/jdtogni78/dstrader-docker-public @ `6e84d937` (225 files, fresh-init single commit from `dstrader-docker@f05a7a9`).\n\n**Hardening applied:**\n- Secret Scanning + Push Protection \u2713\n- Branch protection on `main`: force-push allowed (needed for periodic 6b re-syncs), deletions denied\n- CodeQL default-setup configured (Python + Actions scanned; Shell/Dockerfile not CodeQL-supported)\n\n**Tickets closed:** ddoc#2, #14, #15. Close-out comment posted on master tracker #16 \u2192 https://github.com/jdtogni78/dstrader-docker/issues/16#issuecomment-4588900479\n\n**Open items (not blocking, not mine to drive):**\n1. **Deploy-track:** prod trading host must `git pull` its `dstrader-secrets` clone before next cron run \u2014 passphrase now lives only in companion. If prod runs before pull, GPG decrypt breaks. Tracked as ddoc#7/#8/#9/#10/#13 deploy work.\n2. **Cosmetic follow-up:** `local/auto_login.properties.template` (48-byte placeholder, no secret) grandfathered-tracked on daily-driver, dropped by public mirror per `.gitignore:39`. Can file a one-line `git rm --cached` PR if you want repo parity.\n3. **SOP amendment** (task #12 in my list): add `passphrase|password|secret` to Step-4 suspicious-ext regex in `familyfund-secrets/docs/RE-SANITIZATION-SOP.md`. Lower priority; benefits the next family that goes through SOP.\n\n**Worktrees left in place** per worker's request:\n- `~/dev/dstrader-docker-worktrees/sop-r1-fix/` (safe to delete)\n- `~/dev/dstrader-secrets-worktrees/receive-sop-r1/` (your call)\n- `/tmp/ddoc-firstsync/` (Step-6 scratch \u2014 auto-cleaned on reboot)\n\nThis manager mandate is complete. Want me to: (a) save key context to memory, (b) tackle the SOP amendment follow-up, (c) clean up the worktrees, or (d) close down?"
+      },
+      {
+        "role": "user",
+        "text": "the repo has dstrader.jar"
+      },
+      {
+        "role": "assistant",
+        "text": "You're right \u2014 that's a real problem I missed. Both audits flagged `dstrader/DSTrader.jar` (11MB) + `dstrader/prod/DSTrader-withIB.jar` (11MB) as \"deliberate vendored assets\" and let them through, but \"deliberate\" \u2260 \"public-safe.\" Those JARs are compiled artifacts of `jdtogni78/dstrader` (the Java source repo, still private), and Java bytecode is trivially decompilable \u2014 so the public mirror effectively exposes the proprietary trading engine source.\n\nWindow so far: public repo's been live ~10 minutes since `6e84d937` pushed. Probably not yet indexed by crawlers, but I should treat it as exposed.\n\nQuick remediation paths:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Re-private + fix + republish (Recommended)"
+  }
+}

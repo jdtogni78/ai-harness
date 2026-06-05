@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a659b5ab-59b01136fb5fbb41",
+  "sig": "answer:rollout-a659b5ab:59b01136fb5fbb41",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a659b5ab-d80b-449a-ab68-8415fad7a22a.jsonl turn #220",
+  "input": {
+    "action": {
+      "session_id": "rollout-a659b5ab",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01PuV1r2e7MGjHW8BtvKtPmM",
+      "question": "How far should the DB root-password rotation go? (APP_KEY + leaked-file removal are already done and verified.)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01N7bVT2wVjSbyR3sDZ7QhC6",
+        "description": "",
+        "questions": [
+          {
+            "question": "How far should the DB root-password rotation go? (APP_KEY + leaked-file removal are already done and verified.)",
+            "header": "DB password",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Defer the value change",
+                "description": "Leave 123456 for now \u2014 it's a localhost-only weak dev cred and the meaningful exposure (APP_KEY + tracked .env.dev) is already fixed. Rotate the value later in a coordinated window when pool0/pool1 are free. I'll leave it documented as open. (Recommended)"
+              },
+              {
+                "label": "Rotate the value now",
+                "description": "Change 123456 \u2192 a strong password everywhere: 4 compose files + pool.sh/testpool.sh + .env.dev/.env.stage + ALTER USER on mariadb, then restart app1/pool0/pool1 \u2014 briefly breaking the 2 codex sessions (I'll update their env so they reconnect)."
+              },
+              {
+                "label": "De-hardcode only",
+                "description": "Remove the literal password from the 4 tracked compose files via env-var indirection (repo-HEAD hygiene) without changing the live value or restarting anything. The actual value change stays deferred."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "The app is healthy with the new key \u2014 **in-container `/login` \u2192 200**. The host `:3000` failure is just a port-mapping detail, not a rotation problem. Let me find the actual published port."
+      },
+      {
+        "role": "assistant",
+        "text": "app1 is on host port **3001** (not 3000). Let me confirm it's reachable there with the rotated key."
+      },
+      {
+        "role": "assistant",
+        "text": "Phase A verified \u2014 app1 fully works at **http://localhost:3001** with the rotated key (`/login` and auto-login `/dev-login/dashboard` both 200).\n\nOne Phase-A item remains: the **analyze-only** prod check \u2014 does prod's `APP_KEY` happen to equal the leaked dev key (`dffffdaef091`)? That needs read-only SSH to spirit (Wake-on-LAN, may be asleep). Attempting non-interactively:"
+      },
+      {
+        "role": "assistant",
+        "text": "Prod check hit a `Host key verification failed` (the host key isn't trusted in this environment) \u2014 I'll leave that read-only comparison to you rather than auto-accept an unknown host key. It's your analyze-only action regardless.\n\nBefore I summarize and gate the DB-password step, let me confirm exactly how the password sits in the tracked compose file (literal vs. variable), since that determines the Phase B scope."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the DB-password picture is fully clear \u2014 and it's bigger than the plan implied. The literal `123456` (root) / `1234` (famfun_dev) are hardcoded in **four tracked compose files** in the repo HEAD (`docker-compose.env.yml`, `.acl.yml`, `.dev.yml`, `.dev2.yml`) **plus** `pool.sh` and `testpool.sh`. So `.env.dev` was not the only place the DB password lives in the repo.\n\nLet me record Phase A progress in the in-repo plan doc, then I'll lay out the decision."
+      },
+      {
+        "role": "assistant",
+        "text": "Phase A is complete and committed on branch `secret-rotation-dev` (2 commits). Here's where things stand:\n\n## \u2705 Done & verified (dev)\n- **`APP_KEY` rotated** (`dffffd\u2026` \u2192 `a5f1c6\u2026`) \u2014 clean, since 2FA rows = 0 and `MAIL_PASSWORD_ENCRYPTED` is empty, so nothing encrypted needed migrating.\n- **Leaked `.env.dev` untracked** from the repo (kept on disk as the git-ignored runtime/pool/test template) + secret-free **`.env.example`** added.\n- **Sessions + `password_resets` truncated**; leaked-but-unused `REDIS_PASSWORD`/`MAIL_PASSWORD` refreshed.\n- **App verified** booting on the new key \u2014 `http://localhost:3001/login` and auto-login both return 200. (app1 is on host port **3001**, not 3000.)\n- Plan/incident docs copied into `docs/security/` with a progress log.\n- Old secrets backed up off-repo at `~/familyfund-secret-rotation-backup/2026-05-22/` (perms 600).\n\n## \u23f8\ufe0f Open\n- **Prod `APP_KEY` check** \u2014 read-only SSH to spirit failed host-key verification; I won't auto-trust an unknown host key, so this analyze-only check is yours to run.\n- **Stage** \u2014 left untouched per \"dev only\" (it's a dormant file, no running stage container).\n\n## The DB-password decision\nThe one remaining rotation item is bigger than the plan implied. `123456` (root) isn't just in `.env.dev` \u2014 it's hardcoded in **4 tracked compose files** (`docker-compose.{env,acl,dev,dev2}.yml`) **and** `pool.sh`/`testpool.sh`, and it's live to `app1` + the two **other** running codex pool sessions. It's also a localhost-only DB (not internet-facing \u2192 low real-world risk)."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Rotate the value now"
+  }
+}

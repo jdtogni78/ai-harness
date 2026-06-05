@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-dfe675ac-09acf54841c7ca20",
+  "sig": "answer:rollout-dfe675ac:09acf54841c7ca20",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from dfe675ac-afef-4a30-b872-754c21f83674.jsonl turn #152",
+  "input": {
+    "action": {
+      "session_id": "rollout-dfe675ac",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_018NysCXGbRatuyP9gzhCtwW/app1/family-fund-app",
+      "question": "How should I file these on the Trading & Fund board (#1)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01BfR3uu2K2WNwcLC8qcsSqf",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I file these on the Trading & Fund board (#1)?",
+            "header": "Ticket split",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "2 grouped tickets",
+                "description": "One for Category A (API auth, 66 failures across 4 classes), one for Category B (data-staleness, 13 across 2 classes). Cleanest \u2014 each has one root cause/fix."
+              },
+              {
+                "label": "6 tickets, per class",
+                "description": "One issue per failing test class. Finer-grained tracking but more board churn for what are really 2 fixes."
+              },
+              {
+                "label": "1 umbrella ticket",
+                "description": "Single 'fix 79 failing untracked tests' issue with a checklist of the 6 classes."
+              }
+            ]
+          },
+          {
+            "question": "Which should I start fixing in this worktree now?",
+            "header": "Fix first",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Category A first",
+                "description": "The 66 API-auth failures \u2014 repetitive, high-yield, clear fix (add actingAs with a permissioned user). Verify per-class in a testpool slot."
+              },
+              {
+                "label": "Category B first",
+                "description": "The 13 data-staleness failures \u2014 needs deeper investigation of the baseline Asset ordering before a fix is clear."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "## Test run complete \u2014 review\n\n**Result: 2138 passed, 79 failed, 48 risky, 1 skipped** (11,725 assertions, ~17 min) in an isolated `familyfund_test1` slot.\n\n### Are the failures real bugs? No \u2014 all 79 are known testpool-baseline artifacts, not regressions.\n\nTwo pieces of evidence make this solid:\n\n1. **All six failing files are byte-identical to `origin/main`**, and this worktree's HEAD *is* main's tip (`dde072d4`). So every failure already exists on main \u2014 nothing here introduced them.\n2. **The failure signatures match the two documented baseline buckets exactly:**\n\n| Failing class | Count | Cause |\n|---|---|---|\n| `FundSetupAPITest` | 22 | API auth gating (401/403) |\n| `AccountAPIControllerExtTest` | 22 | API auth gating (401/403) |\n| `AssetPriceGapsAPITest` | 20 | API auth gating (401/403) |\n| `AccountApiGoldenDataTest` | 2 | API auth gating (403) |\n| `FundTraitTest` | 11 | data-staleness (`null` vs expected) |\n| `AccountMatchingReportTest` | 2 | data-staleness |\n\n- **67 of 79 are auth-status mismatches** (401 unauthenticated / 403 forbidden where 200/422/400 expected). Root cause confirmed by inspection: e.g. `test_show_returns_account_data` hits `GET /api/accounts/{id}` with **no `actingAs`** \u2014 fine before the #44/#13 ACL gating merged to main, now rejected. These are pre-ACL tests that need updating, gated against a baseline DB without seeded spatie roles/permissions.\n- **The remaining 12** are the `FundTrait`/`AccountMatchingReport` data-staleness failures against the committed baseline dataset (the documented `Asset::first()=CASH` / dropped-CASH issue).\n\nThis is the ~83-failure testpool-only set noted in prior sessions \u2014 CI-green, pre-existing.\n\n### Caveat on confidence\nI did **not** run a side-by-side suite on `origin/main` this time \u2014 I relied on (a) the failing files being unchanged vs main, (b) HEAD == main's tip, and (c) signature-matching to the documented baseline. That's strong, but if you want certainty I can re-run just those 6 classes against a clean main checkout.\n\n### Worth flagging (test debt, not app bug)\nThe 67 API-auth failures are arguably a real **test bug** that should eventually be fixed \u2014 these API tests should `actingAs` an appropriately-permissioned user now that ACL gating is live, rather than failing silently in testpool. That's tracked-worthy but separate from \"did the app break\" (it didn't).\n\n### Notes\n- This was a fresh worktree with no `.env`, which silently skips tests. I copied `.env.dev` from the canonical checkout and symlinked `.env \u2192 .env.dev` so the suite actually ran. (git-ignored; left in place for future runs here.)\n- Slot `test1` released.\n\nBottom line: **no new bugs reported by this run.** The 2138 passing tests cover the application logic; the 79 failures are all the documented environment/baseline noise."
+      },
+      {
+        "role": "user",
+        "text": "Create tickets for the missing... for the failing tests and start fixing over here."
+      },
+      {
+        "role": "assistant",
+        "text": "Before I create tickets or change any test, I need to pin down the *actual* root cause \u2014 because \"fix the failing tests\" means different things depending on whether these tests are genuinely broken or only fail in the testpool environment. My earlier review flagged (and prior memory claims) these API failures may be \"testpool-only / CI-green,\" in which case editing 66 tests would be wrong and would break CI. Let me verify by reading the test setups, base class, and CI config."
+      },
+      {
+        "role": "assistant",
+        "text": "Key finding already: `AccountAPIControllerExtTest` uses `WithoutMiddleware` yet still gets **403** \u2014 so the rejection comes from **controller-level `authorize()`** (the #44/#49 object-level ACL work), not middleware. `FundSetupAPITest` has no auth at all \u2192 **401** from real middleware. These tests were written without authenticating.\n\nNow the decisive question: do these actually pass on CI (making them testpool-only), or do they fail everywhere? Let me check the CI workflow and confirm the controllers gained authorization."
+      },
+      {
+        "role": "assistant",
+        "text": "Decisive finding: **CI does not run these tests at all.** `security-scan.yml` only runs four filtered security suites (`SecurityRouteAutomationTest`, `SecurityCsrfRouteAutomationTest`, `SecurityAccessRegressionTest`, `SecurityApiAclMatrixTest`). So \"CI-green\" is misleading \u2014 `FundSetupAPITest`, `AccountAPIControllerExtTest`, etc. are simply never executed by CI. They genuinely fail (on main too), they're just not gated anywhere. Your instinct is right: real test debt worth fixing.\n\nLet me confirm the two remaining classes' auth approach and that the controllers do authorize, so the tickets are accurate."
+      },
+      {
+        "role": "assistant",
+        "text": "I now have the full picture. Two distinct root causes:\n\n**Category A \u2014 tests never authenticate (66 failures).** Real test debt. CI never runs them, so they rotted.\n- `FundSetupAPITest` (22) & `AssetPriceGapsAPITest` (20): no auth \u2192 **401** from route middleware\n- `AccountAPIControllerExtTest` (22) & `AccountApiGoldenDataTest` (2): `WithoutMiddleware` but still **403** from controller-level authz \u2192 need a real authenticated user\n- Fix: `actingAs()` an appropriately-permissioned user in `setUp()`\n\n**Category B \u2014 baseline data-staleness (13 failures).** `FundTraitTest` (11) + `AccountMatchingReportTest` (2). Tests depend on `Asset::first()`/baseline ordering (the documented CASH issue). Murkier fix \u2014 likely test refactor to not depend on global asset ordering.\n\nBefore I create issues on the shared board (#1) and start editing, two quick decisions:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "6 tickets, per class, Category A first"
+  }
+}

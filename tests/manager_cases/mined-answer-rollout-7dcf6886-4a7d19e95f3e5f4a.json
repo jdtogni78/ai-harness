@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-7dcf6886-4a7d19e95f3e5f4a",
+  "sig": "answer:rollout-7dcf6886:4a7d19e95f3e5f4a",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 7dcf6886-8457-4a6e-b535-4416fe8b3043.jsonl turn #167",
+  "input": {
+    "action": {
+      "session_id": "rollout-7dcf6886",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01XwDewUgFeC5bPu6rT9Rmk4/app1/family-fund-app",
+      "question": "What authorization identity should dstrader authenticate as?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01KPvUTejxppJpLnRmJYu6GU",
+        "description": "",
+        "questions": [
+          {
+            "question": "What authorization identity should dstrader authenticate as?",
+            "header": "Authz model",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "System-admin service user (Recommended)",
+                "description": "One dedicated service user with the system-admin role. Bypasses tenant scoping and satisfies the already-admin-only schedule_jobs call. Simplest, matches the existing isSystemAdmin() gating pattern."
+              },
+              {
+                "label": "Least-privilege scoped token",
+                "description": "A non-admin service user + Sanctum token abilities (e.g. asset-price:write), gating bulk endpoints on tokenCan(). True least-privilege but brittle: schedule_jobs is admin-only and fund_reports/account_matching_rules need broad fund/account grants."
+              }
+            ]
+          },
+          {
+            "question": "One token for everything, or separate tokens per caller?",
+            "header": "Token split",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Separate: app vs scheduler (Recommended)",
+                "description": "One token for the dstrader Java app (price/position pushes), a second for the bash scheduler (reports/matching/schedule_jobs). Independent rotation + smaller blast radius if one leaks."
+              },
+              {
+                "label": "Single shared token",
+                "description": "One FF_API_TOKEN used by both the Java app and the bash scheduler. Simpler to manage, but a leak or rotation affects both at once."
+              }
+            ]
+          },
+          {
+            "question": "Token lifetime / rotation policy?",
+            "header": "Rotation",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Expiring + rotation command (Recommended)",
+                "description": "Set expires_at (e.g. 90d) and ship security:service-token --rotate; rotate via a scheduled job. Uses the expires_at migration already in place."
+              },
+              {
+                "label": "Long-lived, no expiry",
+                "description": "Mint once, no expiry, rotate only manually if compromised. Simplest operationally but a leaked token is valid indefinitely."
+              }
+            ]
+          },
+          {
+            "question": "How to sequence the prod cutover?",
+            "header": "Deploy",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Config flag for admin-gating (Recommended)",
+                "description": "Add a config toggle for the admin-write tightening so FF can deploy (auth required + token in dstrader) first, then flip gating on once price pushes are confirmed. Decouples rollback. (auth:sanctum still requires the token regardless.)"
+              },
+              {
+                "label": "Hard cutover together",
+                "description": "Deploy FF (auth + gating) and dstrader (token) in the same window via the shared compose project. Less code, but rollback means reverting both."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Good \u2014 two gating patterns exist (whole-controller ctor middleware for PII; per-action `requireSystemAdmin()` for read-open/write-gated). Let me grab the token-minting command, a generated API test, the bulk internals, and the dstrader client side."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the test patterns and the dstrader client side."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the dstrader client side \u2014 the exact files I'd modify."
+      },
+      {
+        "role": "assistant",
+        "text": "I have everything I need to make this concrete. Here's the sequenced plan.\n\n---\n\n# Plan \u2014 #82 + dstrader auth cutover\n\n## What I confirmed from the code\n\n- **Two gating patterns exist:** whole-controller ctor middleware (PII, `UserAPIController.php:32`) and per-action `requireSystemAdmin()` from the `AuthorizesApiAccess` trait. For reference data we want **reads open / writes gated**, so ctor middleware scoped with `->only([...])` is the right tool.\n- **dstrader's real writes** are `AssetPriceAPIControllerExt::bulkStore`, `PortfolioAssetAPIControllerExt::bulkStore`, `PortfolioBalanceAPIController::bulkUpdate` \u2014 custom methods, *not* the generated `store`, so the original #82 scope misses them. `AssetPriceAPIControllerExt` doesn't yet `use AuthorizesApiAccess`; the other two do.\n- **Token minting** already exists but is **dev-only** (`SecurityDevTokenCommand`, refuses prod, line 44). Sanctum `createToken()->plainTextToken` on `User` is the mechanism. We need a prod-capable service-user + token path.\n- **Generated tests** (`tests/APIs/*ApiTest.php`) use `WithoutMiddleware` (e.g. `AssetApiTest.php:12`), which **bypasses ctor middleware** \u2014 so they'd stay falsely green unless we drop it and authenticate.\n- **dstrader client**: `HTTPUtils.java` adds only `Accept` (lines 42/59/77), loads `familyfund.properties` via `FileInputStream` (line 28). `familyfund_bashlib.sh` `ff_post`/`ff_get` use curl with no auth header.\n- **No GET routes change** \u2192 `AclMatrixTest` golden is unaffected; write-authz assertions belong in `SecurityApiAclMatrixTest`.\n\n## Phase 0 \u2014 Prep\n- Create worktrees: FamilyFund (this one is fine), **dstrader** worktree, **dstrader-docker** worktree (worktree-only rule).\n- Lease a **testpool** slot for FamilyFund tests (RefreshDatabase/auth), and a **stage** path for the end-to-end dstrader\u2192FF dry run.\n\n## Phase 1 \u2014 FamilyFund: gate writes + service identity + tests\n1. **Gate generated reference-resource writes.** Add to the ctor of `AssetAPIController`, `AssetPriceAPIControllerExt`, `MatchingRuleAPIController`, `ScheduleAPIController`, `ChangeLogAPIController`, `AssetChangeLogAPIController`:\n   ```php\n   $this->middleware(fn($r,$n) => abort_unless((bool)$r->user()?->isSystemAdmin(),403) ?: $n($r))\n        ->only(['store','update','destroy']);\n   ```\n   (reads stay open). For `ExchangeHolidayAPIController`, gate `sync` (`->only(['sync'])`).\n2. **Gate the bulk writers** (the back door): add `$this->requireSystemAdmin();` at the top of `AssetPriceAPIControllerExt::bulkStore`, `PortfolioAssetAPIControllerExt::bulkStore`, `PortfolioBalanceAPIController::bulkUpdate`. Add `use AuthorizesApiAccess;` to `AssetPriceAPIControllerExt`.\n3. **Service identity.** New seeder `DstraderServiceUserSeeder` \u2192 user `dstrader-service@\u2026` with **system-admin** role. New artisan `security:service-token {--rotate}` (prod-allowed, unlike the dev one) that mints/rotates and prints the `plainTextToken`.\n4. **Tests.** Drop `WithoutMiddleware` from the affected `tests/APIs/*ApiTest.php`, `Sanctum::actingAs($systemAdmin,['*'])` in setUp. Add per-role write assertions to `SecurityApiAclMatrixTest` (beneficiary/fund-admin \u2192 403; system-admin \u2192 2xx) **covering the bulk endpoints too**.\n5. **Cleanup + ED:** update stale `#50/#51` comments in `routes/api.php` + `SecurityApiAclMatrixTest.php` \u2192 #82; add an ED (\"bulk reference writes are admin-only; dstrader is a system-admin service principal\").\n\n## Phase 2 \u2014 dstrader (Java): send the token\n- `HTTPUtils`: load token from `System.getenv(\"FF_API_TOKEN\")` (fallback to `familyfund.api_token` property), add `request.addHeader(\"Authorization\",\"Bearer \"+token)` in `sendPost`/`sendGet`/`sendGetJson`.\n- `HolidayAPIClient.fetchHolidays`: same header.\n- `familyfund.properties`: add a commented `familyfund.api_token=` placeholder (real value comes from env, never committed).\n\n## Phase 3 \u2014 dstrader-docker: inject the secret\n- `familyfund_bashlib.sh`: add `-H \"Authorization: Bearer ${FF_API_TOKEN}\"` to `ff_post` and `ff_get`.\n- Plumb `FF_API_TOKEN` through compose/run scripts (`start_dstrader.sh`, `run_familyfund.sh`, scheduler env).\n- Store the token via **SOPS+age** (ED-0002; cf. #80 / dstrader-aws #8), inject at deploy. Keep prod/stage `familyfund.properties` token-free.\n\n## Phase 4 \u2014 Coordinated deploy (no outage window)\nBecause both run in **one compose project**, they cut over together. Safe order:\n1. Mint the service token on **stage** FF (new build).\n2. Put it in dstrader's stage env (SOPS); deploy stage; run a **real price push** end-to-end \u2192 expect 2xx, confirm a row lands.\n3. Repeat on **prod**, coordinated with **#30** (price-staleness deploy + Jan\u2192today backfill) so the backfill uses the token.\n\n## Phase 5 \u2014 Close out\n- Tick #82's checklist, link the dstrader/dstrader-docker commits, update the board; `close-work` when all three land + stage E2E is green.\n\n---\n\nThis spans 3 repos. How do you want me to drive it?"
+      },
+      {
+        "role": "assistant",
+        "text": "Good call \u2014 there are a few real design decisions baked into that plan worth settling before code. Let me quickly check one thing that affects the options (does the bash scheduler also write to soon-to-be-gated endpoints?), then I'll put the decisions to you."
+      },
+      {
+        "role": "assistant",
+        "text": "Two findings that sharpen the decisions:\n\n- **The bash scheduler needs admin anyway.** `run_scheduled_reports.sh:9` calls `ff_post schedule_jobs`, which is *already* system-admin-only (`ScheduledJobAPIControllerExt:39`). It also writes `fund_reports` and `account_matching_rules` (tenant-scoped). So a least-privilege scoped token would have to grant admin-ish breadth regardless \u2014 system-admin is the pragmatic identity.\n- **Token expiry is supported** (`expires_at` migration + `HasApiTokens`), so rotation is a real option.\n\nHere are the design decisions I'd lock before writing code:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "System-admin service user (Recommended), Separate: app vs scheduler (Recommended), Expiring + rotation command (Recommended), Config flag for admin-gating (Recommended)"
+  }
+}

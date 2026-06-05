@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-8b665605-66db7b38bdf2e71d",
+  "sig": "answer:rollout-8b665605:66db7b38bdf2e71d",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 8b665605-1dfc-42cf-9e57-e9c587bfb45b.jsonl turn #89",
+  "input": {
+    "action": {
+      "session_id": "rollout-8b665605",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01Vm7LZtMvdnTdUBz1BnXRRm",
+      "question": "How should I remove the 19 redundant files (+2 companions)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_016Ro3bNk3AH8VgK6hnJhqKN",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I remove the 19 redundant files (+2 companions)?",
+            "header": "Remove how",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "git rm (delete)",
+                "description": "Delete them outright. Git history still preserves every version, so nothing is truly lost \u2014 cleanest tree."
+              },
+              {
+                "label": "Move to docs/archive/",
+                "description": "Keep an in-tree audit trail of the resolved bug logs / findings by moving them under docs/archive/ instead of deleting."
+              }
+            ]
+          },
+          {
+            "question": "Three kept design docs describe unbuilt work with NO board ticket (money-flow subsystem, independence-countdown feature, login 2FA/session phases). What about those?",
+            "header": "Untracked work",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Keep files, no tickets",
+                "description": "Leave the 3 design docs in place as the spec; don't create tickets. Board stays as-is."
+              },
+              {
+                "label": "Keep + file tickets",
+                "description": "Keep the docs AND open board tickets for the untracked unbuilt work so the board truly reflects everything."
+              },
+              {
+                "label": "Delete them too",
+                "description": "Treat them as stale and remove them with the rest. Loses the only spec for that unbuilt work (recoverable via git history)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "The user wants the md files cleaned up, with the board as source of truth. Deleting/trimming checked-in docs is hard to reverse, so I'll first analyze each candidate file \u2014 map it to its ticket(s), check whether that work is closed or still open, and decide keep/trim/delete \u2014 then show you the plan before touching anything.\n\nLet me set up tracking and fan out the analysis. First, the candidate files vs. reference docs, plus git metadata."
+      },
+      {
+        "role": "assistant",
+        "text": "Now I'll create a few tracking tasks and fan out the file analysis to parallel agents (read-only) so I can build an accurate keep/trim/delete plan mapped to ticket status."
+      },
+      {
+        "role": "assistant",
+        "text": "All three analyses are in. Before I present the plan, two verifications: the obsolete test-fix harness has companion non-md files that should go with the docs, and `CLAUDE.md`/other docs may reference files I'd delete (I don't want to leave dangling links)."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me see the exact references in files I'm keeping, so I can fix any dangling links during cleanup."
+      },
+      {
+        "role": "assistant",
+        "text": "I have a complete picture now. Let me record the analysis outcome and move to presenting the plan."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the cleanup plan. I cross-checked every task md file against the board (and the actual repo state \u2014 workflows, tests, allowlists, `.env` tracking).\n\n## \ud83d\uddd1\ufe0f DELETE \u2014 19 md files (work is closed & ticket-tracked, or obsolete tooling)\n\n**Security (work merged, items live as tickets):**\n- `SECURITY_NEXT_STEPS.md` \u2014 open items = #49/#50/#51/#52/#53\n- `SECURITY_PENTEST_FINDINGS.md` \u2014 residue = #49/#13 (+ regression tests encode it)\n- `SECURITY_SCAN_AUTOMATION_PLAN.md` \u2014 shipped, closed #12/#14/#44\n- `docs/security/HANDOFF-secret-rotation.md` \u2014 transient handoff \u2192 #16\n\n**Test inventories / obsolete fix-harness (Jan 2026, superseded by #22\u2013#25):**\n- `test_plan.md`, `app1/.../TEST_COVERAGE_FUND_SETUP.md`, `\u2026_API.md`, `\u2026/TEST_QUICK_REF.md`, `\u2026/test_coverage_plan.md`\n- `\u2026/TEST_FIX_LOG.md`, `\u2026/TEST_FIX_PROMPT.md`, `\u2026/TEST_FIX_README.md` \u2014 abandoned `fix_tests_batch.sh` harness; **+ companions** `fix_tests_batch.sh` and `test_failures_list.txt`\n\n**Credit-line / QA findings (all marked \u2705 fixed in-file; map to closed #17\u2013#20, #15, #25):**\n- `CREDIT_LINE_TEST_EXPANSION_HANDOFF.md` (its 4 bugs = closed #17/#18/#19/#20)\n- `scenario_findings.md`, `docs/QA_BUGS_2026-05-19.md`, `\u2026-05-20.md`, `\u2026-05-21.md`, `\u2026-05-21_UI.md`\n- `app1/.../FUND_SETUP_WITH_PREVIEW_IMPLEMENTATION.md` (shipped feature, self-documenting in code)\n\n## \ud83d\udccc KEEP \u2014 8 files (reference docs, not redundant task lists)\n- `SECURITY_REVIEW_PLAN.md` (pen-test runbook), `docs/security/SECURITY-EXPOSURE.md` (incident record), `docs/security/SECRET-ROTATION-PLAN.md` (rotation runbook + #16)\n- `credit_lines_plan.md` (design doc for shipped feature), `testing_plan.md` (test strategy)\n- **Contain untracked, unbuilt work (no ticket):** `money_flow_plan.md`, `app1/.../docs/plans/independence-countdown-mode.md`, `app1/.../PLAN_user_login_acl.md` (ACL core merged, but 2FA/session/login-activity phases never built)\n\n## \ud83d\udd17 Reference fixes (so I don't leave dangling links)\nDeleting the above breaks links in **kept** files \u2014 I'll fix these: `CLAUDE.md:150`, `AGENTS.md:120`, `FUND_SETUP_GUIDE.md:259`, and `testing_plan.md` (\u00d75) all point to `test_plan.md` \u2192 repoint to the CLAUDE.md Testing section; `docs/SETUP.md:144` \u2192 `QA_BUGS_2026-05-19.md`; `FUND_CREATION_GUIDE.md:727-728` \u2192 the two deleted fund-setup docs.\n\nTwo decisions before I execute:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "git rm (delete), Keep + file tickets"
+  }
+}

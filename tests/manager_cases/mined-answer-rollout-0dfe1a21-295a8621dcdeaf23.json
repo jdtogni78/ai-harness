@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-0dfe1a21-295a8621dcdeaf23",
+  "sig": "answer:rollout-0dfe1a21:295a8621dcdeaf23",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 0dfe1a21-2fe9-47c7-9a50-b87fa89a364a.jsonl turn #168",
+  "input": {
+    "action": {
+      "session_id": "rollout-0dfe1a21",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01PP1RCzFPnSom62iqTTaiQ2",
+      "question": "FUND_CREATION_GUIDE.md references an external repo `finex` by absolute path (/Users/dtogni/dev/finex). How to handle?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01HEWBgAuT5jRRrEFWYHp7Js",
+        "description": "",
+        "questions": [
+          {
+            "question": "FUND_CREATION_GUIDE.md references an external repo `finex` by absolute path (/Users/dtogni/dev/finex). How to handle?",
+            "header": "finex refs",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Remove finex section entirely",
+                "description": "Strip the 'Python Script' setup paragraphs and the cd /Users/dtogni/dev/finex examples. Public repo stops mentioning the private project."
+              },
+              {
+                "label": "Genericize paths to ~/dev/finex",
+                "description": "Keep the section but replace absolute /Users/dtogni paths with ~/dev/finex. Still discloses that finex exists, just doesn't leak the local username."
+              },
+              {
+                "label": "Move whole guide to private familyfund-secrets repo",
+                "description": "The guide is more operational than codebase docs \u2014 push it next to PUBLISH-READINESS.md in the private repo."
+              }
+            ]
+          },
+          {
+            "question": "`.vscode/settings.json` is tracked with a hardcoded absolute phpunit path. How to handle?",
+            "header": ".vscode",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Delete file + add .vscode/ to .gitignore",
+                "description": "Recommended \u2014 IDE-local config shouldn't be tracked anyway. Each contributor configures their own VS Code."
+              },
+              {
+                "label": "Replace path with relative ./vendor/bin/phpunit",
+                "description": "Keep tracked but make it portable (works for any cloner). Less aggressive."
+              },
+              {
+                "label": "Leave as-is",
+                "description": "Accept the dtogni leak \u2014 it's just a username, not a secret."
+              }
+            ]
+          },
+          {
+            "question": "`SECURITY_REVIEW_PLAN.md` (repo root) is a stale planning doc for the now-closed #12/#13/#14 work. How to handle?",
+            "header": "stale plan",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Delete the file",
+                "description": "Recommended \u2014 the work it planned is done; keeping a stale plan in the public repo is noise + leaks the claudio1 sandbox path."
+              },
+              {
+                "label": "Move to docs/security/ and scrub paths",
+                "description": "Preserve as a historical record of the security review approach, but scrub the /Users/claudio1 paths to ~/dev/FamilyFund."
+              },
+              {
+                "label": "Move to private familyfund-secrets repo",
+                "description": "Treat as part of the incident-response runbook bundle, alongside REPO-SANITIZATION-PLAYBOOK.md."
+              }
+            ]
+          },
+          {
+            "question": "`docs/security/SECRET-ROTATION-{PLAN,RUNBOOK}.md` have /Users/claudio1 paths. How to handle?",
+            "header": "rotation docs",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Scrub paths in place (keep public)",
+                "description": "Replace /Users/claudio1/dev/FamilyFund with ~/dev/FamilyFund. Docs stay public \u2014 useful for any future rotation."
+              },
+              {
+                "label": "Move to private familyfund-secrets repo",
+                "description": "Same pattern as REPO-SANITIZATION-PLAYBOOK.md and PUBLISH-READINESS.md \u2014 operational rotation runbooks live private. Owner already chose this pattern for the sanitization runbook."
+              },
+              {
+                "label": "Leave as-is",
+                "description": "Accept the claudio1 leak as low-risk (it's the AI sandbox username, not a real human handle)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Splitting the prod side off into its own ticket, then running the README/docs/screenshots audit."
+      },
+      {
+        "role": "assistant",
+        "text": "Created prod ticket **#34**. Now the image audit + IP grep, and adding #34 to the board."
+      },
+      {
+        "role": "assistant",
+        "text": "Image audit done \u2014 all 8 tracked PNG/JPG files are either the brand logo or AI-generated synthetic family illustrations (white figurines in a snow globe, \"AI\" watermark visible). Zero PII. Zero PDFs are tracked.\n\nNow the IP/hostname grep across tracked files."
+      },
+      {
+        "role": "assistant",
+        "text": "Found two real concerns. Running one more sweep (MAC addresses, other emails) while updating epic #33."
+      },
+      {
+        "role": "assistant",
+        "text": "Three real issues found. Let me look at the offending files to plan a fix, and update task state."
+      },
+      {
+        "role": "assistant",
+        "text": "## Audit results\n\n\u2705 **Screenshots/PDFs (#1 checkbox 1): CLEAN.** All 8 tracked PNG/JPG files are the brand logo + AI-generated synthetic family illustration (\"AI\" watermark visible). Zero PDFs tracked.\n\n\u26a0\ufe0f **Internal paths/hostnames (#1 checkbox 2): 4 real issues.** Everything else (test fixture `192.168.1.100`, generic docker example, `composer.lock` open-source author emails, `spirit`/`melnick` nicknames paired with `REDACTED_*_HOST` placeholders, `jdtogni78` GitHub handle) is intentional/safe.\n\n| # | File | Leak | Severity |\n|---|---|---|---|\n| 1 | `app1/family-fund-app/FUND_CREATION_GUIDE.md` | 6\u00d7 `/Users/dtogni/dev/finex/...` \u2014 leaks local user **and** the existence of an undisclosed private project `finex` | **HIGH** |\n| 2 | `.vscode/settings.json` | `/Users/dtogni/dev/FamilyFund/.../phpunit` \u2014 leaks local user `dtogni` (also: IDE config shouldn't be tracked) | MEDIUM |\n| 3 | `SECURITY_REVIEW_PLAN.md` (repo root) | 7\u00d7 `/Users/claudio1/dev/FamilyFund/.claude/worktrees/...` \u2014 leaks sandbox user `claudio1` (stale doc; the work it planned = #12/#13/#14 = all closed) | LOW\u2013MED |\n| 4 | `docs/security/SECRET-ROTATION-{PLAN,RUNBOOK}.md` | 3\u00d7 `/Users/claudio1/dev/FamilyFund` \u2014 same `claudio1` leak | LOW |\n\nEach one needs a small judgment call before I touch tracked content. Let me batch them."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "remove the finex, but add to secrets repo, Delete file + add .vscode/ to .gitignore, Move to private familyfund-secrets repo, Move to private familyfund-secrets repo"
+  }
+}

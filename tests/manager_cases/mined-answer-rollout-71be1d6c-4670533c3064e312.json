@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-71be1d6c-4670533c3064e312",
+  "sig": "answer:rollout-71be1d6c:4670533c3064e312",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 71be1d6c-c32e-4927-9f32-0c1554fdda86.jsonl turn #169",
+  "input": {
+    "action": {
+      "session_id": "rollout-71be1d6c",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How do you want me to restore the supervisor's allowlist?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01QeTA1qMkXXfEsQZetYWaMs",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want me to restore the supervisor's allowlist?",
+            "header": "Allowlist fix",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Copy private active-dirs.txt over",
+                "description": "Just copy /Users/claudio1/dev/ai-harness-private/active-dirs.txt into /Users/claudio1/dev/ai-harness/active-dirs.txt (uncommitted). Smallest change; doesn't address the public/private swap."
+              },
+              {
+                "label": "Repoint launchd to -private",
+                "description": "Edit the plist's PYTHONPATH to /Users/claudio1/dev/ai-harness-private and kickstart. Treats ai-harness-private as primary again (consistent with the 'switch pending' memory)."
+              },
+              {
+                "label": "Swap the directory names",
+                "description": "Rename ai-harness -> ai-harness-public-snapshot, then ai-harness-private -> ai-harness. Makes -private the canonical /dev/ai-harness path that the plist already points at."
+              }
+            ]
+          },
+          {
+            "question": "The Claude Code-credentials OAuth token is expired (~12 min). I can't list/fork cse_ sessions until it's refreshed. How do you want to handle that?",
+            "header": "Auth",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "You'll run /login or Claude.app",
+                "description": "You re-auth in your Claude.app or run `claude` to refresh the keychain entry, then I retry. Safest."
+              },
+              {
+                "label": "I attempt an OAuth refresh now",
+                "description": "I POST refresh_token to the OAuth endpoint and write the new token back to keychain. Faster but writes to your login keychain \u2014 I'd want explicit OK."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "restart my remote controls, what went wrong, fork/resume the 4 sessions that got stuck"
+      },
+      {
+        "role": "assistant",
+        "text": "Found the root cause. Let me lay it out before touching anything destructive:\n\n**What went wrong**\n\n- `/Users/claudio1/dev/ai-harness` (the dir the launchd supervisor is hard\u2011pinned to via `PYTHONPATH`) is currently the **public/sanitized checkout** \u2014 5 commits, `active-dirs.txt` has zero entries. Dir mtime is May 26 17:43, which matches the kill spree.\n- The intended primary `/Users/claudio1/dev/ai-harness-private` still has the real allowlist (`dev`, `FamilyFund`, `ai-harness`, `dstrader`, `dstrader-docker`, `job-search`, all `@mini`/`@note`).\n- Per the memory `project_ai_harness_public_portfolio.md` you had \"switch to public as PRIMARY still pending\" \u2014 looks like the swap happened (or partially happened) and the empty `active-dirs.txt` came with it.\n- At 17:43:35\u201317:44:20 the running supervisor (pid 61338, code from yesterday \u2014 still on the old `macmini`/`mm-` nickname) saw the empty allowlist and SIGTERM/SIGKILL'd every server: `mm-FamilyFund`, `mm-ai-harness` x2, `mm-dev`, `mm-dstrader`, `mm-dstrader-docker`, `mm-job-search`. Several didn't TERM and got KILL'd. That's where your stuck sessions came from.\n- At 19:48:31 the supervisor was restarted (now correctly deriving `host=mini`) \u2014 but it's still reading the **empty** `ai-harness/active-dirs.txt`, so nothing has been respawned.\n- Bonus problem: the `Claude Code-credentials` OAuth token in the keychain **expired 12 min ago**. Any API call (`sessions list`, `fork`, `fork-all`) returns 401 until you re-auth. The other `Claude Code-credentials-<hash>` entries don't carry an `expiresAt` and aren't usable by the monitor.\n\nBefore I do anything, two decisions I want from you:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "[User dismissed \u2014 do not proceed, wait for next instruction], [User dismissed \u2014 do not proceed, wait for next instruction]"
+  }
+}

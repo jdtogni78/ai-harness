@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-5b26ad13-f6ce0577818d4ece",
+  "sig": "answer:rollout-5b26ad13:f6ce0577818d4ece",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 5b26ad13-a9ac-4e62-a9bc-6a6870987cc7.jsonl turn #16",
+  "input": {
+    "action": {
+      "session_id": "rollout-5b26ad13",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01UsxHiiWZ9hpEKTm7KfspvW",
+      "question": "Which kinds of \"search\" do you want allowed without prompts?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01JEBJGhgMq8pUdiYgQf2gXW",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which kinds of \"search\" do you want allowed without prompts?",
+            "header": "Search scope",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Code search tools (Grep, Glob)",
+                "description": "Allow Claude's built-in code search tools (Grep for content, Glob for filename patterns) without prompting."
+              },
+              {
+                "label": "Web search (WebSearch, WebFetch)",
+                "description": "Allow Claude to search the web and fetch URLs without prompting."
+              },
+              {
+                "label": "Shell search commands (grep, rg, find, ag)",
+                "description": "Allow Bash invocations of grep/ripgrep/find/silversearcher without prompting."
+              },
+              {
+                "label": "File reading (Read)",
+                "description": "Allow reading any file without prompting."
+              }
+            ]
+          },
+          {
+            "question": "Where should this apply?",
+            "header": "Scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Global (all projects) (Recommended)",
+                "description": "Add to ~/.claude/settings.json so it applies in every project."
+              },
+              {
+                "label": "This project only (team-shared)",
+                "description": "Add to .claude/settings.json (checked into git, shared with the team)."
+              },
+              {
+                "label": "This project only (personal)",
+                "description": "Add to .claude/settings.local.json (gitignored, just for you)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "allow claude to search anything"
+      },
+      {
+        "role": "assistant",
+        "text": "I want to make sure I add the right permissions. \"Search anything\" could mean several different things."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Code search tools (Grep, Glob), Web search (WebSearch, WebFetch), Shell search commands (grep, rg, find, ag), File reading (Read), Global (all projects) (Recommended)"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a93ca6e3-87e9597e2337a803",
+  "sig": "answer:rollout-a93ca6e3:87e9597e2337a803",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a93ca6e3-1d6d-4011-a7c7-f7a34510daac.jsonl turn #45",
+  "input": {
+    "action": {
+      "session_id": "rollout-a93ca6e3",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01J4raNmzhpmMenDhwQdrQUq",
+      "question": "What would you like to do with scheduled remote agents?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01PqL1yti2uBckP8WH471VSE",
+        "description": "",
+        "questions": [
+          {
+            "question": "What would you like to do with scheduled remote agents?",
+            "header": "Action",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Create one (Recommended)",
+                "description": "Build a new remote Claude Code routine \u2014 recurring (cron) or one-time. No routines exist yet, so this is the natural way to 'try one'."
+              },
+              {
+                "label": "Run one now",
+                "description": "Fire an existing routine immediately. (None exist yet, so nothing to run.)"
+              },
+              {
+                "label": "List",
+                "description": "Show all existing routines. (Currently empty.)"
+              },
+              {
+                "label": "Update",
+                "description": "Change an existing routine's schedule, prompt, or config. (None exist yet.)"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "I'll investigate what's actually available in this repo for triggering sessions, rather than guess. Let me look at a few things in parallel."
+      },
+      {
+        "role": "assistant",
+        "text": "Yes \u2014 there are a few distinct mechanisms, depending on what kind of \"session\" you mean. Here's the honest breakdown of what I can actually trigger from here:\n\n## 1. Remote Claude Code agents \u2014 yes, directly\nI have a `RemoteTrigger` tool that calls the claude.ai remote-trigger API (the same thing the `/schedule` skill wraps). With it I can:\n- **`create`** a scheduled routine (cron or one-time) that spins up a Claude Code agent in the cloud\n- **`run`** an existing trigger immediately, on demand\n- `list` / `get` / `update` them\n\nThese run server-side and show up on claude.ai \u2014 not on your machine. This is the cleanest \"you trigger a Claude session\" path.\n\n## 2. Codex \u2014 no cloud trigger, only local resume\nThere's no remote-trigger equivalent for Codex. The way this repo starts Codex work is `remote_control/usage_limit` spawning a detached **`codex exec resume`** subprocess in the session's recorded cwd (`monitor.py:293`). That's *resuming* an existing rollout, not opening a brand-new session. I could launch `codex exec ...` via Bash to start a fresh local one, but that's the crude manual route.\n\n## 3. What the repo already does autonomously (I don't hand-trigger these)\n- **`supervisor.py`** spawns long-running `claude remote-control` servers for each dir in `active-dirs.txt` \u2014 a background service, not per-task.\n- **`usage_limit/monitor.py`** auto-resumes sessions paused by usage limits: Claude via a POST resume event to the cloud session API (`attempt_resume`), Codex via the local `codex exec resume` above.\n\n## 4. Sub-agents (within *this* session)\nI can also spawn `Agent` sub-agents for parallel work \u2014 but those are children of this conversation, not standalone Claude Code/Codex sessions.\n\n---\n\nSo: **remote Claude Code \u2192 yes, I can create or fire one now.** **Codex \u2192 only local spawn/resume via Bash.** \n\nWant me to actually do one \u2014 e.g. fire off a scheduled remote Claude routine, or list what triggers already exist?"
+      },
+      {
+        "role": "user",
+        "text": "lets try one"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me first see what triggers already exist, so we either reuse one or create a fresh simple one."
+      },
+      {
+        "role": "assistant",
+        "text": "No triggers exist yet, so we'll create one. Let me check the `/schedule` skill for the exact body format the create call expects."
+      },
+      {
+        "role": "assistant",
+        "text": "The `/schedule` skill is built-in (not file-based). Let me invoke it to get the correct body format and requirements."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Create one (Recommended)"
+  }
+}

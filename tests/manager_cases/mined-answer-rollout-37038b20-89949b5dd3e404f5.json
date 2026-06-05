@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-37038b20-89949b5dd3e404f5",
+  "sig": "answer:rollout-37038b20:89949b5dd3e404f5",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 37038b20-73d9-4702-80a0-2147bb685b90.jsonl turn #314",
+  "input": {
+    "action": {
+      "session_id": "rollout-37038b20",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01VjRbBCMMTziDjARTrC1UjL",
+      "question": "How aggressive should the restart be?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_015g3LJf49fhTJ8qFPzK76hg",
+        "description": "",
+        "questions": [
+          {
+            "question": "How aggressive should the restart be?",
+            "header": "Restart scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Just merge + restart supervisor (Recommended)",
+                "description": "Fast-forward main + kickstart supervisor. Existing mini-*/oneoff-* servers keep old argv until natural turnover. Zero session loss."
+              },
+              {
+                "label": "...also bounce the 5 mini-* servers",
+                "description": "After the supervisor restart, kill the 5 mini-* PIDs so the supervisor respawns them with bypassPermissions. Any active inner sessions on them get disconnected."
+              },
+              {
+                "label": "Bounce everything mm-* AND oneoffs",
+                "description": "Maximal cutover. Kills ~65 servers including ~60 oneoff worker sessions. Lost work for whatever's running. Only do this if you know nothing important is in flight."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "File as a follow-up."
+      },
+      {
+        "role": "assistant",
+        "text": "Filed and on the board.\n\n- **#42** [\\[AH\\] perm-gate scans commit-message bodies and blocks legitimate risky-op descriptions](https://github.com/jdtogni78/ai-harness/issues/42) \u2014 Status: **Todo** on project #2\n\nThe body lays out three fix options (exempt opaque payload flags, scan the staged diff instead of the message, or document the workaround) with #1 as the recommendation, plus a reproducer and a cross-reference to commit `f805982` where it was first hit. The `--dangerously-skip-permissions` deny rule is explicitly called out as out-of-scope so a future fix doesn't accidentally weaken it."
+      },
+      {
+        "role": "user",
+        "text": "Did we restart the sessions? Let we restart all the... launch these, make sure it picks up the new code."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me check what's actually running first, since \"restart all\" has different cost depending on what's where."
+      },
+      {
+        "role": "assistant",
+        "text": "Before I touch anything, one critical check \u2014 the supervisor runs from `/Users/claudio1/dev/ai-harness` (per `PYTHONPATH=/Users/claudio1/dev/ai-harness` in the perm-gate hook config). Our commit `f805982` is on the bridge worktree branch, not on whatever `~/dev/ai-harness` is checked out to."
+      },
+      {
+        "role": "assistant",
+        "text": "Found the gap. Here's what's actually running and what each step costs:\n\n| Component | State | Picks up new code by... |\n|---|---|---|\n| Main checkout `~/dev/ai-harness` | on `main` @ `1039593` (no f805982 yet) | merging the worktree branch to main |\n| Supervisor (PID 6746, launchd) | running on `main` code | `launchctl kickstart -k` after main is updated |\n| 5 `mini-*` per-dir servers (mm-* equiv) | argv shows `acceptEdits` | bouncing each one (supervisor respawns in ~30s) \u2014 **kills active inner sessions on those servers** |\n| ~60 `oneoff-mini-*` servers | argv shows `acceptEdits` (1 already on `bypass`) | natural turnover (supervisor doesn't respawn oneoffs) \u2014 **bouncing them kills the worker sessions running on them** |\n| Manager-ui | not running on this host | next time it starts |\n| `titles-monitor`, `usage-monitor` | running, unaffected | n/a (don't touch perm modes) |\n\n**Critical:** the supervisor doesn't know about our commit yet \u2014 `~/dev/ai-harness` is on main. Restarting it now without merging first would just reload the same old code.\n\nProposed plan (least-disruptive, gets the new default live without killing anyone's work):\n\n1. Fast-forward `~/dev/ai-harness` main to `f805982` (local merge from the worktree branch \u2014 no push)\n2. `launchctl kickstart -k gui/$(id -u)/com.claudio1.claude-remote-control` to reload the supervisor with the new code\n3. **Don't bounce the 5 `mini-*` servers** \u2014 they keep their old `acceptEdits` argv until they idle-recycle (~12h) or get bounced for unrelated reasons. New `mini-*` spawns (e.g. on supervisor adopting a new active-dir) immediately use `bypassPermissions`.\n4. **Don't touch the ~60 `oneoff-*` servers** \u2014 those are active worker/human sessions; killing them = losing work in progress.\n\nThings deliberately not in this plan:\n- **Push to origin** (you didn't ask, and the other host `note` isn't in play here)\n- **Bouncing the `mini-*` servers** (cheap option: just let them recycle. Aggressive option: bounce them now \u2014 say the word if you want this, but I'd want to see if you have anything running on any of them first.)"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Bounce everything mm-* AND oneoffs"
+  }
+}

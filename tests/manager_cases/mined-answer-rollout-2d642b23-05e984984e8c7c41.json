@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2d642b23-05e984984e8c7c41",
+  "sig": "answer:rollout-2d642b23:05e984984e8c7c41",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2d642b23-5938-48d2-aff3-84330c740b19.jsonl turn #25",
+  "input": {
+    "action": {
+      "session_id": "rollout-2d642b23",
+      "repo": "job-search",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/job-search/.claude/worktrees/bridge-cse_01Nrdofcmj3p4V4pFoKdAZGn",
+      "question": "Which aggregator API should the skill use?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_013fedPEtErqqU5M6bB5rctB",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which aggregator API should the skill use?",
+            "header": "API",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Adzuna (Recommended)",
+                "description": "Direct API, free tier ~250 calls/day, simple app_id+app_key auth, good global coverage incl. US/UK. Best signal-to-noise for a personal job search."
+              },
+              {
+                "label": "JSearch (via RapidAPI)",
+                "description": "Better LinkedIn-job coverage specifically, but only ~150 calls/month on free tier and goes through RapidAPI middleman."
+              },
+              {
+                "label": "Wire both, let me pick per search",
+                "description": "More code, more keys to manage, but flexible. Probably overkill for v1."
+              }
+            ]
+          },
+          {
+            "question": "Do you already have API credentials, or want me to walk you through signup?",
+            "header": "Credentials",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "I'll sign up now, walk me through it",
+                "description": "I'll point you at the signup page and tell you exactly which fields to copy. Takes ~2 min for Adzuna."
+              },
+              {
+                "label": "I already have keys",
+                "description": "You'll paste them and I'll wire them into a .env (gitignored)."
+              },
+              {
+                "label": "Build the skill first, I'll add keys later",
+                "description": "Skill is fully scaffolded with placeholder env vars; you drop credentials in when ready."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Is there a LinkedIn or plugin for Claude code, uh, or MCP, uh, and or SKU or something? And, um, if not, uh, can we build a quick integration with LinkedIn so that I can\u2026 we can do some job searches? I\u2019ll\u2026 we\u2019ll narrow down what I\u2019m looking for and, you know, help me look for it. Um,"
+      },
+      {
+        "role": "assistant",
+        "text": "Short answer: there's no official LinkedIn MCP from Anthropic, but a few community LinkedIn MCP servers exist on GitHub (mostly unofficial scrapers/wrappers around `linkedin-api` or Playwright). LinkedIn's official Jobs API is gated and not granted for personal use, so any \"quick\" integration realistically means either (a) a third-party job-board API like JSearch/Adzuna/Indeed that aggregates LinkedIn-style postings, or (b) a browser-automation MCP that drives LinkedIn while you're logged in \u2014 which works but technically violates LinkedIn's ToS and risks account flags.\n\nBefore I build anything, two quick questions so I pick the right path:"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me peek at the current repo state so I know what I'm working with."
+      },
+      {
+        "role": "assistant",
+        "text": "Repo's empty \u2014 fresh slate. One more set of choices before I build:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Adzuna (Recommended), Build the skill first, I'll add keys later"
+  }
+}

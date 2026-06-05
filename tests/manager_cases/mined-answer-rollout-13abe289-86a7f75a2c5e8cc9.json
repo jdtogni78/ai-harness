@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-13abe289-86a7f75a2c5e8cc9",
+  "sig": "answer:rollout-13abe289:86a7f75a2c5e8cc9",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 13abe289-396f-43fc-9381-447e4ecf90ee.jsonl turn #428",
+  "input": {
+    "action": {
+      "session_id": "rollout-13abe289",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How do you want to clear the phantom picker entries?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01NvN1TxHBYrE88aKDTMHQUo",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want to clear the phantom picker entries?",
+            "header": "Cleanup path",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Inspect via Chrome DevTools to find the API (Recommended)",
+                "description": "Open claude.ai/code in Chrome, drive it with the Claude-in-Chrome MCP, watch the picker's network calls to find the list+delete endpoint, then DELETE the dead env_* IDs. Most direct fix; gives us a reusable cleanup script."
+              },
+              {
+                "label": "Wait it out",
+                "description": "Don't touch them \u2014 they have a server-side TTL and will age out on their own. Unknown how long (probably hours). Bleed is stopped so the count won't grow."
+              },
+              {
+                "label": "Reach out to Anthropic / file a ticket",
+                "description": "Ask Anthropic support if there's a supported way to deregister stale Remote Control environments, or to bulk-clear them server-side."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now revert the ad-hoc instrumentation that was just for debugging, then run all tests."
+      },
+      {
+        "role": "assistant",
+        "text": "All 25 tests pass \u2014 4 new ones for the `supervisor --help` bug, 2 new ones for the `claude_bin` default. Let me also run the full suite to be sure nothing else broke."
+      },
+      {
+        "role": "assistant",
+        "text": "**594/594 tests pass** when run with subpackage discovery; the one `test_redact` \"ERROR\" is a loader-level fluke (passes when run directly \u2014 likely a missing `__init__.py` in `tests/perm_gate_lab`, pre-existing, unrelated to my changes)."
+      },
+      {
+        "role": "assistant",
+        "text": "## Summary\n\n**Production fixes:**\n- [remote_control/supervisor.py:200](remote_control/supervisor.py:200) \u2014 `main()` now parses argv: `--help`/`-h`/`help` \u2192 print usage + exit 0; unknown args \u2192 exit 2; empty argv \u2192 run supervisor (the prior behavior, but only when argv is actually empty).\n- [remote_control/config.py:25](remote_control/config.py:25) \u2014 new `CLAUDE_BIN = str(Path.home() / \".local/bin/claude\")` constant; both `SupervisorConfig.from_env` (:65) and `ManagerConfig.from_env` (:255) now use it instead of the hardcoded `/Users/user/.local/bin/claude` that would crash-loop on any other account.\n\n**New regression tests:**\n- [tests/test_supervisor_decisions.py](tests/test_supervisor_decisions.py) \u2014 `SupervisorMainArgvTest` (4 cases): help flags don't run the supervisor; unknown args error out; `--help --bogus` is an error not help; empty argv still runs.\n- [tests/test_config.py](tests/test_config.py) \u2014 `test_claude_bin_default_is_per_user` (regression: no `/Users/user/` in default) + `test_claude_bin_env_override`. Updated existing `test_defaults`.\n\n**Cleanup:** Reverted the ad-hoc `tick: wanted=... running=... deact=...` debug logging from supervisor.py (it served its purpose; not needed for the permanent fix).\n\n**Result:** Both bugs that caused tonight's flap are now fixed with passing tests. The rogue supervisor that was running for 9h44m is dead; the launchd-managed one is holding all 6 children stably. The supervisor on mini is still running the pre-fix code in memory \u2014 when convenient, `launchctl kickstart -k gui/$UID/com.claudio1.claude-remote-control` will pick up the fixes (and confirm `python -m remote_control supervisor --help` now prints usage instead of running)."
+      },
+      {
+        "role": "user",
+        "text": "I still see tons of envs on claude"
+      },
+      {
+        "role": "assistant",
+        "text": "Confirmed: **no new phantoms are being added** (zero supervisor activity since 21:54:40, ~7 min ago; only one supervisor; all 6 children stable for 7+ min). What you're still seeing in the picker is the leftover registrations from the 9-hour cross-supervisor fight \u2014 they haven't expired yet.\n\n**The bad news:** there's no CLI to deregister them. `claude remote-control --help` has no `--deregister` flag, and the codebase only knows the `/v1/code/sessions` endpoint \u2014 there's no client for `/v1/code/environment/*` (which is what the picker entries are).\n\nSo the realistic paths are:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Inspect via Chrome DevTools to find the API (Recommended)"
+  }
+}

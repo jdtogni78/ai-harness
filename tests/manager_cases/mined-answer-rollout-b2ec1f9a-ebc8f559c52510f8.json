@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b2ec1f9a-ebc8f559c52510f8",
+  "sig": "answer:rollout-b2ec1f9a:ebc8f559c52510f8",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b2ec1f9a-57e6-48f5-ad57-30cfc5dc815d.jsonl turn #66",
+  "input": {
+    "action": {
+      "session_id": "rollout-b2ec1f9a",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control",
+      "question": "How autonomous should the on-restart resume mechanism be?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01UmybLszxBxmA7byCCpi2gP",
+        "description": "",
+        "questions": [
+          {
+            "question": "How autonomous should the on-restart resume mechanism be?",
+            "header": "Resume mode",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Detect + digest (safe)",
+                "description": "On restart, scan all ~/dev projects, find interrupted sessions, write a digest + push notification with a ready `claude --resume <uuid>` command for each. You trigger the actual resume. No autonomous agents."
+              },
+              {
+                "label": "Auto-continue, bounded",
+                "description": "Same scan, but also spawn a headless `claude -p --resume <uuid>` per interrupted session that runs the resume-work reconcile logic. Bounded (max N, only LAST?=ERR, skip clean/merged). Risk: autonomous edits without a human gate."
+              },
+              {
+                "label": "Digest now, auto-continue opt-in",
+                "description": "Build the safe digest now; add an env-flag (off by default) that enables bounded auto-continue later once you've seen the digest behave."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Your question could mean a couple of different things. Let me clarify before I dig in:"
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the situation with `claude remote-control`:\n\n**There's no native \"reconnect\" feature.** The server itself (`remote-control-startup.sh`) is stateless \u2014 when it restarts (crash, reboot, or the 5-min LaunchAgent re-run), it pre-creates a *fresh* session. The old session disappears from the live server list in the mobile app / claude.ai.\n\n**But the conversation is not lost.** Every session's full transcript is persisted on disk as a `.jsonl` file under `~/.claude/projects/<encoded-dir>/`. For example FamilyFund has dozens of them. So a previous session can be restored \u2014 just not through the remote-control server's UI.\n\nTwo ways to restore one:\n\n1. **Locally in a terminal** \u2014 `cd` to the project dir and run `claude --resume` (interactive picker of past sessions) or `claude -c` (continue the most recent one). This rehydrates the exact conversation.\n\n2. **In a fresh chat (incl. from the phone)** \u2014 use the `resume-work` skill, which lists the repo's recent/interrupted sessions + worktrees, lets you pick one, and reconstructs the goal + remaining work so you can continue it.\n\nThe remote-control server is per-directory (`mm-FamilyFund`, `mm-dev`, `mm-claude-remote-control`, etc.), so \"which previous server\" matters. Which project's session do you want to bring back?"
+      },
+      {
+        "role": "assistant",
+        "text": "Got it \u2014 you want every remote-control server to come back up *resuming its previous chats*, not starting fresh. Let me check what the `claude` CLI actually supports for that before designing a mechanism."
+      },
+      {
+        "role": "assistant",
+        "text": "I dug into the actual `claude` CLI capabilities. Here's the honest constraint, then what's actually achievable.\n\n## The hard limitation\n\n`claude remote-control` has **no resume mechanism** for its spawned sessions. Its only flags are `--name`, `--spawn`, `--permission-mode`, `--capacity`, `--create-session-in-dir`. Resume features (`--resume`, `--continue`, `--fork-session`, `--from-pr`) exist **only for the interactive `claude` command**, not for the remote-control *server*.\n\nThe server's design is explicitly: persistent server + **ephemeral, freshly-spawned sessions**. There's no supported way to tell a remote-control server \"come back up holding your previous conversations.\" So a true auto-resume-on-restart mechanism for the server isn't possible without the product supporting it.\n\n## What this means in practice (better news)\n\nRestart only actually loses the live session in two cases \u2014 **reboot or crash**. The 5-minute LaunchAgent does **not** churn sessions: `remote-control-startup.sh` keys idempotency on `pgrep -f \"name $name --spawn\"`, so a running server is skipped, never killed. Live sessions already survive indefinitely between intervals.\n\nAnd critically: **no conversation is ever lost**. Every session's full transcript persists on disk at `~/.claude/projects/<encoded-dir>/<uuid>.jsonl` regardless of server restarts. They just have to be resumed *as a new interactive/remote session*, not reattached to the old server.\n\n## Realistic mechanism I can build\n\nSince the server can't auto-resume, the practical equivalent is **making the last session per project trivially resumable after a reboot/crash**:\n\n1. **Session index** \u2014 extend `remote-control-startup.sh` to record, per directory, the most recent session UUID into `logs/last-sessions.tsv` each run. (Read-only scan of `~/.claude/projects/`.)\n2. **`resume-last.sh <project>` helper** \u2014 looks up that UUID and runs `claude --resume <uuid>` in the project dir (locally), or prints the exact command. One step to bring back \"the previous chat\" for any server.\n3. **From the phone** \u2014 document that the move is: connect to the server (fresh session) \u2192 run the `/resume-work` skill, which lists recent sessions for that repo and reconstructs the prior work. This is the only way to continue a prior chat from mobile, since the server can't reattach.\n\nThis gives you \"every server's chats are restorable in one step\" \u2014 which is the achievable version of what you asked, given the CLI doesn't support server-side resume.\n\nWant me to build #1 + #2 and document #3 in the README? It's contained to this repo's script + a new helper + README, no change to the running servers' behavior."
+      },
+      {
+        "role": "user",
+        "text": "we have the skill resume-work, can we script out a run of it, resuming all pending upon restarting sessions?"
+      },
+      {
+        "role": "assistant",
+        "text": "Yes \u2014 but with an important split. I read both skills' internals (`session_scan.sh`, `resume_brief.sh`, the SKILL workflows). The skill has two halves:\n\n- **Discovery half \u2014 fully scriptable.** `session_scan.sh sessions` and `resume_brief.sh list` are read-only and deterministic. They already detect sessions that ended on an API error / interrupted (`LAST?=ERR`) and emit each one's UUID + cwd + original goal. Running this across all `~/dev` projects on restart is safe and easy.\n\n- **Acting half \u2014 deliberately *not* safe to fully automate.** Steps 3\u20136 of resume-work (locate worktree, rescue, **reconcile with `main` so you don't redo already-merged work**, confirm scope) require judgement. The skill explicitly says \"**Always let the user choose** \u2014 don't auto-pick.\" Auto-resuming *all* pending sessions on restart would spawn many headless `acceptEdits` agents that could redo merged work, collide with each other, and burn tokens with no human gate.\n\nSo there are two real designs, and the choice has safety implications:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "[User dismissed \u2014 do not proceed, wait for next instruction]"
+  }
+}

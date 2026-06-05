@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-0d000447-392e2cfc3035e073",
+  "sig": "answer:rollout-0d000447:392e2cfc3035e073",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 0d000447-f059-4bb1-a208-6f8b4a3d183e.jsonl turn #665",
+  "input": {
+    "action": {
+      "session_id": "rollout-0d000447",
+      "repo": "job-search",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/job-search/.claude/worktrees/bridge-cse_015ZNHAuJi5RoSP2a27ao49d",
+      "question": "What's the highest-leverage next move from here?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01SVEcEfSMxdYc3Rg11KeUXs",
+        "description": "",
+        "questions": [
+          {
+            "question": "What's the highest-leverage next move from here?",
+            "header": "Next move",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Build an ATL/ATX/CLT target-companies addendum",
+                "description": "Stop relying on Adzuna; build a curated list of seed\u2013Series B AI startups with ATL/ATX/CLT presence \u2014 then use that for outreach. Closes the gap I just surfaced."
+              },
+              {
+                "label": "Save the 4 near-fits to shortlist + draft outreach",
+                "description": "Keep Gradle, Saviynt, Aravo, Ivanti as the working list; draft a tailored intro for each."
+              },
+              {
+                "label": "Pull LinkedIn export, run the referral ranker",
+                "description": "Per notes/pipeline.md, referrals beat cold apply ~5:1. Get your LinkedIn export and run referrals.py against the (refreshed) target list."
+              },
+              {
+                "label": "End the session here",
+                "description": "Enough for tonight; pick up tomorrow."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "yes"
+      },
+      {
+        "role": "assistant",
+        "text": "Continuing. The raw list was dominated by geotechnical/civil \"staff engineer\" misfires \u2014 narrowing to software-specific titles, then running all 3 cities."
+      },
+      {
+        "role": "assistant",
+        "text": "Excludes too aggressive \u2014 \"test\" alone probably kills most SWE postings (test automation mentioned everywhere). Tightening."
+      },
+      {
+        "role": "assistant",
+        "text": "Adzuna's `what` is AND-only \u2014 \"staff software engineer\" requires all 3 words, killing most legit staff SWE postings. Switching to multi-query union with the IT category filter."
+      },
+      {
+        "role": "assistant",
+        "text": "Honest read: Adzuna's coverage of staff-SWE-at-AI-startup in these metros is **thin** \u2014 these aggregator results are not where the seed\u2013Series B targets you actually want hang out. Even with the IT category filter and three query variants per city, we got 16 unique hits and most are mature mid-market companies, not seed-B AI startups.\n\n**Atlanta (6 listings)** \u2014 strongest near-fits:\n- **`#3 Gradle Technologies \u2014 Staff SRE`** ($185K, 2026-05-27) \u2014 Gradle the build-tool company, real engineering culture, smaller. Closest match in ATL.\n- **`#4 Saviynt \u2014 Sr/Staff Site Reliability, Platform Engineering`** ($142K, 2026-05-27) \u2014 growth-stage identity-governance startup.\n\n**Austin (8 listings)** \u2014 strongest near-fits:\n- **`#6 Aravo \u2014 Staff SWE (API / AI Integration)`** ($169K, 2026-05-27) \u2014 has the AI integration angle.\n- **`#2 Ivanti \u2014 Staff DevOps (Remote, East Coast)`** ($152K, 2026-05-31) \u2014 established but staff-IC, remote-friendly.\n\n**Charlotte (2 listings)** \u2014 both weak fits (one Maximus Dev Manager, one Ivanti remote-DevOps).\n\n**Reality check on the search itself:**\n- Adzuna under-indexes startup-direct ATS postings (Greenhouse / Lever / Ashby). The seed-B AI startups you actually want \u2014 even ones with ATL/ATX presence \u2014 probably don't show up here.\n- Your `notes/target-companies.md` is **SF-centric** (Anthropic, OpenAI, Sierra, Decagon, Cresta, Harvey, Hebbia, Palantir). For the Atlanta pivot, you need a regional companion list \u2014 Flock Safety, Calendly, Salesloft, Greenlight, Pindrop, Voxel51, Bakkt, Stord, Cypress.io, Mailchimp/Intuit (probably too big), maybe Honeycomb (remote, ATL alumni base).\n- For Austin: ScaleAI, Indeed (big), Atlassian, Cloudflare ATX, MongoDB ATX, Indeed-spinoffs, and the YC W23/S23 cohorts that put offices there."
+      },
+      {
+        "role": "assistant",
+        "text": "**Wrap-up \u2014 this session's commits:**\n- `c08e0cd` resume \u2014 15+ CLIs bullet leads Visa-EM (`~/dev/job-search` main)\n- `b8a4857` website spec READMEs synced to deployed state (same)\n- `3c77d0e` FamilyFund screenshot gallery (`~/dev/jdtogni-site` main, pushed \u2192 Cloudflare Pages)\n- Memory updated: new `user-location-preferences` note (Atlanta primary, Austin/Charlotte secondary, 2026-05-31)\n\n**Next-action recommendation (not done \u2014 for you to decide):**"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Build an ATL/ATX/CLT target-companies addendum"
+  }
+}

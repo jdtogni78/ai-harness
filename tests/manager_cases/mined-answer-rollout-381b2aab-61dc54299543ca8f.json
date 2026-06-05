@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-381b2aab-61dc54299543ca8f",
+  "sig": "answer:rollout-381b2aab:61dc54299543ca8f",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 381b2aab-c46c-4d28-b14d-f7f7d1c0e83f.jsonl turn #134",
+  "input": {
+    "action": {
+      "session_id": "rollout-381b2aab",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01FGYsmgUW8mpPQoJAtz5nBy",
+      "question": "Which session do you want to resume?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01554nD9Ts3o12CYBkvdLaUQ",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which session do you want to resume?",
+            "header": "Pick session",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "#3 /resume-work meta-work",
+                "description": "2026-05-19T15:32 \u2014 '/resume-work findout how, and add a memory explaining how to start doc' (might be the origin of this very feature)"
+              },
+              {
+                "label": "#7 paid $amount + shares (ended on API error)",
+                "description": "2026-05-19T00:36 \u2014 'I want to have the $amount for the paid (if mismatched) and shares pai...' (cwd app1, 3 dirty files)"
+              },
+              {
+                "label": "#15 'paid by tx' should be a link",
+                "description": "2026-05-18T01:05 \u2014 'paid by tx should be a link - http://localhost:3000/credit-lines/259'"
+              },
+              {
+                "label": "None of these / let me pick another",
+                "description": "Show me a different option or pass a UUID/keyword directly"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now addressing your follow-up \"Resume work.\" \u2014 here's the freshly filtered list (65 done sessions hidden):"
+      },
+      {
+        "role": "assistant",
+        "text": "Footer says \"1 ack'd\" but I unacked it \u2014 let me check the ack file."
+      },
+      {
+        "role": "assistant",
+        "text": "Two bugs to fix:\n1. `set -e` + `grep -vx` returning 1 (no remaining lines) makes unack silently fail.\n2. Ack file landed under the worktree's slug, not the main repo's \u2014 won't survive worktree removal and won't be shared between sessions."
+      },
+      {
+        "role": "assistant",
+        "text": "Confirmed: from a worktree, `--show-toplevel` returns the worktree path, breaking both the candidate glob and the ack-file location. Fixing both."
+      },
+      {
+        "role": "assistant",
+        "text": "Round-trip works, ack file is in the main repo slug now. The hidden count dropped because we no longer fall back to \"all projects globally\" \u2014 we're correctly scoped to FamilyFund-related project dirs. Let me re-show the proper list:"
+      },
+      {
+        "role": "assistant",
+        "text": "The list is back to the full set (65 hidden, 15 visible). Mostly credit-line UI follow-ups. Which one should I resume?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "#15 'paid by tx' should be a link"
+  }
+}

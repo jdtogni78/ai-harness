@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a5cdbcc6-3663c9e9fd49cf23",
+  "sig": "answer:rollout-a5cdbcc6:3663c9e9fd49cf23",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a5cdbcc6-9957-494f-a09e-0a7400bbdcf1.jsonl turn #30",
+  "input": {
+    "action": {
+      "session_id": "rollout-a5cdbcc6",
+      "repo": "job-search",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/job-search/.claude/worktrees/bridge-cse_01S28BQZjF3KvWTeCxbqgoju",
+      "question": "What do you want to work on in this session?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01PdJUR26yQeBMMSnCUQdjSv",
+        "description": "",
+        "questions": [
+          {
+            "question": "What do you want to work on in this session?",
+            "header": "Work item",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Run a job search",
+                "description": "Use the job-search skill to query Adzuna, browse new postings, and curate the shortlist. Best if you want fresh roles today."
+              },
+              {
+                "label": "Resume + LinkedIn rewrite",
+                "description": "Pipeline step 3: rewrite resume + LinkedIn for the Staff+/AI-pivot positioning. A core blocking step for outbound."
+              },
+              {
+                "label": "Outbound to targets",
+                "description": "Pipeline step 4: prepare outbound to ~15 target companies (notes/target-companies.md)."
+              },
+              {
+                "label": "Regenerate published site",
+                "description": "Rebuild jdtogni78/jdtogni-site after the position-thesis-agent teardown removed the old narrative."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "start work"
+      },
+      {
+        "role": "assistant",
+        "text": "The worktree is named `bridge-cse` but none of the Todo tickets obviously map to it. Let me check the repo for context on what \"bridge-cse\" refers to before asking you to pick."
+      },
+      {
+        "role": "assistant",
+        "text": "\"bridge-cse\" is just this repo's generic worktree-branch prefix \u2014 every worktree is named that way, so it doesn't point to a specific task. This is a fresh worktree in the **job-search** repo.\n\nPer the skill, I won't auto-pick \u2014 you choose. Since we're in the job-search worktree, the relevant board is **Job Search (#3)**. All its items are drafts (no issue #), so they aren't claimable via the GitHub-issue flow, but I can still start the work. Here are the directions on that board:\n\n- LinkedIn referral tooling\n- Website specs + LinkedIn-connector idea\n- Adzuna API signup \u2014 unblock the job-search skill\n- Resume + LinkedIn rewrite (pipeline step 3)\n- Network outreach \u2014 resume feedback + position brainstorming\n- Talent-marketplace signups \u2014 A.Team / Braintrust / Gun.io\n- Outbound to ~15 target companies (pipeline step 4)\n- Regenerate published site (jdtogni78/jdtogni-site) post-teardown"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Resume + LinkedIn rewrite"
+  }
+}

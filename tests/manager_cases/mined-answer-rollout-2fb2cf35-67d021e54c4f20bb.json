@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2fb2cf35-67d021e54c4f20bb",
+  "sig": "answer:rollout-2fb2cf35:67d021e54c4f20bb",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2fb2cf35-1e06-4ccf-8f19-661200f9ebeb.jsonl turn #231",
+  "input": {
+    "action": {
+      "session_id": "rollout-2fb2cf35",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_0143BLSi72cXwwaoR5TWBJAa",
+      "question": "Reduce permission prompts for workers (persists across reboot)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_019rCTPeEtmxGscR9MfCNojR",
+        "description": "",
+        "questions": [
+          {
+            "question": "Reduce permission prompts for workers (persists across reboot)?",
+            "header": "Perm policy",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Run /fewer-permission-prompts now",
+                "description": "Scan recent transcripts (manager + #29 worker patterns) and add common bash/gh/python invocations to project settings.json. Conservative \u2014 only adds allowlist entries."
+              },
+              {
+                "label": "Hold \u2014 see what #31 actually hits first",
+                "description": "Wait for #31's worker to ping back with its real prompt-friction points, then allowlist based on observed evidence rather than guesses."
+              },
+              {
+                "label": "Leave perms alone",
+                "description": "Don't change anything. Workers prompt as normal."
+              }
+            ]
+          },
+          {
+            "question": "Next dispatch \u2014 fan out more workers in parallel with #31?",
+            "header": "Next dispatch",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "#8 supervisor oscillation",
+                "description": "Independent of #31 (touches supervisor.py allowlist-membership logic, not rehydrate.py). Safe parallel."
+              },
+              {
+                "label": "#11 send-to-session unit tests",
+                "description": "Adjacent area (session_titles.py) but #31 only CALLS sessions submit, doesn't modify it. Low merge-conflict risk."
+              },
+              {
+                "label": "#2 Phase B host-derived defaults",
+                "description": "Independent area (installer / ~/.ai-harness setup). Safe parallel."
+              },
+              {
+                "label": "Hold until #31 lands",
+                "description": "Don't fan out yet. One worker at a time keeps coordination simple."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Recap:\n- **#29** \u2014 already `Done` on board #2; PR #30 merged. No nudge needed (worker's heads-up was a false alarm \u2014 `gh` token actually has `project` scope here).\n- **#31** filed: [[AH][supervisor] dispatch fresh sessions seeded with prior context (handoff, not resume)](https://github.com/jdtogni78/ai-harness/issues/31) \u2014 composes `new-session` + `sessions submit` (the same dispatch pattern I used on #29), gated by `RESUME_ON_RESTART=handoff|off`, with TTL + archived markers from #30 already filtering noise. On board, `Todo`.\n- Saved the \"handoff > resume for broken sessions\" preference as a feedback memory so future recovery designs default the right way.\n\nWant me to dispatch a worker on #31 the same way (oneoff in `~/dev/ai-harness` + manager-pattern kickoff), or hold off?"
+      },
+      {
+        "role": "user",
+        "text": "I want you to act as a manager, and dispotch work to sessions, and comm with them as they go"
+      },
+      {
+        "role": "assistant",
+        "text": "Manager mode on. Plan:\n1. Dispatch #31 right now (extends the rehydrate.py from PR #30, owns its area cleanly)\n2. Surface what else on board #2 is dispatch-ready in parallel, you pick the next ones to fan out\n3. Coordinate replies via send-to-session as workers ping back (auto-invokes this session)\n\nLet me verify the new combined `--wait --prompt` dispatch (it's faster than my old spawn-then-submit dance), then launch."
+      },
+      {
+        "role": "assistant",
+        "text": "No `--wait --prompt` yet (skill description was ahead of the CLI). Going with the two-step pattern. Launching #31's worker."
+      },
+      {
+        "role": "assistant",
+        "text": "Two things in flight. Quick answers, then I'll finish dispatching #31 and address your perm question fully.\n\n**Short answer on perms across reboot**: No, I didn't change any permission configuration this turn. Workers run with `--permission-mode acceptEdits` (the supervisor's default), and the global `perm_gate` PreToolUse hook is in `ENFORCE=1 static-only` mode (per [[project_perm_gate]] \u2014 denies rm-rf/, asks on push/merge/deploy, auto-allows safe). That posture persists across reboot because it's file-based config, not session state. Nothing I did weakened or tightened it.\n\nNow finishing the dispatch."
+      },
+      {
+        "role": "assistant",
+        "text": "#31 worker is now in flight \u2014 `oneoff-mini-a591a365` / `cse_01Utk4EmrPekhoV2NaQtHEQT`, kickoff delivered (2160 chars). It'll claim, build, PR, and ping back via send-to-session.\n\n**Fuller answer on the perm question.** Two layers to think about:\n\n1. **Per-worker spawn flag.** Workers (both supervisor-managed `mm-*` and one-offs like the one I just spawned) are launched with `--permission-mode acceptEdits` \u2014 auto-allows safe edits, still prompts for Bash/destructive ops. This is set in code (`supervisor.py` / `new_session.py`) and persists across reboot. I didn't change it.\n\n2. **Global `perm_gate` PreToolUse hook.** `ENFORCE=1` static-only \u2014 denies `rm -rf /`, asks on push/merge/deploy, auto-allows safe ([[project_perm_gate]]). File-based config; survives reboot. I didn't touch it.\n\nSo nothing got weaker or stronger this turn. But there's a real friction problem in manager-pattern dispatch you may be hinting at: **unattended workers can't answer \"ask\" prompts** (the picker UI is the answer channel, but nobody's looking). #31's worker is likely to hit at least the `git push` / `gh pr create` / merge prompts mid-flight, same as #29's did. Two non-mutually-exclusive levers:\n\n- **Run `/fewer-permission-prompts`** to scan recent transcripts and add the manager-pattern primitives (`python3 -m remote_control *`, common git/gh subcommands) to project `.claude/settings.json`. Locked in across reboot. Conservative \u2014 only adds to the allowlist, doesn't touch the perm_gate hook.\n- **Tune `perm_gate`'s static allow/deny lists** (the follow-up tracked in #25). Bigger surgery; out of scope unless you want it."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Run /fewer-permission-prompts now, #11 send-to-session unit tests, #8 supervisor oscillation, #2 Phase B host-derived defaults"
+  }
+}

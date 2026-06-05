@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b52eaa47-5c28b1a4e21a95a7",
+  "sig": "answer:rollout-b52eaa47:5c28b1a4e21a95a7",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b52eaa47-5382-433a-bd53-6b35deaff5c1.jsonl turn #325",
+  "input": {
+    "action": {
+      "session_id": "rollout-b52eaa47",
+      "repo": "ai-harness-private",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness-private",
+      "question": "Run the destructive swap now?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_017hchkDY8TFAvzNxNxQJLkq",
+        "description": "",
+        "questions": [
+          {
+            "question": "Run the destructive swap now?",
+            "header": "Run swap",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 run all 6 steps (Recommended)",
+                "description": "Execute the full sequence above. Session ends at step 6. You'll resume later in ai-harness-private/.claude/worktrees/bridge-cse_01DLvpuhCBCBSaWNSHf57fAa/."
+              },
+              {
+                "label": "Yes, but stop before launchctl kickstart",
+                "description": "Run steps 1\u20135. Leave the running launchd children pointing at the old (renamed) path \u2014 they'll keep working on stale state. You manually kickstart later from a separate terminal when you're ready to lose this session."
+              },
+              {
+                "label": "No, hold for now",
+                "description": "Don't run the swap yet. The clone at ~/dev/ai-harness-new + staged plists at /tmp/ai-harness-switch-plists/ are already prepared and stay until you say go."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Let's switch the public to be the the one we use on this directory."
+      },
+      {
+        "role": "assistant",
+        "text": "This is a bigger move than the sync. Let me check what's actually at risk before I touch anything."
+      },
+      {
+        "role": "assistant",
+        "text": "Before I touch anything: a \"switch to public as primary\" here isn't just a remote-URL change. Real things this directory's current state binds to:\n\n- **`com.claudio1.*.plist`** files \u2014 actually loaded by launchd. The public version is `com.user.*.plist`. Identifier-rewrite drift breaks the install.\n- **`active-dirs.txt`, `session-nicknames.txt`** \u2014 supervisor reads these. Public has template comments only, no real allowlist.\n- **`DECISIONS.md` GD-0007** \u2014 exists only privately; the export strips it. Resetting to public erases it from this tree.\n- **`scripts/publish/sanitize_export.sh`** + the rule I just added \u2014 also stripped from public, so it'd disappear locally.\n- **50+ bridge worktrees** under `.claude/worktrees/` \u2014 their branches' ancestry references private commits that aren't reachable from public/main. They keep working locally but their `main` diverges sharply.\n- **Source files referencing real paths/identifiers** \u2014 many tracked files (CLAUDE.md, scripts, configs) literally say `claudio1`/`jdtogni78`. Resetting to public turns those into placeholders; the running install on this machine doesn't match the tracked content.\n\nGiven that, \"switch\" can mean several different things. The light option doesn't actually switch much; the heavy option is a real migration."
+      },
+      {
+        "role": "assistant",
+        "text": "Acknowledged. Before any destructive step, let me survey the live state \u2014 what's running, what worktrees exist, what references `~/dev/ai-harness` literally."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll do the non-destructive prep first, then pause for your go-ahead on the destructive steps."
+      },
+      {
+        "role": "assistant",
+        "text": "Pre-swap state ready. Here's the precise sequence I plan to run. The last step (`launchctl kickstart`) will almost certainly **kill this Claude session** because the running remote-control server holds open FDs to the renamed path and gets respawned. You'll resume in a fresh session afterwards.\n\n```\n1. /bin/mv /Users/claudio1/dev/ai-harness         /Users/claudio1/dev/ai-harness-private\n2. /bin/mv /Users/claudio1/dev/ai-harness-new     /Users/claudio1/dev/ai-harness\n3. /usr/bin/git -C /Users/claudio1/dev/ai-harness-private worktree repair\n4. /bin/cp /tmp/ai-harness-switch-plists/*.plist  /Users/claudio1/Library/LaunchAgents/\n5. edit /Users/claudio1/dev/ai-harness-private/active-dirs.txt\n   add: ai-harness-private@mini,note\n6. /bin/launchctl kickstart -k gui/$UID/com.claudio1.claude-remote-control\n   /bin/launchctl kickstart -k gui/$UID/com.claudio1.claude-usage-limit-monitor\n```\n\nAfter:\n- `~/dev/ai-harness` \u2192 fresh public clone (origin = `jdtogni78/ai-harness`)\n- `~/dev/ai-harness-private` \u2192 your existing repo with all 29 worktrees, `.claude/` state, logs, GD-0007, `scripts/publish/`\n- launchd supervisor runs out of `ai-harness-private`, watches both basenames\n\nThree things I want flagged before you say go:\n\n1. **Note host (the MacBook) is not touched.** Its `~/dev/ai-harness` is still on the old origin. The remote rename to `ai-harness-private` already happened upstream, so its `origin` URL is stale. After the cutover here, do the same swap on note from a session there. (Memory `project_ai_harness_public_portfolio.md` already flagged the note origin update.)\n\n2. **Auto-memory dir is path-derived.** The current memory lives at `~/.claude/projects/-Users-claudio1-dev-ai-harness/`. After the swap, sessions opened against `~/dev/ai-harness` (the new public clone) will use the *same* memory dir \u2014 so memory is preserved for new work. Sessions opened against `~/dev/ai-harness-private` would use a *new* memory dir \u2014 minor split if you keep working in the private dir.\n\n3. **This session.** Once kickstart runs, this Claude Code session loses its remote-control server. Resume via your usual resume-work flow against the renamed worktree under `~/dev/ai-harness-private/.claude/worktrees/bridge-cse_01DLvpuhCBCBSaWNSHf57fAa/`."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Yes, but stop before launchctl kickstart"
+  }
+}

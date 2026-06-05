@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-48d0c40c-cdaf93eff8b1e357",
+  "sig": "answer:rollout-48d0c40c:cdaf93eff8b1e357",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 48d0c40c-86b9-4a57-97ec-be690e1e6274.jsonl turn #59",
+  "input": {
+    "action": {
+      "session_id": "rollout-48d0c40c",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01HJ5LMGgCdnHw81zDM3unGs",
+      "question": "Do you want to go beyond the current 'git-ignored .env + rotate + scan' model and add real secret vaulting?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01SmHe6nGiC8498vcntMruZV",
+        "description": "",
+        "questions": [
+          {
+            "question": "Do you want to go beyond the current 'git-ignored .env + rotate + scan' model and add real secret vaulting?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "SOPS + age",
+                "description": "Commit encrypted .env.sops files to git, decrypt at deploy with an age key. Lightweight, no server, fits a solo/LAN setup. I'd add .sops.yaml + a decrypt step."
+              },
+              {
+                "label": "Just close the gaps",
+                "description": "Keep the current model but commit the pre-commit gitleaks hook (via pre-commit framework) and move prod's hardcoded/weak DB creds out of dstrader-aws compose into an env_file."
+              },
+              {
+                "label": "Just explain, no changes",
+                "description": "You only wanted the review. I'll stop here."
+              },
+              {
+                "label": "HashiCorp Vault",
+                "description": "Full secrets server with dynamic creds/leasing. Heavier; usually overkill for this footprint but real if you're scaling."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "did we implement a password vaulting? sops? review, explain"
+      },
+      {
+        "role": "assistant",
+        "text": "I'll investigate the repo for any password vaulting / sops / secrets-management implementation."
+      },
+      {
+        "role": "assistant",
+        "text": "No `.sops.yaml`, no encrypted `.enc`/`.age`/`.sops` files. Let me read the security docs that mention these terms to understand what was actually decided/implemented."
+      },
+      {
+        "role": "assistant",
+        "text": "Now let me look at the actual implemented artifacts: the rotation script, pre-commit hook, CI scanning, and gitignore."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me confirm the rotation script and the pre-commit secret guard, plus the gitignore posture."
+      },
+      {
+        "role": "assistant",
+        "text": "## Short answer\n\n**No.** There's no SOPS, no HashiCorp Vault, no `age`/git-crypt, and no encrypted secrets-at-rest anywhere in the repo. There's no `.sops.yaml`, no `.enc`/`.age`/`.sops` files, and the words \"sops\"/\"vault\" never appear as an implementation \u2014 only as a metaphor (`money_flow_plan.md`: \"treat it like a vault\") and as one *unchosen* option in a planning doc (\"git-ignored files **or** a secrets manager\").\n\nWhat you actually built is a different model: **keep-secrets-out-of-git + rotate + scan**. It's a reasonable choice for a localhost/LAN-only dev DB, but it's not vaulting.\n\n## What was actually implemented\n\n**1. Git-ignored `.env` files as the single secret store** (\"one tracked env only\")\n- Real secrets live ONLY in git-ignored files: `app1/family-fund-app/.env*` (symlinked to `.env.dev`/`.env.stage`) and `app1/.env` (DB creds for compose). The only tracked env file is `.env.example` (placeholders).\n- The leaked `.env.dev` was un-tracked (`git rm --cached`, kept on disk).\n- `.gitignore` hardened (both root and app): `**/.env`, `**/.env.*` except `.env.example`, plus `*.sql`, `*.sql.gz`, `*.ibd`, `*.sqlite`, data dumps.\n- DB password de-hardcoded from the 4 tracked compose files \u2192 `${FF_DB_*:-changeme}`, value read from git-ignored `app1/.env`.\n\n**2. Secret rotation** (`docs/security/SECRET-ROTATION-{PLAN,RUNBOOK}.md`)\n- One-off 2026-05-22 dev rotation **done**: APP_KEY regenerated, DB root pw rotated, sessions/`password_resets` truncated, leaked Redis/Mail pw refreshed.\n- A repeatable runbook with a quarterly cadence, blast-radius warnings, and an encrypted-column safety check (Laravel's `encrypted` cast on `two_factor_*` is APP_KEY-bound \u2014 that's app-level crypto, the closest thing to \"vaulting\" here).\n\n**3. Rotation automation \u2014 stage 1 only** (`bin/rotate-dev-secrets.sh`)\n- Rotates APP_KEY at runtime with a pre-flight gate (aborts if 2FA/encrypted data exists, warns about leased pools). DB-password rotation is **not** automated yet.\n\n**4. Secret scanning** (`.gitleaks.toml`, `bin/security-scan.sh`, `.github/workflows/security-scan.yml`)\n- Gitleaks working-tree scan locally + in CI, with an allowlist for known local dev creds. Plus semgrep, trivy, composer/npm audit, OSV, SBOM, and ZAP.\n\n## Gaps / things to know\n\n- **The pre-commit secret guard is local-machine-only.** Both runbooks reference a `.git/hooks/pre-commit` that blocks env files / `APP_KEY=base64:` / dumps, but it's **not tracked** in the repo (no `pre-commit` framework config, no committed hook). I confirmed there's no tracked hook and none installed in this worktree's `.git/hooks/`. So a fresh clone has **no** commit-time protection \u2014 only the CI gitleaks job catches it after push.\n- **Deferred:** testpool DB pw not rotated; stage/prod APP_KEY not rotated; prod DB creds still **hardcoded (and weak)** in dstrader-aws compose/scripts (analyze-only); git-history purge of the original leak not done.\n- The leaked `123456` DB password is still in CI workflow env (`security-access-regressions`, ZAP jobs) \u2014 that's fine since it's an ephemeral CI MariaDB, but worth noting it's a literal in a tracked file (gitleaks-allowlisted).\n\n## Why this matters / your options\n\nThe current model is fine for *dev* (localhost docker, not internet-facing). It does **not** give you what SOPS/Vault would: encrypted secrets committable to git, per-environment key separation, and a single source of truth for prod secrets (which today are scattered, hardcoded, and weak across dstrader-aws).\n\nIf you want to actually adopt vaulting, the realistic options for this stack:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "SOPS + age"
+  }
+}

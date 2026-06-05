@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-47e49c43-9ff1257d106c90a9",
+  "sig": "answer:rollout-47e49c43:9ff1257d106c90a9",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 47e49c43-b646-41f9-ba47-19d0087a7e88.jsonl turn #281",
+  "input": {
+    "action": {
+      "session_id": "rollout-47e49c43",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01FFv9Vr5cKQLF7aN1YE6Yr4",
+      "question": "What's next?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01W1VFjBiRoqR2ANcrrY1Z9U",
+        "description": "",
+        "questions": [
+          {
+            "question": "What's next?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Commit Bug 1 fix",
+                "description": "Stage the 5 modified files + scenario_findings.md update, commit with a clear message. Does not push or merge."
+              },
+              {
+                "label": "Bug 2: $fillable fix",
+                "description": "Add delay_notification_enabled to AccountCreditLine::$fillable + cast, revert the S9 raw-update workaround. Small diff, independent of Bug 1."
+              },
+              {
+                "label": "Close the thread",
+                "description": "Run /close-thread: final review of all changes on this branch vs main, then merge to main + clean up the worktree + release the pool lease."
+              },
+              {
+                "label": "Show plan-doc options",
+                "description": "Surface concrete actionable items from credit_lines_plan.md / money_flow_plan.md / testing_plan.md."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "214 tests pass. Let me also check transaction-related tests broadly since the observer now fires on every TransactionExt save."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the verification probe from the prompt \u2014 confirm the matcher fires on a freshly-saved REP."
+      },
+      {
+        "role": "assistant",
+        "text": "Matcher now fires on real saves \u2014 status `auto_matched`, FK populated, no explicit classify needed. The bug is closed."
+      },
+      {
+        "role": "assistant",
+        "text": "Also patch the findings doc so the next session sees Bug 1 closed."
+      },
+      {
+        "role": "assistant",
+        "text": "All five tasks done. Summary:\n\n**Bug 1 fix shipped on the worktree** (uncommitted \u2014 let me know if you want a commit):\n\n- `app/Providers/AppServiceProvider.php` \u2014 `Transaction::observe(\u2026)` \u2192 `TransactionExt::observe(\u2026)`. Listener now fires on every prod save.\n- `app/Services/CreditLine/Matching/MatchResult.php` \u2014 added `isNoOp` flag.\n- `app/Services/Detection/CreditLineClassifier.php` \u2014 `mapAndPersist` skips persistence when `isNoOp`. (Latent bug exposed by the observer fix: `MatchResult::noOp` had been returning `status=AUTO_MATCHED`, which would have clobbered a freshly-set MANUAL status whenever the observer re-traversed a row post-`MatchResolutionService::resolve`.)\n- `tests/Feature/Scenarios/S2RepRoutingMatrixTest.php` \u2014 removed the explicit `classify()` workaround + updated docblock.\n- `tests/Unit/Services/CreditLine/Matching/MatchResolutionServiceTest.php` \u2014 `makeFlaggedRepTran` now wraps the factory create in `TransactionExt::withoutEvents(\u2026)` so the matcher doesn't auto-classify the fixture.\n- `scenario_findings.md` \u2014 Bug 1 marked \u2705 fixed.\n- Memory `transaction-observer-wiring-gap` + MEMORY.md index updated to FIXED.\n\n**Verification**\n\n- Tinker probe: listener count is now 0 on `Transaction`, 1 on `TransactionExt`; a freshly-saved REP with null FK auto-populates `credit_line_match_status` and `account_credit_line_id`.\n- Tests: 32 scenarios + 182 broader credit-line + 81 transaction tests all green (295 passing total).\n\nPool0 (http://localhost:3020) is still leased to this worktree \u2014 release with `~/.familyfund-pool/pool.sh release pool0` when done."
+      },
+      {
+        "role": "user",
+        "text": "what else/next"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "merge to mais. than bug 2"
+  }
+}

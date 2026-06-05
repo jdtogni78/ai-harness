@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-7fb9109e-adbcffe778dee09d",
+  "sig": "answer:rollout-7fb9109e:adbcffe778dee09d",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 7fb9109e-3ba9-4b46-8817-b4a6600658f2.jsonl turn #35",
+  "input": {
+    "action": {
+      "session_id": "rollout-7fb9109e",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How do you want to restore cse_01RYTfST7aAo1xGyWGY7YxZ8 (\"[AH.mini] Sessions missing host names\", currently disconnected on mini, bridge worktree still present)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_017uQsRbVRwYjUPNkM8aqGwN",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want to restore cse_01RYTfST7aAo1xGyWGY7YxZ8 (\"[AH.mini] Sessions missing host names\", currently disconnected on mini, bridge worktree still present)?",
+            "header": "Restore mode",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Respawn the bridge server",
+                "description": "Nudge the supervisor to bring the cse_ bridge back online so you can keep chatting in the claude.ai cloud UI."
+              },
+              {
+                "label": "Fork into a new local session",
+                "description": "Use `remote_control fork` to spin a sibling cse_ from this disconnected transcript (preserves history, fresh server)."
+              },
+              {
+                "label": "Resume locally in Terminal",
+                "description": "Print/run `claude -r <uuid>` against the local JSONL for an interactive Terminal session in the bridge worktree."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "restore https://claude.ai/code/session_01RYTfST7aAo1xGyWGY7YxZ8"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "bring the work here"
+  }
+}

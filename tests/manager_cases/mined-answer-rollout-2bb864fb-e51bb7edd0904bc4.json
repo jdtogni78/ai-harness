@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2bb864fb-e51bb7edd0904bc4",
+  "sig": "answer:rollout-2bb864fb:e51bb7edd0904bc4",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2bb864fb-4a04-4ffb-866c-e0f39cca4ebe.jsonl turn #27",
+  "input": {
+    "action": {
+      "session_id": "rollout-2bb864fb",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01GefdkXcCug5MQ54tqaj9t9",
+      "question": "When a session is waiting on a question, how should the manager produce the answer?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01SxHNwSYKULAjiHHKGoGqE3",
+        "description": "",
+        "questions": [
+          {
+            "question": "When a session is waiting on a question, how should the manager produce the answer?",
+            "header": "Answer mode",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Investigator subagent",
+                "description": "Spawn a headless `claude -p` per waiting session that reads the pending question + repo context, drafts an answer, then the manager POSTs it back. Matches your 'launch a cmd-line claude' framing; most capable; costs tokens per question."
+              },
+              {
+                "label": "Manager-as-agent",
+                "description": "Run ONE persistent Claude session as 'the manager' with access to inspect and reply to all sessions via the API. Heaviest, most context, but one brain across all sessions."
+              },
+              {
+                "label": "Rule-based nudge",
+                "description": "No LLM investigation \u2014 post templated guidance (e.g. 'use your best judgment and continue', or echo the question to you). Cheapest, but doesn't really 'investigate'."
+              }
+            ]
+          },
+          {
+            "question": "Which sessions should the manager act on (blast radius)?",
+            "header": "Scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Allowlist of repos",
+                "description": "Only sessions whose repo is in a managed list (e.g. reuse active-dirs.txt or a new managed-dirs file). Tightest control for a first experiment."
+              },
+              {
+                "label": "This host's bridge sessions",
+                "description": "Only bridge_* sessions running on this Mac. Excludes cloud sessions and other machines."
+              },
+              {
+                "label": "All active sessions",
+                "description": "Every non-archived session (cloud + bridge, all repos, all hosts). Widest reach, widest blast radius."
+              },
+              {
+                "label": "Cloud sessions only",
+                "description": "Only anthropic_cloud sessions; leave local bridge sessions alone."
+              }
+            ]
+          },
+          {
+            "question": "For the riskiest case \u2014 a broken/stale session \u2014 how far should the manager go automatically?",
+            "header": "Stale action",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Flag only (to start)",
+                "description": "Detect and log stale sessions; leave fork/resume/archive to you. Safest while you build trust in the detection."
+              },
+              {
+                "label": "Fork + resume, keep original",
+                "description": "Auto-fork and resume work on the fork, but do NOT archive the stale original (you archive manually once happy)."
+              },
+              {
+                "label": "Full flow: fork + resume + archive",
+                "description": "The complete flow you described \u2014 fork, resume on the fork, and archive the stale original automatically."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I want to experiment with a manager cron job, that reads all sessions states, detects their state, launches a cmd line claude code, if:\n\n* waiting for question - try to investigate and answer"
+      },
+      {
+        "role": "assistant",
+        "text": "This is an interesting experiment, and it clearly builds on infrastructure you already have (the usage-limit monitor, the `/v1/code/sessions` API resume, the Codex auto-resume). Let me explore what's already there before I propose anything, so I build on it rather than reinventing."
+      },
+      {
+        "role": "assistant",
+        "text": "I now have a clear picture of the existing infrastructure, and your three-state spec maps cleanly onto signals the `remote_control` package already exposes. Here's the mapping before I ask a couple of design questions:\n\n**What already exists that this builds on:**\n- **State source:** `GET /v1/code/sessions?limit=100` (OAuth token from keychain) \u2192 each session has `worker_status` (`idle` | `running` | `requires_action`), `connection_status` (`connected` | `disconnected`), `status` (`active`/`archived`), `last_event_at`, and `post_turn_summary`. Logic for this lives in `usage_limit/monitor.py` + `usage_limit/detect.py` + `inventory.py`.\n- **Sending into a session:** `POST /sessions/{id}/events` with a user message (this is how the usage-monitor already \"resumes\" paused sessions with `\"continue\"`).\n- **Forking:** `session_fork.py` already forks a session locally (rewrites sessionId + cwd).\n- **Launching a CLI Claude:** `work_start.py` already builds `claude -p --permission-mode acceptEdits <prompt>` headless runs.\n- **Scheduling pattern:** continuous `KeepAlive` launchd agent running `python3 -m remote_control <subcommand>`, dry-run gated by an env var, pure logic + unittests.\n\n**Your three states map to:**\n| Your state | Detected by | Manager action |\n|---|---|---|\n| Waiting for question (interactive or not) | `worker_status == \"requires_action\"` | investigate \u2192 `POST` an answer |\n| No question, work idle | `worker_status == \"idle\"` + connected + not limit-paused | judge \"done?\" \u2192 nudge close-work / \"what's next?\" |\n| Broken / stale | `connection_status == \"disconnected\"`, or idle \u2265 TTL, or last turn was an API error | fork \u2192 resume fork \u2192 archive stale |\n\nI'll implement this as a new `python3 -m remote_control manager` subcommand following the repo's conventions (pure logic + tests, dry-run default, env config), reusing the pieces above. Before I write the plan, three decisions genuinely change the design:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Investigator subagent, Allowlist of repos, Full flow: fork + resume + archive"
+  }
+}

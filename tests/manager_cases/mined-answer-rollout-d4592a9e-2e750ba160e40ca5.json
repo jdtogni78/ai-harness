@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-d4592a9e-2e750ba160e40ca5",
+  "sig": "answer:rollout-d4592a9e:2e750ba160e40ca5",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from d4592a9e-1121-4e2b-95d3-c40bd434de78.jsonl turn #161",
+  "input": {
+    "action": {
+      "session_id": "rollout-d4592a9e",
+      "repo": "dstrader-docker",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/dstrader-docker",
+      "question": "How far should I take dstrader-docker now?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01EQbFXU3Nr3vmkKFZfBQtNZ",
+        "description": "",
+        "questions": [
+          {
+            "question": "How far should I take dstrader-docker now?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Validate recipe (dry-run)",
+                "description": "Mirror-clone, run the purge on the clone, re-audit \u2192 prove real PII/IDs/keys hit 0. Non-destructive, touches nothing real. (Recommended \u2014 same gate as FF.)"
+              },
+              {
+                "label": "Stop at the written review",
+                "description": "Leave the findings doc + purge-paths file; you'll drive the rewrite later."
+              },
+              {
+                "label": "Go all the way: rewrite + force-push",
+                "description": "Do the destructive rewrite and force-push now. (I'll still require rotation done + the prod-server re-clone coordinated first.)"
+              }
+            ]
+          },
+          {
+            "question": "Are these repos intended to go public eventually (like the earlier FF/dstrader effort)?",
+            "header": "Public intent",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, prepping for public",
+                "description": "Redact aggressively: internal IPs (192.168.x), weak DB passwords, and docker@dstrader.com all get scrubbed too."
+              },
+              {
+                "label": "No, staying private",
+                "description": "Only purge real PII + the GPG keys + datadir + PDF; leave internal IPs / dev DB passwords as-is (low value on a private repo)."
+              }
+            ]
+          },
+          {
+            "question": "How should I handle the committed GPG private keys (finding #1)?",
+            "header": "GPG keys",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Remove from HEAD + history",
+                "description": "Stop committing private keys entirely; purge from all history. You re-key (new GPG keypair) and rotate the TWS/IB + mail passwords off-repo. (Recommended.)"
+              },
+              {
+                "label": "Purge history only, keep on HEAD",
+                "description": "Leave the current scheme that commits the keys; only remove old versions from history. (Weaker \u2014 current key still exposed to anyone with repo access.)"
+              },
+              {
+                "label": "Leave keys, flag only",
+                "description": "Don't touch the keys; I only purge the datadir/IDs/emails. You decide on the keys separately."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now I have a reliable, comprehensive picture. The remaining critical question before I can finalize severity: do the compose/properties files hold **real plaintext secret values**, and are the committed `.pgp` private keys **live** (used for prod decryption) and passphrase-protected? Let me inspect those directly."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the scheme is clear. The plaintext secrets in compose are weak **dev-style DB passwords** (`4321`/`654321`/`123456`/`1234` \u2014 same low-value class as FF's localhost defaults). The real concern is the **committed GPG private keys** (`dstrader_private.pgp`, `database_private.pgp`) \u2014 per `SOPS_AGE_PROD.md` these decrypt the trading engine's `.encr` files (TWS/IB login, mail password, DB backups). Let me confirm whether those keys are passphrase-protected and whether the ciphertext `.encr` files are also committed (key + ciphertext together = recoverable plaintext)."
+      },
+      {
+        "role": "assistant",
+        "text": "gpg isn't installed, but the structural finding is decisive: the committed **private keys sit in the repo alongside the ciphertext they decrypt** \u2014 `dstrader/prod/auto_login.properties*.encr` (TWS/IB Gateway trading login). Key + ciphertext together = the encryption is effectively defeated. That's the top-severity item regardless of passphrase. Let me confirm passphrase protection via a raw packet parse (no decryption) and verify the datadir dominates the 42 MB bloat."
+      },
+      {
+        "role": "assistant",
+        "text": "The datadir is the dominant bloat: **164.7 MB across history** \u2014 including a 100 MB `ib_logfile0`, `ibdata1`, undo logs, and **`mysql-bin` binary logs** (which record every INSERT/UPDATE statement = even more raw PII than the table files). One more flag: a **17 MB `dstrader/auto_login/images/Prescription.pdf`** \u2014 an odd name for a trading repo; possibly misplaced personal/medical PII. (The passphrase parse failed on a heredoc/pipe clash \u2014 not worth re-running since gpg is absent and the remediation is identical either way.) Let me characterize that PDF and check the coordination surface (worktrees/branches), then I'll have a complete review."
+      },
+      {
+        "role": "assistant",
+        "text": "I now have a complete, reliable review. Let me update task status, write the findings document into the repo (the non-destructive \"review\" deliverable, FF-style), then present a summary and the decisions that gate any destructive step."
+      },
+      {
+        "role": "assistant",
+        "text": "Review complete. Here's what the full-history audit found across both repos (both are **private**, so nothing is live-public right now).\n\n## `dstrader` \u2014 \u2705 clean\nThe 2026-05-21 purge held. The 5 known IB account IDs, owner emails, AWS keys, bcrypt hashes, private IPs \u2014 all **0** across all refs, including the ~10 commits merged since. Only noise: a `FINNHUB_API_KEY=your_api_key_here` placeholder and a `claudio1@macmini.local` committer identity on 9 commits (local hostname, not real PII; optional to normalize). **No action needed.**\n\n## `dstrader-docker` (origin `jdtogni78/dstrader-aws`) \u2014 \u274c not clean, layered exposure\nNever scrubbed. Findings (full table in `docs/security/HISTORY-AUDIT.md`, paths in `docs/security/history-purge-paths.txt` \u2014 both just written, uncommitted):\n\n| Sev | Item |\n|---|---|\n| **CRITICAL** | **GPG private keys committed** (`dstrader/{dstrader,database}_private.pgp`, on HEAD + history) sit in the **same repo as the ciphertext they decrypt** (`dstrader/prod/auto_login.properties*.encr` = TWS/IB Gateway trading login, mail password, DB backups). Key + ciphertext together \u21d2 the trading credentials are effectively recoverable. **Treat as compromised \u2192 rotate.** |\n| **HIGH** | **Raw MariaDB datadir** `datadir_dev/**` \u2014 271 files, **164.7 MB** in history (incl. 100 MB `ib_logfile0` + `mysql-bin` binlogs). Raw `users/accounts/transactions/password_resets/personal_access_tokens` tables = FamilyFund family PII (emails, bcrypt, tokens) recoverable from binary. History-only (off HEAD). |\n| MED | Real IB account IDs in text: `U5843610`(307), `DU3740548`(115), `U14940669`(56) \u2014 same IDs scrubbed from `dstrader`. |\n| MED | Owner emails in text: `jdtogni1@gmail.com`(384), `jdtogni@gmail.com`(91). |\n| LOW | Weak DB passwords in `docker-compose.{prod,stage}.yml` (`4321`/`654321`/`123456`); internal IPs (`192.168.0.120` \u00d7424); `docker@dstrader.com` \u00d7474. |\n| **REVIEW** | `dstrader/auto_login/images/Prescription.pdf` (17 MB, on HEAD) \u2014 anomalous beside TWS screenshots; likely a **misplaced personal/medical document**. Not opened. |\n\nGood news on blast radius: **0 worktrees, 3 origin branches** \u2014 far lighter than FamilyFund. The real coordination risk is the **prod server clone** (`/home/jdtogni/dev/dstrader-docker` on `192.168.0.120`) that runs live trading via cron \u2014 it must be re-cloned after any rewrite.\n\nThe recipe is drafted (purge `datadir_dev/` + the `.pgp` keys + the PDF; `--replace-text` the account IDs/emails reusing the existing off-repo redaction map). Before I build and validate it, three decisions change what I do:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Validate recipe (dry-run), Yes, prepping for public, Remove from HEAD + history"
+  }
+}

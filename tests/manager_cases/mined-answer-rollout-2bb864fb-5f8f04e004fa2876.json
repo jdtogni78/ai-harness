@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2bb864fb-5f8f04e004fa2876",
+  "sig": "answer:rollout-2bb864fb:5f8f04e004fa2876",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2bb864fb-4a04-4ffb-866c-e0f39cca4ebe.jsonl turn #164",
+  "input": {
+    "action": {
+      "session_id": "rollout-2bb864fb",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01GefdkXcCug5MQ54tqaj9t9",
+      "question": "What should I do next on the session manager?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01TdUUZsVD82AfeKUCL8Gcnr",
+        "description": "",
+        "questions": [
+          {
+            "question": "What should I do next on the session manager?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Wire the answer path live",
+                "description": "Verify the pending-question read + /events POST, then enable --go for the ANSWER action only (lowest-risk, highest-value). Keep review/rescue dry-run until proven."
+              },
+              {
+                "label": "Add the continuous loop",
+                "description": "Make `manager` tick like the usage-monitor (interval loop + state persistence), still dry-run, so you can watch its decisions over time before any live action."
+              },
+              {
+                "label": "Tune detection first",
+                "description": "Adjust the grace/cooldown defaults and classification (e.g. add API-error-in-last-turn as a rescue trigger) and review more real sessions before wiring anything live."
+              },
+              {
+                "label": "Commit this slice",
+                "description": "Commit the dry-run planner to the worktree branch as a checkpoint before building further."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Let me not trust the inline note's snapshot \u2014 let me verify the worktree files directly and re-run everything from the worktree:"
+      },
+      {
+        "role": "assistant",
+        "text": "The worktree now has all the changes (the inline note was a stale snapshot). Now run the suite and the CLI from the worktree:"
+      },
+      {
+        "role": "assistant",
+        "text": "Help works. Let me confirm the test count and run a live dry-run plan against your real sessions (read-only `GET /sessions`):"
+      },
+      {
+        "role": "assistant",
+        "text": "It works end-to-end against your real sessions. **300 tests pass** (258 existing + 42 new), and the live dry-run correctly classified all 6 sessions \u2014 note it even tagged *this* session as `running \u2192 SKIP`, and the two FamilyFund sessions that are genuinely waiting on a question are held by the answer-grace (`question only 10s old`) so the manager won't jump ahead of you.\n\nOne small wording fix in the `--go` notice (duplicate word):"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me record this experiment's state for future sessions, since it's ongoing work with a deferred gate:"
+      },
+      {
+        "role": "assistant",
+        "text": "Done. Here's where things landed.\n\n## What I built\n\nA new **`python3 -m remote_control manager`** subcommand \u2014 the autonomous session shepherd you described \u2014 following the repo's conventions (pure decision core + thin I/O, dry-run default, unit-tested):\n\n- **`remote_control/manager.py`** \u2014 classification + decision core + dry-run planner\n- **`remote_control/config.py`** \u2014 added `ManagerConfig` (grace/cooldown/allowlist/dry-run env knobs)\n- **`remote_control/cli.py`** \u2014 wired the `manager` subcommand\n- **`tests/test_manager.py`** \u2014 42 tests; **full suite 300 green**\n\nIt reuses the existing detectors (`usage_limit.detect`, `inventory`, `session_list`) rather than re-deriving state. The **decision table** runs in priority order, scoped to repos in `active-dirs.txt` (host-aware):\n\n| Signal | \u2192 Action |\n|---|---|\n| `requires_action` past answer-grace | **answer** \u2014 `claude -p` investigator drafts the reply, POST it back |\n| idle past done-grace, connected | **review** \u2014 investigator returns `DONE:`\u2192recommend `/close-work`, else `NEXT:` |\n| `disconnected` past rescue-grace | **rescue** \u2014 fork \u2192 resume fork \u2192 archive original |\n| usage-limit paused | **defer** (usage-monitor owns it) |\n| running / too-recent | **skip** |\n\n**Live dry-run against your real sessions worked** \u2014 it classified all 6, held the two genuinely-waiting FamilyFund sessions behind the answer-grace (`question only 10s old`), and skipped this session as `running`. Guardrails: dry-run default ON, grace + cooldown + max-actions-per-tick, its own `agent-manager.log`/`-state.json`.\n\n## One correction worth flagging\n\nI initially wrote the files into the **main checkout** (`~/dev/ai-harness/`) instead of this worktree \u2014 the explore agents reported main-checkout absolute paths and I followed them. I relocated all four files into the worktree and **restored the main checkout to clean** (verified: `git status` empty there; the only dirty files were the four I'd created this session). Everything above is now in the worktree on its branch, uncommitted.\n\n## The gate to going live (`--go`)\n\n`--go` intentionally isn't wired yet \u2014 answering/archiving live sessions is hard to undo. Two things need verifying against the real API first: (1) reading a **cloud** session's pending-question text (local-transcript read already covers bridge sessions), and (2) the **archive** verb (`PUT /sessions/{id}` `{status:archived}`).\n\nHow would you like to proceed?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Wire the answer path live"
+  }
+}

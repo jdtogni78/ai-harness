@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-c2d35e35-397d31d5abf37210",
+  "sig": "answer:rollout-c2d35e35:397d31d5abf37210",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from c2d35e35-6107-4bf9-8ed3-d0bdd2dda9e2.jsonl turn #159",
+  "input": {
+    "action": {
+      "session_id": "rollout-c2d35e35",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01MUnyW3zt4i3Exa3a1mw2rh",
+      "question": "How aggressive should the cleanup be?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Mu8o886xRcW61i6AJZbkx4",
+        "description": "",
+        "questions": [
+          {
+            "question": "How aggressive should the cleanup be?",
+            "header": "Cleanup scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Truncate big logs + delete stale (Recommended)",
+                "description": "Truncate the 5 mini-*.log files (~215 MB \u2192 0), delete the 2 stale mm-*.log files from May 27 (pre-rename). Quick, safe, reclaims ~217 MB. No code change \u2014 the leak comes right back."
+              },
+              {
+                "label": "Above + fix the TUI-log leak",
+                "description": "Same as above, plus patch the supervisor's child-spawn to redirect mini-* stdout to /dev/null (or `--no-tui` if Claude CLI supports it). Stops the bloat from recurring. ~30 min."
+              },
+              {
+                "label": "Above + add log rotation",
+                "description": "Add a newsyslog.d config (macOS-native) so all of logs/*.log rotate on size (e.g. 10 MB \u2192 gzip + keep 3). Belt-and-suspenders on top of fixing the leak."
+              },
+              {
+                "label": "Just truncate launchd.err.log",
+                "description": "Minimal: archive the stale May 26 launchd.err.log so it stops misleading diagnostics. Leave everything else."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Wait \u2014 the err log timestamp is `May 26 20:41` \u2014 that's a 6-day-old log from a previous incident, NOT from my kickstart just now. The crashloop I thought I was seeing is historical.\n\nLet me find where today's supervisor log actually lives:"
+      },
+      {
+        "role": "assistant",
+        "text": "Got the real picture. The supervisor log (`/Users/claudio1/dev/ai-harness/logs/manager.log`) tells the whole story \u2014 and the test outcome is **different than expected**:\n\n```\n2026-06-01 00:24:34 shutdown: forwarding SIGTERM to all servers\n2026-06-01 00:24:37 shutdown: done\n2026-06-01 00:24:37 supervisor: up (pid 61158, host=mini, \u2026)\n2026-06-01 00:24:37 rehydrate: 0 orphan(s) to fork (TTL=86400s, live=100)\n2026-06-01 00:24:38 start: mini-dev / mini-FamilyFund / mini-ai-harness /\n                          mini-dstrader / mini-dstrader-docker / mini-job-search\n2026-06-01 00:25:12 start: mini-dev (restarted ~34s later)\n```\n\nKey line: **`rehydrate: 0 orphan(s) to fork (TTL=86400s, live=100)`** \u2014 100 sessions live on cloud, zero qualified as orphans needing recovery. So the handoff dispatch ran but had nothing to do. That's why `~/.ai-harness/handoffs/` and `rehydrated/` are still empty.\n\nLet me confirm mini-dev came back up after its respawn:"
+      },
+      {
+        "role": "assistant",
+        "text": "All 6 servers now up. mini-dev came back (PID 61307, etime 02:36 \u2014 started 34s late after its initial respawn failed; supervisor recovered it automatically).\n\n## Test outcome \u2014 partial validation only\n\n| Layer                | Result |\n|----------------------|--------|\n| Supervisor cycle     | \u2705 SIGTERM all \u2192 relaunch \u2192 6/6 mini-* servers back |\n| mini-dev fragility   | \u26a0\ufe0f exited within 30s on first start; supervisor restarted it on next tick. Known issue worth filing (only one using `--spawn same-dir`). |\n| Rehydrate            | \u26a0\ufe0f ran, found **0 orphans** out of 100 live cloud sessions |\n| Handoff dispatch     | \u26a0\ufe0f **not exercised** \u2014 no candidates, so the `default` perm-mode patch wasn't observed in action |\n| `~/.ai-harness/{handoffs,rehydrated}/` | Still empty (no candidates = no records) |\n| This session         | \u2705 still alive \u2014 confirms my bridge isn't a child of `mini-ai-harness` |\n\n**Why handoff didn't fire** (the real architectural insight): the supervised `mini-*` servers are *pickers*, not session holders. The cse_'s belong to their connecting clients (desktop / SDK / oneoff workers, all 100 of them). SIGTERMing a picker doesn't orphan its sessions \u2014 the cloud + client keep them alive. So the rehydrate\u2192handoff path is only exercised when a session is **directly owned by a supervised server that dies** \u2014 and in your current architecture that essentially never happens, because the work-doing processes are oneoff-* workers (detached, supervisor-invisible) and bridges (separate from mini-*).\n\nIf you want to genuinely exercise handoff, we'd need to either (a) deliberately spawn a session *inside* a mini-* server before kicking, or (b) restart in a state where an oneoff-* worker's parent supervisor died, leaving its transcript orphaned with no live owner. The current test setup doesn't produce either condition.\n\nLet me update the plan file with what actually happened, then we can decide whether to re-test more aggressively:"
+      },
+      {
+        "role": "assistant",
+        "text": "Quick scope check before I touch anything \u2014 \"clean up the logs/rotate\" could mean two different jobs:"
+      },
+      {
+        "role": "assistant",
+        "text": "251 MB total \u2014 most of it is `mini-dev.log` at 152 MB alone. Before I touch any of it:"
+      },
+      {
+        "role": "assistant",
+        "text": "Root cause found: **`mini-dev.log` is 2.5 million lines of ANSI TUI redraws** (`[1A[J` cursor-up codes). The mini-* servers are running the Claude TUI status display, and that's being captured to the logfile instead of suppressed when stdout isn't a tty. All the mini-*.log bloat (210+ MB combined) is from this.\n\nSo \"clean up + rotate\" decomposes into three things, escalating in scope:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Above + add log rotation"
+  }
+}

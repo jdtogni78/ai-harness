@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b52eaa47-17ae3aafd9ef1f29",
+  "sig": "answer:rollout-b52eaa47:17ae3aafd9ef1f29",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b52eaa47-5382-433a-bd53-6b35deaff5c1.jsonl turn #44",
+  "input": {
+    "action": {
+      "session_id": "rollout-b52eaa47",
+      "repo": "ai-harness-private",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness-private",
+      "question": "Which sync model do you want?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01BPAnpRtb19U71u1QakwP2n",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which sync model do you want?",
+            "header": "Sync model",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Recreate-and-recommit on top of 3e31445 (Recommended)",
+                "description": "Sanitize only the new private commits (1af0a8e..main, 6 commits) and replay them onto public main as 6 sanitized commits. Non-destructive: existing public history is preserved. Each new commit's tree must pass the same forbidden-strings safety net."
+              },
+              {
+                "label": "Sanitize-and-republish (force-push full sanitized history)",
+                "description": "Use git filter-repo on the entire private repo, then force-push to public. Replaces the single 3e31445 snapshot with a full sanitized history. Destructive (rewrites public history) and a larger lift \u2014 every historical commit must pass sanitization."
+              },
+              {
+                "label": "Snapshot (one new commit, current sanitize_export.sh model)",
+                "description": "What the existing tool does today: produce one new sanitized commit on public main summarizing all new work. Smallest blast radius, but you said this isn't what you want."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "We have created a public version of this repo and make... made this, uh, private one. I want to sync again all the new work from the private to the public one and later make a switch to adopt the public as the one we're gonna work from now on."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll investigate the current state before acting \u2014 the publish flow and what's changed since the last sync."
+      },
+      {
+        "role": "assistant",
+        "text": "Got the picture. Let me check the public repo state more carefully and what new work needs syncing."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's what I'm seeing:\n\n**Private** (`~/dev/ai-harness`, on `main`): 6 new commits since the last publish snapshot 1af0a8e \u2014 `perm_gate_lab phase 1`, `manager-eval phases 1+2`, plus prep commits.\n\n**Public** (`~/dev/ai-harness-public`, on `main`): 1 commit (3e31445, the initial snapshot). Clean.\n\nThe publish model is **squashed-snapshot**, not real-history mirroring \u2014 each public commit is a fresh `sanitize_export.sh` build of private HEAD. To sync, the recipe is:\n\n1. Run `sanitize_export.sh` against private `main` into a temp dir\n2. `rsync` that tree into `~/dev/ai-harness-public/` (delete extras, preserve `.git`)\n3. Review diff, commit on public as a new snapshot commit, push\n\nI want to confirm a couple of things before touching the public repo."
+      },
+      {
+        "role": "assistant",
+        "text": "The two phrases you offered point to different mechanics than the current `sanitize_export.sh` (which is snapshot-only). Let me confirm before I build the wrong thing.\n\n- **\"Sanitized mirror + recreate-and-recommit\"** = mirror real private history into public, but each commit is sanitized (rewritten with the same rules). New private commits \u2192 new sanitized commits on public, appended on top of the existing 3e31445 snapshot. Public history grows; 3e31445 stays as the baseline squash.\n- **\"Sanitized and republish\"** = sanitize the full private history end-to-end with `git filter-repo`, then force-push it to public. The single-commit 3e31445 baseline gets *replaced* by a multi-commit sanitized history.\n\nThe hard part either way: the rules in `sanitize_export.sh` include things that aren't blanket substitutions (e.g. stripping GD-0007 from `DECISIONS.md`, swapping in starter `active-dirs.txt` / `session-nicknames.txt` templates, dropping `scripts/publish/`). Those need to be expressed as filter-repo `--blob-callback` / `--path` rules so they apply to *every* commit's tree, not just HEAD."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Recreate-and-recommit on top of 3e31445 (Recommended)"
+  }
+}

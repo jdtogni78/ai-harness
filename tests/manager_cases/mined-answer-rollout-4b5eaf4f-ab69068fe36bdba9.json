@@ -1,0 +1,159 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4b5eaf4f-ab69068fe36bdba9",
+  "sig": "answer:rollout-4b5eaf4f:ab69068fe36bdba9",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4b5eaf4f-e78a-421b-8fb2-25d01c69caac.jsonl turn #849",
+  "input": {
+    "action": {
+      "session_id": "rollout-4b5eaf4f",
+      "repo": "dstrader",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/dstrader",
+      "question": "MOVE_TO_PRIVATE (5 files including PRE-PUBLIC-AUDIT) \u2014 apply all moves?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01QUkntF8j9ovCZHbC85SFBV",
+        "description": "",
+        "questions": [
+          {
+            "question": "MOVE_TO_PRIVATE (5 files including PRE-PUBLIC-AUDIT) \u2014 apply all moves?",
+            "header": "MOVE bulk",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Move all 5 to dstrader-secrets, remove from dstrader-public (Recommended)",
+                "description": "v5 cleanup worker copies each file to ~/dev/dstrader-secrets (organized under a sensible path), `git rm` from dstrader main, then re-rewrite + re-audit + re-push to dstrader-public. PRE-PUBLIC-AUDIT.md is your named example; the other 4 are the same shape (post-implementation status, internal QA runbook, coverage trackers)."
+              },
+              {
+                "label": "Move PRE-PUBLIC-AUDIT only \u2014 keep the other 4",
+                "description": "Just remove your named example. Argue the other 4 (HOLIDAY_MANAGEMENT_IMPLEMENTATION, MANUAL_INTEGRATION_TEST, TEST_COVERAGE_HOLIDAY_SYNC, COVERAGE_PLAN) are useful for outside contributors even if they look meta. More conservative."
+              },
+              {
+                "label": "Let me pick a custom subset",
+                "description": "I'll write back which of the 5 you want moved and which to keep. Useful if some of the 4 secondary files are genuinely valuable to outside readers."
+              },
+              {
+                "label": "Hold for now \u2014 review the table myself first",
+                "description": "Don't move anything yet. You read the files directly and decide later."
+              }
+            ]
+          },
+          {
+            "question": "TRIM_PROSE (6 files \u2014 keep file, drop specific sections) \u2014 apply all trims?",
+            "header": "TRIM bulk",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Apply all 6 trims with the worker's section pointers (Recommended)",
+                "description": "v5 cleanup worker excises the specific sections identified (IB-accounts inventories from AGENTS/SETUP/INTEGRATIONS, internal author-discipline in CONTRIBUTING, TODOs+dev-creds from DATABASE, prod-deployment specifics from TRADING_CALENDAR_SETUP). Owner reviews the final diff before commit."
+              },
+              {
+                "label": "Skip trims for now \u2014 just do moves",
+                "description": "Defer trims. The MOVE_TO_PRIVATE work alone is a meaningful cleanup; trims can land in a future periodic sync."
+              },
+              {
+                "label": "Let me pick a custom subset",
+                "description": "I'll write back which trims you want."
+              }
+            ]
+          },
+          {
+            "question": "SURFACE: docs/Investments.md \u2014 personal investment philosophy + current allocation (40/45/15 indexes/leveraged/cash) disclosed on the public mirror?",
+            "header": "Investments",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Keep as-is",
+                "description": "You're comfortable publishing investment thesis + current strategy. It's background, not a trade-signal feed."
+              },
+              {
+                "label": "Trim to philosophy only, drop specific allocation",
+                "description": "Keep the indexes-vs-leveraged-ETFs reasoning; drop the current 40/45/15 specifics so live allocation isn't disclosed."
+              },
+              {
+                "label": "Move to dstrader-secrets",
+                "description": "Treat as personal/private. Outside readers don't need investment philosophy to understand the code."
+              },
+              {
+                "label": "Surface again \u2014 I'll write back specifics",
+                "description": "You want to read it first and decide section-by-section."
+              }
+            ]
+          },
+          {
+            "question": "SURFACE: docs/OPERATIONS.md + docs/EXCHANGE_HOLIDAY_DATA_SOURCES.md (operator-runbook + RFC-style decision survey) \u2014 keep public, trim, or move?",
+            "header": "Ops + Exchange",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Keep both as-is (Recommended)",
+                "description": "OPERATIONS is a useful runbook (owner's personal cron framing is just \"solo maintainer\" context). EXCHANGE_HOLIDAY is a genuine \"alternatives considered\" survey, the RFC framing is acceptable for technical readers."
+              },
+              {
+                "label": "Trim both \u2014 strip the internal-framing language",
+                "description": "Worker excises: OPERATIONS's specific repo-owner / no-on-call language and dstrader-docker cross-links; EXCHANGE_HOLIDAY's \"Author: DSTrader Integration Team\" / \"Next Review\" / 5-year-cost-projection sections. Keeps technical value, drops bureaucratic framing."
+              },
+              {
+                "label": "Move both to dstrader-secrets",
+                "description": "Treat both as internal docs. OPERATIONS is operator-specific anyway; EXCHANGE_HOLIDAY's value to outside readers may be limited."
+              },
+              {
+                "label": "Handle each separately \u2014 surface again",
+                "description": "Different verdict per file. I'll write back specifics."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I thing we should review manually each md file published, ex docs/security/PRE-PUBLIC-AUDIT.md shouldnt be there. launch session to review each with subagents in parallel within the session"
+      },
+      {
+        "role": "assistant",
+        "text": "Good call \u2014 `PRE-PUBLIC-AUDIT.md` is meta-content about the audit process itself, doesn't belong on the public mirror. The Step-5 reviewer characterized it as \"intentional public meta-audit content\" but that judgment was wrong. Dispatching a worker that fans out parallel subagents to review every `.md` file."
+      },
+      {
+        "role": "assistant",
+        "text": "## Parallel-subagent .md review worker dispatched.\n\n- Brief: `/tmp/dstrader-public-md-review-brief.md`\n- Worker: `cse_018iN5emNxxvZ4bjUqjd9gdf` (`oneoff-mini-dstrader-public-md-review`)\n- Pattern (per brief, mandatory): worker enumerates \u2192 groups into ~5\u20137 batches \u2192 **single message with multiple `Agent` tool calls** to fan out subagents in parallel (`subagent_type: \"general-purpose\"`) \u2192 aggregates verdicts.\n- Rubric per file: `KEEP_PUBLIC` / `MOVE_TO_PRIVATE` / `TRIM_PROSE` / `SURFACE_QUESTION`.\n- Owner's example shape (`docs/security/PRE-PUBLIC-AUDIT.md` \u2192 `MOVE_TO_PRIVATE`) baked into the subagent prompts as the canonical instance.\n\nAfter worker replies with the aggregated table: I surface `MOVE_TO_PRIVATE` + `TRIM_PROSE` + `SURFACE_QUESTION` lists to you via AskUserQuestion, you pick which files to remediate, I dispatch a v5 cleanup worker \u2192 re-rewrite \u2192 re-audit \u2192 re-push to `dstrader-public`.\n\nThe first run is already live on the public mirror, but per `[[public-track-rollback-acceptable]]` re-publishing is a normal operation, not a one-way disaster."
+      },
+      {
+        "role": "user",
+        "text": "[from cse_018iN5emNxxvZ4bjUqjd9gdf \u2014 reply via send-to-session]\n\n# Public-mirror `.md` review \u2014 aggregated verdicts (35 files)\n\n## Sanity check (pass)\n- Public PIN (`jdtogni78/dstrader-public` HEAD): `ea0fc7e3f8429142ba6b6fc27b9c9144e0f67054`\n- Local `~/dev/dstrader` `origin/main`: `f5e7b7b2f72a2431d06be1b4626a0c0c279cde02`\n- Different hashes as expected (history rewritten on the mirror; HEAD content byte-identical per the brief).\n\n## Files enumerated\n- Total: **35** (`wc -l /tmp/md-files.txt` -> `35`)\n\n## Subagent batches dispatched (6, in parallel, single message)\n- **B1 top-level public-facing (6):** README, AGENTS, CLAUDE, CODE_OF_CONDUCT, CONTRIBUTING, SECURITY\n- **B2 docs/ memory-bank core (6):** docs/README, ARCHITECTURE, DEVELOPMENT, OPERATIONS, SETUP, INTEGRATIONS\n- **B3 docs/ data + security (4):** DOMAIN_GLOSSARY, DATABASE, SECRETS, SECURITY\n- **B4 docs/ subsystem + holiday stack (7):** SUBSYSTEM_TRADING_ENGINE, SUBSYSTEM_HOLIDAY_SYNC, EXCHANGE_HOLIDAY_DATA_SOURCES, HOLIDAY_MANAGEMENT_IMPLEMENTATION, TRADING_CALENDAR_SETUP, MANUAL_INTEGRATION_TEST, TEST_COVERAGE_HOLIDAY_SYNC\n- **B5 docs/ misc + ADRs + security-meta (9):** Investments, COVERAGE_PLAN, DECISIONS, adr/0001-0005, security/PRE-PUBLIC-AUDIT\n- **B6 .github (3):** PULL_REQUEST_TEMPLATE, ISSUE_TEMPLATE/bug_report, ISSUE_TEMPLATE/feature_request\n\nTally: **5 MOVE_TO_PRIVATE * 6 TRIM_PROSE * 3 SURFACE_QUESTION * 21 KEEP_PUBLIC** (= 35).\n\n---\n\n## MOVE_TO_PRIVATE (5)\n\n| File | Why it's meta / who it's actually for |\n|---|---|\n| `docs/security/PRE-PUBLIC-AUDIT.md` | **Owner's flagged example -- confirmed.** Pre-flip GH Actions secrets / deploy-keys / webhooks / workflow enumeration with a HUMAN-only cutover checklist. Pure \"before going public\" meta. Belongs in `dstrader-secrets`. |\n| `docs/HOLIDAY_MANAGEMENT_IMPLEMENTATION.md` | Post-implementation status report (\"Implementation Complete\", files-created lists, \"17/17 tests passing\", \"Next Steps\"). Code-level content it covers is already in `SUBSYSTEM_HOLIDAY_SYNC.md`. |\n| `docs/MANUAL_INTEGRATION_TEST.md` | Internal QA runbook with fill-in template (\"Tester: ___\", \"Date: ___\", checkpoint sign-offs, \"Next Steps After Manual Testing -> Create automated...\"). Audience is internal QA. |\n| `docs/TEST_COVERAGE_HOLIDAY_SYNC.md` | Coverage-tracking inventory (\"42 total tests\", \"Known Gaps\", \"FamilyFund tests ready -- pending execution\"). Audit/status, not a public testing guide. |\n| `docs/COVERAGE_PLAN.md` | Dated work-tracker for the 70% JaCoCo push (\"work top to bottom, mark `[x]` when complete\") with a Log of actions. Same shape as a triage note. |\n\n## TRIM_PROSE (6)\n\n| File | Specific sections to trim |\n|---|---|\n| `AGENTS.md` | `### IB accounts in use` (lines 132-138 -- owner's account inventory even with placeholder IDs); `## Project tracking` (lines 215-224 -- owner-specific GH Project #1 + `gh project item-add` instructions); minor: the \"still stubbed by separate sibling tickets\" aside in the docs/ index intro (lines 186-187). |\n| `CONTRIBUTING.md` | `## Memory-bank updates` (lines 44-57 -- internal author-discipline referencing a scaffold ticket + per-doc rules). Collapse to one sentence like \"Update relevant `docs/` files in the same PR; see the PR template checklist.\" |\n| `docs/SETUP.md` | Section 9 \"IB accounts in use\" (lines 139-144); optional: personal-tooling Claude desktop/CLI bootstrap in section 1 (lines 15-20). |\n| `docs/INTEGRATIONS.md` | \"IB accounts in use\" subsection at end of section 1 (lines 113-123, incl. parenthetical pointing at AGENTS.md). |\n| `docs/DATABASE.md` | `TODO(verify)` MariaDB version note (L17); \"DBs in use\" exposing internal DB names + dev creds reference `famfun_dev / 1234` (L18-22); worktree-paths blockquote (L25); `TODO(verify): if this matters...` (L45); \"Scope note: orders, fills, calendars\" framed around \"Issue #25\" + `TODO(scope-clarify)` (L82-90); \"TODO once `docs/OPERATIONS.md` lands (sibling ticket #26)\" (L135-136); sibling-memory-bank \"TODO -- separate tickets\" with #24/#26/#28/#30 refs (L187); section 6 \"Drift watch (3-month risk)\" (L163-168) -- borderline, reframe as \"Caveats\" or drop. |\n| `docs/TRADING_CALENDAR_SETUP.md` | \"Step 5: Production Deployment\" (lines ~309-352 -- references specific prod host + operator cron, not generic setup); \"Next Steps\" (lines ~442-448 -- internal TODO list incl. \"Document ... for operations team\"). |\n\n## SURFACE_QUESTION (3) -- owner triage needed\n\n| File | The question |\n|---|---|\n| `docs/OPERATIONS.md` | Genuinely useful runbook, but framed around the owner's personal cron/email-driven operation (\"Service owner: repo owner `jdtogni78`. No formal on-call rotation... failures surface via the post-run email and the trading account itself\") and cross-links to the private `dstrader-docker` repo throughout. **Keep public as reference runbook, or treat as internal ops?** |\n| `docs/EXCHANGE_HOLIDAY_DATA_SOURCES.md` | Substantively a useful \"why we picked X\" decision survey (9 providers, pricing), but framed as internal RFC: \"Executive Summary,\" 5-yr cost projections, phased rollout, \"Author: DSTrader Integration Team,\" \"Next Review.\" **Keep as-is / trim to short \"alternatives considered\" note / move private?** |\n| `docs/Investments.md` | Personal narrative -- family-fund goals + operator's investment thesis (indexes vs leveraged ETFs, current 40/45/15 strategy). Not meta, but it's personal investment philosophy and live allocation disclosure rather than docs about the *code*. **Owner comfortable publishing live strategy?** |\n\n## KEEP_PUBLIC (21, confirming list)\n\n`README.md` * `CLAUDE.md` * `CODE_OF_CONDUCT.md` * `SECURITY.md` * `docs/README.md` * `docs/ARCHITECTURE.md` * `docs/DEVELOPMENT.md` * `docs/DOMAIN_GLOSSARY.md` * `docs/SECRETS.md` * `docs/SECURITY.md` * `docs/SUBSYSTEM_TRADING_ENGINE.md` * `docs/SUBSYSTEM_HOLIDAY_SYNC.md` * `docs/DECISIONS.md` * `docs/adr/0001-record-architecture-decisions.md` * `docs/adr/0002-three-tier-exchange-holiday-fallback.md` * `docs/adr/0003-interactive-brokers-via-local-tws.md` * `docs/adr/0004-gmail-smtp-for-daily-report.md` * `docs/adr/0005-familyfund-web-api-as-db-facade.md` * `.github/PULL_REQUEST_TEMPLATE.md` * `.github/ISSUE_TEMPLATE/bug_report.md` * `.github/ISSUE_TEMPLATE/feature_request.md`\n\nMinor confirmed-no-action note: `docs/SECURITY.md` L65 mentions \"will need an update after the `dstrader-docker` prod cutover lands\" -- staleness flag only, not a demotion.\n\n---\n\n## Recommended next step for the manager\n\n1. **AskUserQuestion to owner** with the MOVE_TO_PRIVATE list (5), then the TRIM_PROSE list (6 with section pointers), then the 3 SURFACE_QUESTION items individually -- get a per-file decision (delete from public / move to dstrader-secrets / trim / keep).\n2. **Dispatch a v5 cleanup worker** with the owner's picks: delete or `git rm` the MOVE_TO_PRIVATE files (after copying to the private store if the owner wants them archived), apply the TRIM_PROSE excisions per the section pointers above, and act on each SURFACE_QUESTION verdict.\n3. **Re-rewrite + re-audit + force-push to `dstrader-public`** (history-strip is needed because the rewritten history would still contain `PRE-PUBLIC-AUDIT.md` etc. via the synthetic root commit; verify with a fresh ls-tree of the new mirror).\n4. Update `docs/README.md` index + any internal cross-links from the trimmed files; spot-check for dangling `[[name]]` references in the public set after the cleanup.\n\nRead-only review -- no files modified, no commits/pushes/PRs/edits made."
+      },
+      {
+        "role": "assistant",
+        "text": "Excellent \u2014 35 files reviewed via parallel subagents. Surfacing the decisions."
+      },
+      {
+        "role": "assistant",
+        "text": "## Review results: 35 files \u2192 5 MOVE / 6 TRIM / 3 SURFACE / 21 KEEP\n\n**MOVE_TO_PRIVATE candidates (5)** \u2014 your example confirmed plus 4 more meta/audit docs:\n| File | Why it's meta |\n|---|---|\n| `docs/security/PRE-PUBLIC-AUDIT.md` | (your example) pre-flip GH-Actions/keys/webhooks enumeration + HUMAN-only cutover checklist |\n| `docs/HOLIDAY_MANAGEMENT_IMPLEMENTATION.md` | \"Implementation Complete\" status report; content already in `SUBSYSTEM_HOLIDAY_SYNC.md` |\n| `docs/MANUAL_INTEGRATION_TEST.md` | Internal QA runbook with fill-in template (\"Tester: ___\", \"Date: ___\") |\n| `docs/TEST_COVERAGE_HOLIDAY_SYNC.md` | Coverage tracker (\"42 total tests\", \"Known Gaps\"), audit/status not testing guide |\n| `docs/COVERAGE_PLAN.md` | Dated work-tracker for the 70% JaCoCo push, triage-note shape |\n\n**TRIM_PROSE candidates (6)** \u2014 keep the file, drop specific sections:\n| File | Sections to trim |\n|---|---|\n| `AGENTS.md` | \"IB accounts in use\" table, \"Project tracking\" (`gh project` instructions), minor stub-tickets aside |\n| `CONTRIBUTING.md` | \"Memory-bank updates\" section (lines 44-57) \u2014 collapse to one sentence |\n| `docs/SETUP.md` | \"IB accounts in use\" subsection; optional: Claude-tooling bootstrap |\n| `docs/INTEGRATIONS.md` | \"IB accounts in use\" subsection at end of section 1 |\n| `docs/DATABASE.md` | TODO(verify) notes, dev creds (`famfun_dev / 1234`), worktree paths, ticket-#-tagged scope notes, sibling-doc TODOs, \"Drift watch\" section |\n| `docs/TRADING_CALENDAR_SETUP.md` | \"Production Deployment\" (prod host + cron specifics), \"Next Steps\" internal-TODO list |\n\n**SURFACE_QUESTION (3)** \u2014 these I'm asking you to decide.\n\n**21 KEEP_PUBLIC** confirmed (README/CLAUDE/CODE_OF_CONDUCT/SECURITY at root; docs/README, ARCHITECTURE, DEVELOPMENT, DOMAIN_GLOSSARY, SECRETS, SECURITY, both SUBSYSTEM docs, DECISIONS + 5 ADRs; all 3 .github templates)."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Move all 5 to dstrader-secrets, remove from dstrader-public (Recommended), Apply all 6 trims with the worker's section pointers (Recommended), Keep as-is, Trim both \u2014 strip the internal-framing language"
+  }
+}

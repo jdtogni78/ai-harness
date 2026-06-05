@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a659b5ab-01e21d29e4c1a658",
+  "sig": "answer:rollout-a659b5ab:01e21d29e4c1a658",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a659b5ab-d80b-449a-ab68-8415fad7a22a.jsonl turn #314",
+  "input": {
+    "action": {
+      "session_id": "rollout-a659b5ab",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01PuV1r2e7MGjHW8BtvKtPmM",
+      "question": "How should I deliver the secret-rotation-dev branch? (The main repo is checked out on it right now.)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01NkXbEwMWhLL8KEaNTFsXNA",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I deliver the secret-rotation-dev branch? (The main repo is checked out on it right now.)",
+            "header": "Delivery",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Merge to main + push",
+                "description": "Merge secret-rotation-dev \u2192 main, switch the main repo back to main, and push to the private remote \u2014 so the untracked .env.dev + de-hardcoded compose land on origin's HEAD going forward. (Recommended)"
+              },
+              {
+                "label": "Merge to main, no push",
+                "description": "Land it on local main and switch the main repo back to main, but leave pushing to the remote to you."
+              },
+              {
+                "label": "Leave on branch",
+                "description": "Keep secret-rotation-dev unmerged for your review; I'll leave the main repo checked out on it for now."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "`familyfund-test0` is an **active lease** (another session, \"resume-cl-test-expansion\", claimed mid-work) and it connects to the testpool DB on port **3315** with the old password \u2014 so my `db-testpool` rotation just broke it (Access denied). The testpool is a separate isolated-test system that wasn't really in the dev-rotation scope, and rotating it disrupted a live third session. The right call is to **revert the testpool change** (restoring test0 immediately) and defer testpool rotation to when no slots are leased."
+      },
+      {
+        "role": "assistant",
+        "text": "test0 restored \u2014 **DB_OK**, `/login` \u2192 200. The active third session is working again.\n\nNow let me update the in-repo plan to reflect the completed DB rotation (and testpool deferral), then commit the parameterized compose files."
+      },
+      {
+        "role": "assistant",
+        "text": "Now committing the parameterized compose files + the plan update."
+      },
+      {
+        "role": "assistant",
+        "text": "All committed cleanly \u2014 branch `secret-rotation-dev` has 3 commits, no leaked literals remain in any tracked file, and `app1/.env` (holding the real new value) is git-ignored. Let me do a final consolidated verification."
+      },
+      {
+        "role": "assistant",
+        "text": "All four stacks healthy with rotated credentials; old dev password rejected; leaked secrets gone from HEAD. Let me record the key operational facts in memory, then summarize."
+      },
+      {
+        "role": "assistant",
+        "text": "The dev secret rotation is **complete and verified**. Here's the full picture.\n\n## \u2705 Done & verified (branch `secret-rotation-dev`, 3 commits)\n\n**Repo exposure removed from HEAD:**\n- Leaked `app1/family-fund-app/.env.dev` **untracked** (kept on disk as the git-ignored runtime/pool/test template); secret-free `.env.example` added.\n- The DB password (`123456`/`1234`) **de-hardcoded** from all 4 tracked compose files (`docker-compose.{env,acl,dev,dev2}.yml`) \u2014 now `${FF_DB_*:-changeme}`, with the real value only in a git-ignored `app1/.env`.\n- Plan/incident docs imported to `docs/security/`.\n\n**Secrets actually rotated (live dev):**\n- **`APP_KEY`** regenerated (`dffffd\u2026` \u2192 `a5f1c6\u2026`) \u2014 clean, no encrypted data to migrate.\n- **DB root + `famfun_dev` passwords** rotated via `ALTER USER` on `app1-mariadb-1`; **old `123456` now rejected**.\n- Sessions + `password_resets` truncated; leaked `REDIS_PASSWORD`/`MAIL_PASSWORD` refreshed.\n- **All 4 stacks verified**: `app1` (:3001), `pool0` (:3020), `pool1` (:3021), `test0` (:3010) \u2014 all `DB_OK`, `/login` 200. New secrets backed up off-repo (perms 600).\n\n\u26a0\ufe0f I briefly took pool0/pool1 down during the recreate (wrong launcher invocation) \u2014 both fully restored. **Gotcha for later:** a fresh clone/worktree now needs `app1/.env` with the `FF_DB_*` values, or compose uses `changeme` and the DB connection fails.\n\n## \u23f8\ufe0f Deferred (documented in `docs/security/SECRET-ROTATION-PLAN.md`)\n- **Testpool DB** \u2014 rotating it broke an active `test0` lease, so reverted to `123456`; redo when no test slots are leased.\n- **Stage `APP_KEY`** (out of \"dev only\" scope), **prod `APP_KEY`-match check** (your read-only SSH; host-key failed here), **history purge** + **prod user resets** \u2014 separate tasks.\n\nThe main repo is currently checked out on `secret-rotation-dev`. How do you want to deliver it?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Merge to main + push"
+  }
+}

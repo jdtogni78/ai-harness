@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4e501b37-c80cc32f5a8809c7",
+  "sig": "answer:rollout-4e501b37:c80cc32f5a8809c7",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4e501b37-25a3-4f03-af26-cddbd89350b1.jsonl turn #178",
+  "input": {
+    "action": {
+      "session_id": "rollout-4e501b37",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control/.claude/worktrees/bridge-cse_01QCUdWyipDfDDSdo6MDbpPL",
+      "question": "What exact name should the project take?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Co8iGUBuvqNpxaSnWDaLoY",
+        "description": "",
+        "questions": [
+          {
+            "question": "What exact name should the project take?",
+            "header": "New name",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "remote-ai-infra",
+                "description": "Your suggestion. Generic enough to also cover the codex-relay addition."
+              },
+              {
+                "label": "remote-agent-infra",
+                "description": "Emphasizes 'agents' (Claude + Codex) rather than 'AI'."
+              },
+              {
+                "label": "ai-remote-control",
+                "description": "Keeps the 'remote-control' lineage but drops the 'claude-' vendor prefix."
+              }
+            ]
+          },
+          {
+            "question": "How deep should the rename go?",
+            "header": "Scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "GitHub + branding only",
+                "description": "Rename the GitHub repo, update origin, swap in-repo name strings (README/title), commit + push. Local dir path, launchd labels, and daemons stay exactly as-is \u2014 nothing running breaks. Reversible, low risk."
+              },
+              {
+                "label": "Full migration",
+                "description": "Also rename the local directory, update + reinstall both LaunchAgents, rename launchd labels, fix the skill + active-dirs paths, restart daemons. Touches live infra and overlaps the uncommitted codex-relay/active-dirs WIP \u2014 more steps, higher risk."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "lets push to github"
+      },
+      {
+        "role": "assistant",
+        "text": "I'll check the remote setup, then push the commit."
+      },
+      {
+        "role": "user",
+        "text": "[Request interrupted by user]"
+      },
+      {
+        "role": "user",
+        "text": "before pushing, I rather rename the project to remote-ai-infra or similar"
+      },
+      {
+        "role": "assistant",
+        "text": "Hold on \u2014 renaming this project is a big, branching operation, not a quick string swap, because the name is wired into running infrastructure. Before I touch anything, let me map the blast radius so we make the right call."
+      },
+      {
+        "role": "assistant",
+        "text": "Mapped it. Here's what the name actually touches \u2014 it's not a simple find/replace:\n\n| Layer | Detail |\n|---|---|\n| **GitHub repo** | `github.com/jdtogni78/claude-remote-control.git` (would rename + update `origin`) |\n| **Local dir** | `/Users/claudio1/dev/claude-remote-control` \u2014 hardcoded in **2 installed LaunchAgents**, the **`remote-control-dirs` skill**, and listed in **its own `active-dirs.txt`** (the supervisor manages this repo as a target). Also where git worktrees + Claude's transcript/memory dir are keyed. |\n| **launchd labels** | `com.claudio1.claude-remote-control`, `\u2026-usage-limit-monitor`, `\u2026-codex-relay` |\n| **In-repo strings** | 15 occurrences across scripts/README/plists |\n| **Must NOT change** | 6 refs to the `claude remote-control` *CLI command* \u2014 that's Anthropic's subcommand, unrelated to the repo name |\n\nTwo complications worth flagging:\n- **Renaming the local dir breaks the running daemons** until I update + reinstall both plists and restart them. The GitHub rename alone is safe and breaks nothing.\n- **A deep rename collides with the uncommitted WIP** (the `codex-relay` files, `active-dirs.txt`, supervisor changes share these files), so I'd be editing files someone has in progress.\n\nLet me confirm two things before doing anything:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "remote-agent-infra, Full migration"
+  }
+}

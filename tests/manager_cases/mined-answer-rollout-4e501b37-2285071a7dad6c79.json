@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4e501b37-2285071a7dad6c79",
+  "sig": "answer:rollout-4e501b37:2285071a7dad6c79",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4e501b37-25a3-4f03-af26-cddbd89350b1.jsonl turn #309",
+  "input": {
+    "action": {
+      "session_id": "rollout-4e501b37",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control/.claude/worktrees/bridge-cse_01QCUdWyipDfDDSdo6MDbpPL",
+      "question": "Detection via the sessions API is proven. What next?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01D84LvCSxbnqTM9uqwgrZF7",
+        "description": "",
+        "questions": [
+          {
+            "question": "Detection via the sessions API is proven. What next?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Discover the resume endpoint",
+                "description": "Carefully find the POST that does 'Try again' on a cse_ session (read-only discovery first; no live resume fired without your OK). Needed before any auto-resume can work."
+              },
+              {
+                "label": "Build detect-only monitor",
+                "description": "Rewrite the monitor to detect paused cse_ sessions via the API and notify/log them \u2014 no auto-resume yet. Safe, immediately useful, leaves resume for later."
+              },
+              {
+                "label": "Write up findings only",
+                "description": "Capture the API detection signal + the local-uuid-vs-cloud-cse insight in the README/memory, change no code, and return to the rename/push."
+              },
+              {
+                "label": "Full rebuild plan",
+                "description": "Draft the complete redesign (API detect + resume-by-cse_id + backoff/wait-for-reset) as a plan before writing code."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Key spike results:\n\n- **Server log:** just a repainting TUI showing `Capacity: 2/32` (2 live sessions) \u2014 no pause/429 signal there.\n- **CLI:** no \"list cloud sessions\" command, but notably `--from-pr` resumes a session linked to a PR, and `--resume` exists.\n- **Auth:** the token lives in the login keychain (service `Claude Code-credentials`), and its scopes include **`user:sessions:claude_code`** \u2014 so the sessions API should be reachable.\n\n\u26a0\ufe0f Note: the `-g` probe just printed your OAuth access/refresh tokens into this transcript. They're your own tokens and never left your machine, but flagging it. I won't print them again \u2014 the probe below reads the token from keychain into a variable without echoing it.\n\nLet me query the `/v1/code/sessions` API to see if it exposes live pause/usage-limit state:"
+      },
+      {
+        "role": "assistant",
+        "text": "The endpoint exists and the token is accepted \u2014 it just needs the `anthropic-version` header. Adding it:"
+      },
+      {
+        "role": "assistant",
+        "text": "**Breakthrough.** The `/v1/code/sessions` API returns full live session state \u2014 `status`, `worker_status`, `connection_status`, `environment_kind`, `title`, branches, timestamps. That first one is even *this* session (\"Resume all sessions skill\"). Now let me dump all of them to find how a usage-limit pause is represented \u2014 especially the two from your screenshots:"
+      },
+      {
+        "role": "assistant",
+        "text": "The API confirms the cloud/local split: **`environment_kind`** = `anthropic_cloud` for \"Review and refactor\" vs `bridge` for \"Run all tests\". But the **usage-limit pause is *not* in the list-level status** \u2014 both show `status=active, worker_status=idle`, indistinguishable from a session that just finished. The refusal must live in the session's events/messages. Let me get the detail + look for an events endpoint (read-only):"
+      },
+      {
+        "role": "assistant",
+        "text": "**Found the detection signal.** The session detail exposes exactly what we need:\n\n```json\n\"post_turn_summary\": {\n  \"status_category\": \"failed\",\n  \"status_detail\": \"You've hit your org's monthly usage limit\"\n}\n```\n\nAnd a huge realization: \"Run all tests\" is `cse_01BvT6Zg\u2026` \u2014 the **same worktree** as local transcript `897c7901`. But they're **different conversations**: the app shows the *cloud* `cse_` session, while the monitor resumes the *local* `uuid` (`897c7901`). So when I \"resumed\" 897c7901 earlier, the cloud session stayed `failed` on usage limit (`last_event_at` still 16:14). **The monitor has always been resuming the wrong identity.**\n\nLet me confirm the failure signal is in the *list* call (so detection is one request, no per-session fetch):"
+      },
+      {
+        "role": "assistant",
+        "text": "Spike complete \u2014 and it's a clean result. **Bridge-state detection is fully solved with one API call.**\n\n## What works\n\n`GET https://api.anthropic.com/v1/code/sessions` (token from keychain `Claude Code-credentials` \u2192 `.claudeAiOauth.accessToken`; headers `anthropic-version: 2023-06-01` + `anthropic-beta: oauth-2025-04-20`) returns every session you see in the app, with the pause encoded in:\n\n```\nexternal_metadata.post_turn_summary.status_category == \"failed\"\nexternal_metadata.post_turn_summary.status_detail   ~ \"...usage limit\" / \"...session limit\"\nenvironment_kind                                     == \"bridge\" | \"anthropic_cloud\"\nid                                                   == cse_...\n```\n\nFrom that single call, both your screenshots are detectable:\n\n| env | detail | session |\n|---|---|---|\n| `anthropic_cloud` | \"You've hit your **session limit** \u00b7 resets 7:50pm\" | Review and refactor unused controllers |\n| `bridge` | \"You've hit your org's **monthly usage limit**\" | Run all tests |\n\n(The filter needs to match both \"usage limit\" *and* \"session limit\", and **exclude** non-limit failures \u2014 e.g. \"Collect discussion suggestions\" is `failed` too, but on a *path* error, not a limit.)\n\n## The architectural bombshell\n\n\"Run all tests\" is `cse_01BvT6Zg\u2026` \u2014 the **same worktree** as local transcript `897c7901`, but they're **separate conversations**. The app shows the **cloud `cse_` session**; the monitor resumes the **local `uuid`**. So:\n\n- The current monitor has **always been resuming the wrong identity** \u2014 even my \"successful\" 897c7901 resume left the real cloud session `failed` (its `last_event_at` is still 16:14, the original pause).\n- This is *why* your app sessions never came back. JSONL-scanning + uuid-resume can't ever fix a `cse_` session.\n\nThe fix is to rebuild the monitor around this API: **detect** paused `cse_` sessions from the list, then **resume them by `cse_` id**.\n\n## The one unknown left: the resume call\n\nDetection is read-only and proven. **Resuming** (\"Try again\") is a state-changing `POST` that triggers a real run and consumes usage \u2014 I haven't fired any POST, on purpose. I need to discover that endpoint (candidates: a send-message/turn POST, or the `resume_token` the list returns) before the monitor can act. Also note: \"Run all tests\" is on the **monthly** limit, so resuming it just re-fails until your quota resets; only the session-limit one (7:50pm UTC) would actually take.\n\nHow do you want to proceed?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "poc the api 1st"
+  }
+}

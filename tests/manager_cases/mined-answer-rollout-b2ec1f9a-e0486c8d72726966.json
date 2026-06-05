@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b2ec1f9a-e0486c8d72726966",
+  "sig": "answer:rollout-b2ec1f9a:e0486c8d72726966",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b2ec1f9a-57e6-48f5-ad57-30cfc5dc815d.jsonl turn #30",
+  "input": {
+    "action": {
+      "session_id": "rollout-b2ec1f9a",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control",
+      "question": "Which project's previous session do you want to restore?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01YN6aswXJG5AmQ7nBX8Dnmz",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which project's previous session do you want to restore?",
+            "header": "Project",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "FamilyFund",
+                "description": "mm-FamilyFund \u2014 the most active server (1.6MB log, many past sessions)."
+              },
+              {
+                "label": "claude-remote-control",
+                "description": "mm-claude-remote-control \u2014 this repo (26MB log, very active)."
+              },
+              {
+                "label": "dstrader / fin-export / other",
+                "description": "One of the other per-dir servers (dstrader, dstrader-docker, fin-export, dev root)."
+              },
+              {
+                "label": "Just explain, don't act",
+                "description": "You only wanted to understand the mechanism; you'll resume it yourself."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "is there a way to restore prev server?"
+      },
+      {
+        "role": "assistant",
+        "text": "Your question could mean a couple of different things. Let me clarify before I dig in:"
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the situation with `claude remote-control`:\n\n**There's no native \"reconnect\" feature.** The server itself (`remote-control-startup.sh`) is stateless \u2014 when it restarts (crash, reboot, or the 5-min LaunchAgent re-run), it pre-creates a *fresh* session. The old session disappears from the live server list in the mobile app / claude.ai.\n\n**But the conversation is not lost.** Every session's full transcript is persisted on disk as a `.jsonl` file under `~/.claude/projects/<encoded-dir>/`. For example FamilyFund has dozens of them. So a previous session can be restored \u2014 just not through the remote-control server's UI.\n\nTwo ways to restore one:\n\n1. **Locally in a terminal** \u2014 `cd` to the project dir and run `claude --resume` (interactive picker of past sessions) or `claude -c` (continue the most recent one). This rehydrates the exact conversation.\n\n2. **In a fresh chat (incl. from the phone)** \u2014 use the `resume-work` skill, which lists the repo's recent/interrupted sessions + worktrees, lets you pick one, and reconstructs the goal + remaining work so you can continue it.\n\nThe remote-control server is per-directory (`mm-FamilyFund`, `mm-dev`, `mm-claude-remote-control`, etc.), so \"which previous server\" matters. Which project's session do you want to bring back?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "i want to have a mechanism/make ever server resume restoring its chats..."
+  }
+}

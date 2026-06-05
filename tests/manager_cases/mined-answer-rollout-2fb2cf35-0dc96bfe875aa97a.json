@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2fb2cf35-0dc96bfe875aa97a",
+  "sig": "answer:rollout-2fb2cf35:0dc96bfe875aa97a",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2fb2cf35-1e06-4ccf-8f19-661200f9ebeb.jsonl turn #91",
+  "input": {
+    "action": {
+      "session_id": "rollout-2fb2cf35",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_0143BLSi72cXwwaoR5TWBJAa",
+      "question": "Send the kickoff above to the worker (cse_0194L9v2amdPMtmc8Wn1rChC, oneoff-mini-1c561b44)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_014v7NAH1Uxb9QwXP1WeUaja",
+        "description": "",
+        "questions": [
+          {
+            "question": "Send the kickoff above to the worker (cse_0194L9v2amdPMtmc8Wn1rChC, oneoff-mini-1c561b44)?",
+            "header": "Send kickoff?",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Send as drafted",
+                "description": "Submit the kickoff message verbatim to the idle worker. It will call start-work to claim #29 and begin implementation."
+              },
+              {
+                "label": "Edit the message",
+                "description": "Tell me what to change in the kickoff before sending."
+              },
+              {
+                "label": "Hold off",
+                "description": "Don't send yet \u2014 I want to do something else first."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Dry-running first per skill guidance."
+      },
+      {
+        "role": "assistant",
+        "text": "Dry-run looks right \u2014 worktree-mode spawn on `~/dev/ai-harness`, picker name `oneoff-mini-6b2a7fcb`. Launching."
+      },
+      {
+        "role": "assistant",
+        "text": "Server's up. Let me check whether it already has a session id assigned (so I can inject the kickoff directly) or whether you'll need to open the picker row first."
+      },
+      {
+        "role": "assistant",
+        "text": "It already has a cse_ id and is idle/connected \u2014 I can inject the kickoff directly."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me dry-run the kickoff so you can review the exact body before it goes to the worker."
+      },
+      {
+        "role": "assistant",
+        "text": "Ready to send. Let me get your sign-off before submitting it to the live worker."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Send as drafted"
+  }
+}

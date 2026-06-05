@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-13abe289-1d1e497f43330ad7",
+  "sig": "answer:rollout-13abe289:1d1e497f43330ad7",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 13abe289-396f-43fc-9381-447e4ecf90ee.jsonl turn #147",
+  "input": {
+    "action": {
+      "session_id": "rollout-13abe289",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "Supervisor is still cycling \u2014 how should I proceed?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01LdLMeySgH97kfo4SYhYpt2",
+        "description": "",
+        "questions": [
+          {
+            "question": "Supervisor is still cycling \u2014 how should I proceed?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Stop the bleed: bootout supervisor (Recommended)",
+                "description": "`launchctl bootout gui/$UID/com.claudio1.claude-remote-control`. Children get TERM, deregister cleanly, phantoms stop accumulating. We can then debug the supervisor at our pace without it eating cloud quota."
+              },
+              {
+                "label": "Add instrumentation and watch one tick",
+                "description": "Patch supervisor.py to log `wanted=...` and `running=...` per tick, restart it, and capture one full cycle so we can see exactly which name disappears from `wanted`. Leaves it cycling while we look."
+              },
+              {
+                "label": "Just leave it \u2014 it's not actively harmful",
+                "description": "Phantoms age out; spawn rate is bounded by tick interval. Stop investigating and move on."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "[Request interrupted by user]"
+      },
+      {
+        "role": "user",
+        "text": "we also have too many dirs"
+      },
+      {
+        "role": "assistant",
+        "text": "Two separate concerns now \u2014 let me address the dirs question and keep going on the supervisor flap (they're independent).\n\n**On the dirs:** the supervisor doesn't spawn from `~/dev` listing \u2014 it spawns from `~/.ai-harness/active-dirs.txt`, which is exactly 6 entries (`dev FamilyFund ai-harness dstrader dstrader-docker job-search`). Extra dirs like `ai-harness-public`, `ai-harness-private`, `ai-harness-host-defaults`, `*-worktrees`, `*-secrets` are silently filtered out \u2014 they're not causing extra servers. They are clutter, though. Many are likely the artifacts of the 2026-05-26 public/private swap, the worktree convention, and your secrets layout. We can audit them in a follow-up \u2014 but they aren't what's behind the picker explosion.\n\n**The actual cause** is in [logs/manager.log](logs/manager.log) \u2014 the supervisor is in a full deactivate\u2192respawn cycle every ~60s for ALL 6 servers:\n\n```\n21:34:09 deactivate: mm-dev not in allowlist (pid 89320)\n21:34:20 start:      mm-dev\n21:34:31 deactivate: mm-dstrader-docker not in allowlist (pid 89328)\n21:34:52 start:      mm-dstrader-docker\n21:35:14 deactivate: mm-FamilyFund not in allowlist (pid 89726)\n21:35:24 start:      mm-FamilyFund\n...\n```\n\nSo on tick N the supervisor spawns `mm-dstrader-docker`, on tick N+1 it considers the freshly-spawned process \"not in allowlist\" and kills it. Every kill leaves a phantom cloud registration \u2192 that's where your 15 picker entries came from.\n\nLet me check `discover()` to see why a name is in `wanted` one tick but not the next."
+      },
+      {
+        "role": "assistant",
+        "text": "You're right \u2014 the spawn itself is succeeding (each child connects, gets a real `env_01...`, says \"Ready\"). It's the supervisor's decision that they're \"not in allowlist\" that's the lie \u2014 and *that* lie is what's killing & respawning them, leaving cloud phantoms.\n\nLet me confirm by looking at `_allowlist()` and check for a read race / second supervisor."
+      },
+      {
+        "role": "assistant",
+        "text": "\ud83c\udfaf **Found the actual bug.** Look at this:\n\n```\n$ ps -axo command | grep -oE \"/claude\\s+remote-control\\s+--name\\s+mm-\\S+\"\n/claude remote-control --name mm-FamilyFund\n/claude remote-control --name mm-ai-harness\n/claude remote-control --name mm-dev\n```\n\nOnly **3 of 5** running children show up. The supervisor's `running_servers()` regex needs `/claude remote-control --name mm-XXX` \u2014 but `ps -axo command` **truncates the command line** on macOS, hiding `--name` for many of them. Let me confirm:"
+      },
+      {
+        "role": "assistant",
+        "text": "OK \u2014 you were right that I was framing this wrong. The spawn isn't failing; the children are connecting cleanly. The real issue is the supervisor's **reconcile loop incorrectly killing live servers** every ~30s because something in its decision-making is wrong (not a spawn problem \u2014 a \"wanted set\" problem). My CLI dry-run of `discover()` returned all 6 servers consistently, so the bug is somewhere between what `discover()` returns and what the running supervisor's `wanted` set contains at tick time.\n\nUntil I find that, the supervisor is burning cloud registrations every cycle. Let me update tasks and ask you how you want to proceed, because at this point I'd rather pause the supervisor than keep poking from the outside."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Add instrumentation and watch one tick"
+  }
+}

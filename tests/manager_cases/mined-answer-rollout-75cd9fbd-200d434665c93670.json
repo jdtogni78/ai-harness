@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-75cd9fbd-200d434665c93670",
+  "sig": "answer:rollout-75cd9fbd:200d434665c93670",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 75cd9fbd-558d-43d1-9cc9-60012fda619d.jsonl turn #238",
+  "input": {
+    "action": {
+      "session_id": "rollout-75cd9fbd",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/app1/family-fund-app",
+      "question": "Primary approach for making these two tests run against good data?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Ud2pZN5b5k6UXPCYX3MEMo",
+        "description": "",
+        "questions": [
+          {
+            "question": "Primary approach for making these two tests run against good data?",
+            "header": "Data strategy",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Generator + RefreshDatabase",
+                "description": "Convert AclMatrixTest & SmokeTest to build their own fund/portfolio/asset graph via DataFactory/TestFixtures on a RefreshDatabase'd test DB. No reliance on ambient data. Requires regenerating golden acl_matrix.json. Cleanest, matches Feature tests."
+              },
+              {
+                "label": "Curated golden DB",
+                "description": "Build a non-trivial seed DB (partly from cleaned dev data, orphans removed) used as the dedicated test DB. Less refactor, but a new artifact to maintain."
+              },
+              {
+                "label": "Investigate further first",
+                "description": "Prototype the generator path on AclMatrixTest only, show you the diff/golden churn, then decide before touching SmokeTest."
+              }
+            ]
+          },
+          {
+            "question": "What to do with the defensive null-skip guards I already added (PortfolioAPIControllerExt + FundTrait x2)?",
+            "header": "Defensive code",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Revert them",
+                "description": "Remove the `continue`-on-null guards entirely; rely solely on good test data so a real orphaned row would still surface as a 500."
+              },
+              {
+                "label": "Keep as hardening",
+                "description": "Keep them so a production data glitch degrades gracefully instead of 500-ing a whole fund page, but fix the test data separately so tests still prove correctness."
+              },
+              {
+                "label": "Keep but log",
+                "description": "Keep the guard but add a Log::warning when an orphaned portfolio_asset is skipped, so it's visible in prod rather than silent."
+              }
+            ]
+          },
+          {
+            "question": "Also clean the orphaned rows in the dev/stage DB itself (assets 166/182/183 referenced but missing)?",
+            "header": "Dev DB cleanup",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, fix dev data too",
+                "description": "Remove/repair the orphaned portfolio_assets in familyfund_dev so the shared dev DB is internally consistent, independent of the test refactor."
+              },
+              {
+                "label": "No, leave dev DB as-is",
+                "description": "Only address the test data path; leave the dev DB untouched for now."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "~3 min run. Faster: the last ACL run just logged every 500. Let me pull the distinct exception locations from the log."
+      },
+      {
+        "role": "assistant",
+        "text": "New unpatched location: **`FundTrait.php:616`** (4 hits, most recent). Let me look."
+      },
+      {
+        "role": "assistant",
+        "text": "Critical check \u2014 is my host edit even reaching the container? The container runs a baked image (`dstrader-stage-familyfund`). Let me verify line 63 inside the container."
+      },
+      {
+        "role": "assistant",
+        "text": "Two important findings before I address your new direction:\n\n1. **My fix IS live** \u2014 the container bind-mounts the app code (`\u2026/dstrader-aws/FamilyFund/app1/family-fund-app` \u2192 `/app`), and the guard shows up inside the container. The `:63`/`:710` log lines were stale (from the earlier 06:38 reproduction, pre-edit).\n2. **But you've changed direction** \u2014 you don't want the degrade-on-bad-data approach; you want tests running against *good* data (generator-style like the Feature tests, or a non-trivial golden DB seeded from dev).\n\nThat's the right instinct \u2014 masking orphaned `portfolio_assets` with `continue` hides a data-integrity problem instead of testing correctness. Let me investigate how `AclMatrixTest`/`SmokeTest` currently source their fund data, to see if the generator path is even feasible."
+      },
+      {
+        "role": "assistant",
+        "text": "`AclMatrixTest` uses `Fund::query()->orderBy('id')->first()` \u2014 it runs against **whatever fund already exists in the ambient DB**, no generation, no `RefreshDatabase`. That's the design weakness you spotted. Let me check `SmokeTest` and the existing generator/fixture capability."
+      },
+      {
+        "role": "assistant",
+        "text": "Now I have the full picture:\n\n| Test | Data source | Why it 500s |\n|---|---|---|\n| `SmokeTest` | Uses `DataFactory` (`createFund(...)`) for most \u2014 **but** its random-route-discovery test resolves params \"from factory **and database**\", so it pulls `funds/1080` from the ambient DB | Hits dev-derived orphaned `portfolio_assets` |\n| `AclMatrixTest` | `Fund::query()->orderBy('id')->first()` \u2014 purely ambient DB, **no generation, no `RefreshDatabase`** | Same |\n\nSo the generator pattern you like **already exists** (`DataFactory`/`TestFixtures` \u2014 exactly what the Feature tests use). The defect is that these two tests *also* reach into the shared dev/stage DB (`familyfund_dev`), which has orphaned rows from a partial prod\u2192dev restore (assets 166/182/183 missing). They don't run on `RefreshDatabase`.\n\nThis is a direction-setting fork with a few coupled decisions, so I want to confirm before doing a large refactor + golden-file regeneration:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "[User dismissed \u2014 do not proceed, wait for next instruction], [User dismissed \u2014 do not proceed, wait for next instruction], [User dismissed \u2014 do not proceed, wait for next instruction]"
+  }
+}

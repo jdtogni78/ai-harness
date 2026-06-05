@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-7cdd2f87-acb3ad2c546618af",
+  "sig": "answer:rollout-7cdd2f87:acb3ad2c546618af",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 7cdd2f87-dccd-4548-bbb0-e3198f213da3.jsonl turn #597",
+  "input": {
+    "action": {
+      "session_id": "rollout-7cdd2f87",
+      "repo": "job-search",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/job-search/.claude/worktrees/bridge-cse_01T5q3R1xHdUuxrcKexRmSvZ",
+      "question": "Does 'drop AI' extend to your actual job targets, or was it just the public-facing framing? (notes/target-companies.md is a curated list of specific AI companies \u2014 Anthropic/OpenAI/Sierra/etc.; and your saved search-preference memory says 'pivot into AI/ML, LLM apps, agentic systems'.)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01AyjKiwNdvjAFUirsrVzvLA",
+        "description": "",
+        "questions": [
+          {
+            "question": "Does 'drop AI' extend to your actual job targets, or was it just the public-facing framing? (notes/target-companies.md is a curated list of specific AI companies \u2014 Anthropic/OpenAI/Sierra/etc.; and your saved search-preference memory says 'pivot into AI/ML, LLM apps, agentic systems'.)",
+            "header": "AI targets",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Just the framing \u2014 keep AI targets",
+                "description": "You still want AI/ML roles and those AI-company targets; you just can't pitch an AI portfolio. I leave target-companies.md and the search-preference memory as-is."
+              },
+              {
+                "label": "Targets too \u2014 step back from AI",
+                "description": "You're moving away from AI/ML roles and AI-specific company targets. I'll update target-companies.md (broaden/relabel) and the search-preference memory to match."
+              },
+              {
+                "label": "Leave it flagged for later",
+                "description": "Don't change either now; it's recorded in commit 32790b4's message as a pending call. Fully close this session."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Got it. Three actions: (1) file a ticket for the stale published site, (2) review the two `01Qb1` tickets \u2014 leave the LinkedIn-connector one open, check whether the other is genuinely done, and (3) drop \"AI\" from the targeting everywhere. Let me gather the ticket details and every \"AI\" reference first."
+      },
+      {
+        "role": "assistant",
+        "text": "Reviewed the tickets \u2014 here's the reality, which differs a bit from the names:\n\n- **(a) \"LinkedIn referral tooling\"** \u2014 the *actual* connector (`referrals.py`, commit `c6bac83`) is on its own branch, **not merged to main** \u2192 genuinely **not done**. Leave open. \u2713 (matches your instinct)\n- **(b) \"Website specs + LinkedIn-connector idea\"** \u2014 this is just the specs + the *idea* doc (`notes/linkedin-connector.md`), which I **did merge** to main. It's actually done \u2014 but I'll leave it open since you flagged LinkedIn; you can close it knowing the real tooling is the separate (a).\n- **(c) \"Portfolio website \u2014 publish\"** \u2014 the site **is** published (`jdtogni78/jdtogni-site`, live 2026-05-22); v1 milestone met \u2192 I'll close this \"other\" one, with the content-refresh tracked by the new ticket.\n\nExecuting the ticket actions and reading the files I need to drop \"AI\" from:"
+      },
+      {
+        "role": "assistant",
+        "text": "Regen ticket filed and ticket (c) closed \u2713. Now the \"drop AI\" edits to the self-targeting framing (the four clear self-positioning references):"
+      },
+      {
+        "role": "assistant",
+        "text": "`pipeline.md` needs a read first (I'd read the worktree copy, not the main one). Reading and editing it:"
+      },
+      {
+        "role": "assistant",
+        "text": "Committing the \"drop AI\" self-targeting cleanup to `main`:"
+      },
+      {
+        "role": "assistant",
+        "text": "## `close-work` complete \u2014 this session is delivered and closed\n\nEverything is on `main` (clean tree, local-only repo so no push). `main` HEAD: **`32790b4`**.\n\n**This turn's actions:**\n- \ud83d\udccb **Filed board #3 ticket** \u2014 \"Regenerate published site (jdtogni78/jdtogni-site) post-teardown\" (the live site still has pre-teardown AI copy).\n- \u2705 **Closed** \"[job-search] Portfolio website \u2014 publish\" (v1 site is live).\n- \u2b1c **Left open** (a) \"LinkedIn referral tooling\" \u2014 genuinely not done (`c6bac83` is on a branch, **not** merged to `main`). And (b) \"Website specs + LinkedIn-connector idea\" \u2014 I left it open per your flag, though heads-up: its content *is* merged; the real un-merged connector is (a).\n- \u2702\ufe0f **Dropped \"AI\" self-targeting** from `pipeline.md`, `websites/README.md`, `marketplaces.md`, `network-outreach.md` (committed `32790b4`).\n\n**Earlier in the session (already closed):** FF docs explainer, position-thesis-agent teardown, `01Qb1` website work landed; FF-docs ticket Done, PTA archived.\n\nWorktree is harness-managed (and I'm running inside it), so I won't self-remove it.\n\n### One last call before I consider it fully wrapped\n\nI dropped \"AI\" from the *framing*, but two things genuinely depend on whether you're changing your actual targets \u2014 I didn't touch them unilaterally:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Just the framing \u2014 keep AI targets"
+  }
+}

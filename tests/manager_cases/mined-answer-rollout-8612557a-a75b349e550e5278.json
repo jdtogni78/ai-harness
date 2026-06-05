@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-8612557a-a75b349e550e5278",
+  "sig": "answer:rollout-8612557a:a75b349e550e5278",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 8612557a-e99f-49de-bfe8-72e507362f45.jsonl turn #472",
+  "input": {
+    "action": {
+      "session_id": "rollout-8612557a",
+      "repo": "job-search",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/job-search/.claude/worktrees/bridge-cse_01WQeqP4Xktz9qxuq1R8shMR",
+      "question": "What should I execute next? (Prod user-resets and the prod APP_KEY rotation stay yours, per analyze-only.)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01M5SwH2CAonRYi5zjNMjK2e",
+        "description": "",
+        "questions": [
+          {
+            "question": "What should I execute next? (Prod user-resets and the prod APP_KEY rotation stay yours, per analyze-only.)",
+            "header": "Next step",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Prevention hardening",
+                "description": "Now, non-destructive: harden .gitignore (FamilyFund + dstrader-aws) and add a gitleaks pre-commit/pre-push hook so secrets/dumps/logs can't be committed again. Safe, breaks nothing."
+              },
+              {
+                "label": "Rotate dev/stage secrets",
+                "description": "I drive the local docker to regenerate APP_KEY + rotate the local familyfund_dev root password and update the git-ignored .env/.env.stage. Breaks the lease-env/test-env pools + concurrent worktrees until restarted."
+              },
+              {
+                "label": "FamilyFund history purge",
+                "description": "The big history rewrite + force-push (same verified method as dstrader). Needs the 8+ FamilyFund worktrees + pools quiesced first to avoid clobbering active work."
+              },
+              {
+                "label": "SSH-peek spirit (read-only)",
+                "description": "Wake spirit and read prod .env (no changes) just to confirm whether prod APP_KEY equals the leaked dev key. Wakes the prod box but makes no modifications."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "`dstrader-docker` is the deployment repo **`jdtogni78/dstrader-aws`** \u2014 and it contains prod/stage config, a `datadir_dev/` (MySQL data dir), `familyfund.properties` for prod, credential scripts, and a TWS profile (1,533 hits). I need to know if **this** repo is also public, and what's exposed. Analysis only:"
+      },
+      {
+        "role": "assistant",
+        "text": "Reassuring on the deployment repo: **`dstrader-aws` is private**, `datadir_dev/` is gitignored (no raw DB files committed), prod `familyfund.properties` holds only internal docker URLs (no creds), credential scripts hardcode nothing, and `.gitignore` properly excludes `mail.properties`. So no new public exposure there.\n\nTo answer \"does prod reuse the leaked secrets\" **without touching spirit**, let me read the deployment scripts (how prod's `.env`/DB are provisioned):"
+      },
+      {
+        "role": "assistant",
+        "text": "Major finding from `deploy_ff.sh` \u2014 and it **corrects my earlier \"live compromised\" claim**. The live data on spirit uses a **separate** prod DB (`familyfund_prod`, user `famfun_prod`) whose password is **hardcoded in this deploy script** (a weak 4-digit value), and the deploy explicitly **excludes `.env`** from rsync \u2014 so prod keeps its own `.env`/`APP_KEY` on spirit. So the `.env.dev` leak compromises **dev + stage** (local docker `familyfund_dev`), not the live prod creds.\n\nLet me corroborate where prod creds are hardcoded (analysis only \u2014 no prod contact):"
+      },
+      {
+        "role": "assistant",
+        "text": "Complete prod picture now (no prod contact made):\n\n- **Prod DB creds are hardcoded** in `docker-compose.prod.yml`, `deploy_ff.sh`, and `dstrader/opt/backup.sh` \u2014 `familyfund_prod` / `famfun_prod` / a weak password, plus the MariaDB **root** password. All in **dstrader-aws (private)**, so not publicly exposed, but poor hygiene.\n- These are **different** from the leaked `.env.dev` secrets, and prod's Laravel `.env` lives on spirit (excluded from rsync/git). So **the public leak compromises dev + stage only, not prod data**. Whether prod's APP_KEY happens to equal the leaked dev key can only be confirmed by a read-only SSH peek at spirit (I won't, per \"don't change prod\").\n\nLet me correct the plan doc accordingly."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me record the prod/infra topology in memory (it's durable, non-obvious context), then give you the consolidated picture."
+      },
+      {
+        "role": "assistant",
+        "text": "All five of your points are handled, plus the prod analysis. Consolidated status:\n\n## 1) Rotation plan \u2192 `SECRET-ROTATION-PLAN.md` (created, prod-corrected)\nThe only **real** leaked secrets are **one `APP_KEY` + a 6-char `DB_PASSWORD`** (reused across `.env.dev`/`.env`/`.env.stage`). Everything else in those files was empty.\n\n## 2) Dump emails \u2014 checked. You were *mostly* right\nMostly seed/fake (`@familyfund.com`, `@dev.familyfund.local`, `@test.local`) \u2014 **but not entirely**: ~**13 real Gmail + 1 Hotmail** addresses (incl. yours; the rest look like real family). So some real PII was exposed.\n\n## 3) User resets \u2014 planned (\u00a73)\nBulk-reset everyone **except `jdtogni`** (it's the admin used by the `assign_system_admin_role` migration \u2014 auto-resetting could lock out admin), invalidate `password_resets` + `sessions`. \u26a0\ufe0f Note: the *real* users live in **prod** (`familyfund_prod` on spirit) \u2014 so this is a **plan for you to run on prod**, since prod is analyze-only.\n\n## 4) gmail.com sweep \u2014 yes, worth it; done\nFound beyond the dumps: source traits, controllers, **migrations**, seeders, tests, docs. Recommend parameterizing the admin email into config/env before publishing. (composer.lock hits are package-author noise.)\n\n## 5) Prevention \u2014 suggestions in \u00a75\ngitleaks/`git-secrets` **pre-commit + pre-push** hooks, hardened `.gitignore` (`.env*` except `.env.example`, `*.sql`/`*.sql.gz`/`*.ibd`/`*.frm`/`*.log*`/`datadir*/`), synthetic-only seeders (no real dumps), CI secret scanning, one tracked `.env.example`.\n\n## Prod (spirit) \u2014 analyzed, untouched\n`spirit` = 192.168.0.120 (WoL, `ssh jdtogni@192.168.0.120`). Live data is a **separate** `familyfund_prod` DB with its **own** creds (`famfun_prod` + weak hardcoded password + hardcoded MariaDB root pw, all in the **private** `dstrader-aws` repo). **The public leak does not expose prod.** Only open question: does prod's `APP_KEY` happen to equal the leaked dev key (needs a read-only SSH peek \u2014 not done).\n\n**Net:** the dev/stage leak is local-docker-only (not internet-facing), so lower urgency than I first implied. The higher-value work is prevention hardening + the history purge + the prod user-resets (yours)."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Prevention hardening, Rotate dev/stage secrets, SSH-peek spirit (read-only)"
+  }
+}

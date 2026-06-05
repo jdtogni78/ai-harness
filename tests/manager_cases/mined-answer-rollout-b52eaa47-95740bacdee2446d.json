@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b52eaa47-95740bacdee2446d",
+  "sig": "answer:rollout-b52eaa47:95740bacdee2446d",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b52eaa47-5382-433a-bd53-6b35deaff5c1.jsonl turn #38",
+  "input": {
+    "action": {
+      "session_id": "rollout-b52eaa47",
+      "repo": "ai-harness-private",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness-private",
+      "question": "How should the public commit be structured?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01BDGHcCRVcVS4XwmdKEN324",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the public commit be structured?",
+            "header": "Commit shape",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Single snapshot commit (Recommended)",
+                "description": "One commit on public main summarizing the new private work (perm_gate_lab, manager-eval, etc.). Matches the existing public history model \u2014 public stays a sanitized portfolio snapshot, not a full mirror."
+              },
+              {
+                "label": "Several thematic commits",
+                "description": "Split into roughly one commit per private feature (perm_gate_lab, manager-eval, ...). More history, but each diff still loses its real authorship/file granularity since we're sanitizing a snapshot."
+              }
+            ]
+          },
+          {
+            "question": "When should we do the \"switch to public as primary\" cutover?",
+            "header": "Switch timing",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Not now \u2014 just sync today (Recommended)",
+                "description": "I'll do the sync only. We discuss the cutover plan separately (it's bigger: changes the dev origin, retires the private repo as primary, decides what stays private)."
+              },
+              {
+                "label": "Plan it in this session",
+                "description": "After the sync, I'll lay out a switch plan (re-pointing remotes, what to do with private-only files like DECISIONS GD-0007, secrets posture, worktree origins) but won't execute it yet."
+              },
+              {
+                "label": "Execute the switch in this session",
+                "description": "After sync, repoint origins so future work happens on the public repo. This affects all worktrees and the supervisor \u2014 requires more care; I'd ask again before any destructive step."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "We have created a public version of this repo and make... made this, uh, private one. I want to sync again all the new work from the private to the public one and later make a switch to adopt the public as the one we're gonna work from now on."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll investigate the current state before acting \u2014 the publish flow and what's changed since the last sync."
+      },
+      {
+        "role": "assistant",
+        "text": "Got the picture. Let me check the public repo state more carefully and what new work needs syncing."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's what I'm seeing:\n\n**Private** (`~/dev/ai-harness`, on `main`): 6 new commits since the last publish snapshot 1af0a8e \u2014 `perm_gate_lab phase 1`, `manager-eval phases 1+2`, plus prep commits.\n\n**Public** (`~/dev/ai-harness-public`, on `main`): 1 commit (3e31445, the initial snapshot). Clean.\n\nThe publish model is **squashed-snapshot**, not real-history mirroring \u2014 each public commit is a fresh `sanitize_export.sh` build of private HEAD. To sync, the recipe is:\n\n1. Run `sanitize_export.sh` against private `main` into a temp dir\n2. `rsync` that tree into `~/dev/ai-harness-public/` (delete extras, preserve `.git`)\n3. Review diff, commit on public as a new snapshot commit, push\n\nI want to confirm a couple of things before touching the public repo."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "I was looking for a sanitized mirror with re-created and recommit or sanitized and republish, Not now \u2014 just sync today (Recommended)"
+  }
+}

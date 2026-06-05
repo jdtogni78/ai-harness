@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-13abe289-123f0af624a9be19",
+  "sig": "answer:rollout-13abe289:123f0af624a9be19",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 13abe289-396f-43fc-9381-447e4ecf90ee.jsonl turn #37",
+  "input": {
+    "action": {
+      "session_id": "rollout-13abe289",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How do you want to proceed?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_011ssUoCnYo6dB9mctchpVVZ",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want to proceed?",
+            "header": "Next step",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Check why dstrader/dev are flapping",
+                "description": "Tail mm-dstrader.log / mm-dev.log to find why those children exit right after the supervisor spawns them."
+              },
+              {
+                "label": "Fix the plist so the bad default can't come back",
+                "description": "Make REMOTE_CONTROL_CLAUDE_BIN come from ~/.ai-harness/ instead of a hardcoded /Users/user/... default, so a future plist reload can't crash-loop again."
+              },
+              {
+                "label": "Force-clear the phantom registrations",
+                "description": "Find the control-plane endpoint that lists registered servers and deregister the dead mm-* entries so the picker stops showing them."
+              },
+              {
+                "label": "Just leave it \u2014 phantoms will age out",
+                "description": "Do nothing; stale entries should expire on their own once the new supervisor stays up."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "we are on mini, i see , we restarted launchd, why we have so many"
+      },
+      {
+        "role": "assistant",
+        "text": "Found it. Two separate things going on:\n\n**1. Why the long list of entries for `macmini.local`** \u2014 those aren't all live servers. The supervisor right now only has 4\u20136 children alive:\n\n```\nmm-job-search, mm-FamilyFund, mm-ai-harness  (+ mm-dstrader/mm-dstrader-docker/mm-dev flapping)\n```\n\nEvery entry you see in the picker is a registration that a `claude remote-control` process opened with the control plane. When a server exits cleanly it deregisters; when it crashes or gets SIGKILL'd it doesn't, and a phantom entry lingers in the cloud directory until it ages out. We've had a lot of those today \u2014 and [logs/launchd.err.log](logs/launchd.err.log) shows why:\n\n**2. The supervisor was crash-looping**, spawning then dying repeatedly:\n\n```\nFileNotFoundError: [Errno 2] No such file or directory: '/Users/user/.local/bin/claude'\n  remote_control/supervisor.py:107 in _spawn\n```\n\nThat's the stale default `REMOTE_CONTROL_CLAUDE_BIN=/Users/user/.local/bin/claude` (note the literal `user`) \u2014 the value used to ship in the plist before the host-config split. Each crash-respawn lifetime opened a new `mm-<repo>` registration that never deregistered before the next crash, so the picker accumulated one phantom per cycle per repo. That explains why `dstrader` and `dev` each appear ~4\u00d7 and `ai-harness`/`job-search` ~2\u00d7.\n\nThe current supervisor (pid 88699, started 9:30 PM) is using the correct `/Users/claudio1/.local/bin/claude`, so the bleeding has stopped \u2014 but the dstrader / dstrader-docker / dev children keep dying after spawn (they're missing from `ps` right now). Want me to:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Check why dstrader/dev are flapping, Fix the plist so the bad default can't come back, Force-clear the phantom registrations"
+  }
+}

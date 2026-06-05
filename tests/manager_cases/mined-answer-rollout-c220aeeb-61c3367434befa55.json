@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-c220aeeb-61c3367434befa55",
+  "sig": "answer:rollout-c220aeeb:61c3367434befa55",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from c220aeeb-1ff6-4d18-91c9-3d870ae06b40.jsonl turn #987",
+  "input": {
+    "action": {
+      "session_id": "rollout-c220aeeb",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "How to update FamilyFund-public after the cleanup commit lands on private FF?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01NWqmbpJLuT5oDr7ZJdaVGz",
+        "description": "",
+        "questions": [
+          {
+            "question": "How to update FamilyFund-public after the cleanup commit lands on private FF?",
+            "header": "Public re-sync mechanic",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "B \u2014 Delete + recreate public from current clean state (Recommended)",
+                "description": "Drop FamilyFund-public, recreate, mirror-push clean history starting from b3b96cd (the rewritten 22b12844). Re-apply hardening. Scrubs the historical leaks from the public surface as of now. ~5 min. Practical for a low-visibility repo where the public exposure window has been short."
+              },
+              {
+                "label": "C \u2014 Switch FF-public to single-commit fresh init permanently",
+                "description": "Same delete-and-recreate but ships only one commit (current HEAD). Future syncs always force-push a single squash. Most thorough but loses commit-by-commit context forever. Matches dstrader-docker's adopted mechanic. ~5 min."
+              },
+              {
+                "label": "D \u2014 History rewrite on private FF first, then re-push",
+                "description": "Full filter-repo round on private FF to scrub items from history (not just HEAD), push to FamilyFund-v3, rename-swap, then push clean history to FF-public. Most thorough across BOTH private + public surfaces. ~30-60 min including SOP re-audit. Same playbook we ran for the original 22b12844 leak."
+              },
+              {
+                "label": "A \u2014 Just append (knowingly leaves old commits public)",
+                "description": "Stick with the current brief. Cleanup commit lands on top; old commits stay visible. Fast and continuity-preserving but doesn't actually scrub from public. NOT recommended given items 2/3/7 are personal-context that should not stay browsable."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Dispatched. Worker `oneoff-mini-ff-cleanup` (cse_01GwMvzBj3L5sEXKmgjNznyd) has the consolidated 8-item brief.\n\n## The 8 items collected from your stream of feedback\n\n| # | Owner directive | Action |\n|---|---|---|\n| 1 | \"jumpbox instructions should be removed too\" | Remove `### Jumpbox Setup` from README.md (~L250-269) |\n| 2 | \"ER605 - is the router I use, we should cleanup refs\" + \"extract the instr from tp-link FAQ that are meaningful to a separate doc\" | WebFetch the URL, distill vendor-agnostic WoL content into new `familyfund-secrets/docs/homelab-wol-setup.md`; remove ER605 + URL from README (~L270, L566) + adjacent personal-narrative |\n| 3 | \"Create a Plaid token for Monarch (unrelated to IBKR) - U0000011 - should remove this plaid reference\" | Remove README.md L301 |\n| 4 | \"and monarch references\" | Sanitize specific account-suffix examples (MONARCH_IBKR_3610, MONARCH_FIDE_1354, MONARCH_CHAR_6297) \u2192 XXXX placeholders in docs + OpenAPI; keep code-level type prefix |\n| 5 | \"passwordless instr - lets move to secrets repo\" | Move passwordless-sudo section to `familyfund-secrets/docs/passwordless-sudo-setup.md`; leave brief pointer in README |\n| 6 | \"remove deploy instr for both, we are now using dstrader-docker scripts\" | Remove README \u00a7Deploying DSTrader/FamilyFund + docs/SETUP.md \u00a711 Deploy to prod |\n| 7 | \"GPG instr \u2192 secrets, but as archived, as we moved to SOPS\" | Move to `familyfund-secrets/docs/archive/gpg-backup-encryption.md` with an \"ARCHIVED \u2014 SOPS+age is current\" banner |\n| 8 | \"FamilyFund-public/.claude/scheduled_tasks.lock should not be versioned\" | `git rm --cached` + add `.gitignore` rule |\n\nAfter both commits land + push to private FF, worker re-syncs to FamilyFund-public via single-ref push of the new HEAD (so the existing public history stays + cleanup commits land on top \u2014 consistent with the \"archive/re-publish acceptable\" stance for ongoing periodic syncs).\n\nManager idle until worker replies."
+      },
+      {
+        "role": "user",
+        "text": "remove app1/family-fund-app/coverage_targets_example.txt"
+      },
+      {
+        "role": "assistant",
+        "text": "Added as item 9 to the in-flight worker. It was still in the early-execution phase (~30s post-dispatch) so the addition should land before it commits.\n\nTotal cleanup batch is now **9 items**. Whichever items the user notices next while reviewing the public README, I can keep streaming to the worker the same way (it has the manager's cse_id in the reply-to header from PR #28's now-merged `--reply-to AUTO` default)."
+      },
+      {
+        "role": "user",
+        "text": "im assuming we will have to re-create the public? what is the plan of execution"
+      },
+      {
+        "role": "assistant",
+        "text": "Right \u2014 appending the cleanup commit just hides the leak under a new commit; `git show 4eb1a76d` on FF-public would still expose ER605/jumpbox/Plaid/Monarch/GPG to anyone looking at history. Pausing the worker before its final push."
+      },
+      {
+        "role": "assistant",
+        "text": "## Plan-of-execution options\n\nThe 9-item cleanup commit on private FamilyFund is happening regardless. The question is **how the public mirror gets updated.** Three real mechanics:\n\n### A \u2014 Append cleanup commit (what the brief currently does)\n- `git push $NEW_HEAD:refs/heads/main` to FamilyFund-public\n- Result: public main has cleanup commit at top; **old commits 4eb1a76d \u2190 4262146 \u2190 79026c7 \u2190 all reachable via `git log`** \u2192 ER605/jumpbox/Plaid/Monarch/GPG content still publicly inspectable\n- Mechanically simple; ~30 seconds\n- **Doesn't actually scrub from public.** Bad for this case.\n\n### B \u2014 Re-create FamilyFund-public from current clean state\n1. `gh repo delete jdtogni78/FamilyFund-public --yes` (or rename to `FamilyFund-public-v0-deleted` if you want a trace)\n2. `gh repo create jdtogni78/FamilyFund-public --public`\n3. Mirror-push private FF main @ new HEAD (which includes the cleanup commit)\n4. Re-apply branch protection + CodeQL + Secret Scanning + Push Protection\n- Public history shows commits from the rewrite onward (b3b96cd \u2192 ... \u2192 new cleanup commit) \u2014 clean\n- **Caveat:** anyone who cloned FF-public between 21:43 UTC (first sync) and now (~3 hours later) has the leaked content locally. Window has been short + low-visibility (no announcements, no web indexers yet) so likely zero clones, but you can't prove zero.\n- Trade-off: loses CodeQL run history, loses the public-facing PR/issue counters (none yet), invalidates the 21:43 createdAt timestamp\n- ~5 minutes\n\n### C \u2014 Switch FF-public mechanic to single-commit fresh init (SOP Option 6b)\n1. Same delete-and-recreate as B\n2. But push as a single `git init` commit instead of full history\n3. Future syncs always re-init + force-push single commit (matches dstrader-docker's mechanic)\n- Public never sees history at all. Most thorough scrub.\n- Trade-off: outside viewers lose commit-by-commit context forever; every sync requires force-push.\n- ~5 minutes for first; future syncs are slightly heavier\n\n### D \u2014 History rewrite on private FF first, THEN re-push to public\n1. `git filter-repo --replace-text` (and/or `--invert-paths` for whole files) against current FF history to redact items 2/3/5/7 from history not just HEAD\n2. Push to new private repo `FamilyFund-v3` (per the `rewrite-to-new-repo-pattern` memory) \u2192 rename swap\n3. Then push to FF-public via mechanic A (which now ships clean history)\n- Most thorough across BOTH private and public surfaces \u2014 anyone looking at FF private history also wouldn't see the items\n- Heaviest path \u2014 same 4-pass cycle we just finished\n- ~30-60 min including SOP re-audit"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "B \u2014 Delete + recreate public from current clean state (Recommended)"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-c220aeeb-99035f269d1bbe2e",
+  "sig": "answer:rollout-c220aeeb:99035f269d1bbe2e",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from c220aeeb-1ff6-4d18-91c9-3d870ae06b40.jsonl turn #649",
+  "input": {
+    "action": {
+      "session_id": "rollout-c220aeeb",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "How to handle SETUP.md hostname exposure + the 24h pause before first sync?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01NMxJmLVd6LyVRTALKykPU1",
+        "description": "",
+        "questions": [
+          {
+            "question": "How to handle SETUP.md hostname exposure + the 24h pause before first sync?",
+            "header": "First sync gate",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Proceed to first sync now (skip 24h, accept SETUP.md as-is)",
+                "description": "Create FamilyFund-public + Step 6a mirror push immediately. SETUP.md ships with melnick/spirit nicknames. Lowest friction; archive/republish if it bites. Recommended."
+              },
+              {
+                "label": "Scrub SETUP.md hostnames first, then sync",
+                "description": "Quick commit: replace 'melnick' \u2192 'internal-nas' and 'spirit' \u2192 'internal-prod-host' across SETUP.md. Then a 4th SOP run (will pass) + sync. Adds ~15 min."
+              },
+              {
+                "label": "Move SETUP.md to familyfund-secrets (private), ship a public-friendly stub",
+                "description": "Heaviest: split SETUP.md into a private-detail version (kept in familyfund-secrets) and a public stub that points to it for owners. Cleanest end-state; adds ~30 min."
+              },
+              {
+                "label": "Honor the standard 24h pause before any push",
+                "description": "Wait until tomorrow regardless. Use the calendar time as the final eyes-on-fresh-read safety mechanism the SOP intends."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Rename worked. Setting the archive flag on the old repo + cleaning up descriptions."
+      },
+      {
+        "role": "assistant",
+        "text": "`git reset --hard` got permission-gated \u2014 left local at `3133c039` for now (workers do fresh clones anyway, not blocking). Continuing to the SOP doc fix + dispatching the RFC1918 scrub worker."
+      },
+      {
+        "role": "assistant",
+        "text": "Batch done. Status:\n\n## Landed this round\n- \u2705 Mail-pwd findings filed at `FamilyFund#20` (comment id 4587646850)\n- \u2705 `FamilyFund` \u2192 `FamilyFund-v1-archive` (GitHub-archived, frozen, won't be touched again per your archive policy)\n- \u2705 `FamilyFund-v2` \u2192 `FamilyFund` (now the live daily-driver, contains rewritten clean history)\n- \u2705 SOP doc fix committed to familyfund-secrets@07126ec (pre-filter blanks + comments before `grep -E -f`)\n- \u2705 RFC1918 scrub on `familyfund_ddl_20220806.sql:41` committed to FamilyFund@4262146 (`10.0.0.86` \u2192 `<lan-host-redacted>`)\n- \u2705 Final SOP audit dispatched: `oneoff-mini-ff-final-sop` (cse_01YLLBA67vMFwxMBYwMPW5hN) \u2014 expected PASS\n\n## Side note\nLocal `~/dev/FamilyFund` clone still has the pre-rewrite HEAD (3133c039) \u2014 `git reset --hard origin/main` is permission-gated by the harness. Workers use fresh clones so this doesn't block, but the local checkout is out-of-date. You can either: refresh it yourself, ignore (let workers continue using fresh clones), or tell me to push through the gate and I'll request the permission.\n\n## Board\n```\n#3  \u26d4 blocked-by 16  Create FamilyFund-public + first sync\n#4  \u26d4 blocked-by 3   Post-sync hardening\n#7  \u23f3 Review session-skills PR (back-burner)\n#11 \u26d4 blocked-by 9   Revise session-skills PR per 'one-nick'\n#12 \u23f3 Monitor dstrader peer-manager\n#14 \u23f3 Drive 24h human review window (starts after #16 PASS)\n#15 \u2705 RFC1918 scrub\n#16 \u23f3 Final SOP audit (worker running)\n```\n\nWaiting on final SOP. If PASS, next move is reading `human-diff.patch` (9.6M, ~268K lines of FIRST-SYNC dump \u2014 I'll spot-check the high-risk areas per SOP Step 5 rather than read every line) and starting the 24h pause."
+      },
+      {
+        "role": "user",
+        "text": "[from cse_01YLLBA67vMFwxMBYwMPW5hN \u2014 reply via send-to-session]\n\nSOP Steps 0\u20135 audit of jdtogni78/FamilyFund @ 4262146 \u2014 DONE.\n\n# Verdict: PASS\n\nNo new substantive findings. RFC1918 hit from prior run is GONE.\nStep 6 NOT run per brief \u2014 manager+owner action after 24h human review.\n\n# Per-step one-liners\n\n- Step 0 \u2014 Freeze: PINNED_HEAD=42621466a1ba4c6b0311922be5f8d9b95c6ed4e8, mirror clone matches, 1007 commits on main, 15 refs (main + 12 dependabot/* + 1 ticket-56-* + 1 worktree-bridge-*).\n- Step 1 \u2014 gitleaks-strict (HEAD + ALL): 0 / 0. 862 commits / ~15.18MB scanned.\n- Step 2 \u2014 Scrub-validation grep: 0 paths, 0 owner-emails, 2 rfc1918 (both carryover false positives), 6 IB (all synthetic carryover), 0 keys, 37 envlike (all shell-var false positives, carryover), 0 family-emails against 16 active patterns (SOP fix at 07126ec works \u2014 no 269k noise), 3 bcrypt (all carryover in prod_to_dev.sql). The substantive `10.0.0.86` ddl-header hit from prior run is GONE (replaced by `<lan-host-redacted>` in commit 4262146).\n- Step 3 \u2014 Workflow: 2 files (security-scan.yml, tests.yml), 0 `secrets.*` refs. FIRST SYNC.\n- Step 4 \u2014 File inventory: 1639 tracked files; 9 suspicious-ext (same as prior); 4 large blobs (same as prior).\n- Step 5 \u2014 Human review artifacts: FIRST SYNC, 1007 commits, top = `4262146 chore(security): scrub RFC1918 LAN IP from familyfund_ddl_20220806.sql:41 dump header`. human-diff.patch placeholder (no prior-public to diff against).\n\n# Inline artifacts\n\n## workflow-secrets.txt\n(empty \u2014 0 secrets.* references)\n\n## files-suspicious.txt\napp1/docker-compose.env.yml\napp1/family-fund-app/.env.example\ndatabase/delete_test_data.sql\ndatabase/drop_all.sql\ndatabase/familyfund_ddl.sql\ndatabase/familyfund_ddl_20220806.sql\ndatabase/familyfund_ddl_20260110.sql\ndatabase/prod_to_dev.sql\ndatabase/truncate_all.sql\n\n## files-large.txt\n288e9d9c210c10fed9bca9cb966dfacb6ef02547 app1/family-fund-app/public/js/app.js\n1445c237660da8e6ded918fc8e74080e8842a7b0 Gemini_Generated_Image_uh1pccuh1pccuh1p.png\n7895e102a35054bef1067fd78434e7f0474b9112 app1/family-fund-app/public/images/hero-bg_old.png\n6472f0905849a2280528b4b4f9b160752e7b0ae1 logo_old.png\n\n# Headline findings (redacted)\n\nNEW: none.\n\nGONE vs prior run (jdtogni78/FamilyFund-v2 @ 4dbf7e29 audit):\n- The substantive RFC1918 `-- Host: <REDACTED-10-DOT>` in database/familyfund_ddl_20220806.sql mysqldump header \u2014 scrubbed by commit 4262146 to `<lan-host-redacted>`. Verified in the extracted tree.\n\nCARRYOVER (previously triaged, not chased):\n- 6 IB `U|DU[0-9]{7,8}` hits \u2014 all the documented synthetic set: U0000001 (TestFixtures), U0000010 (CashDepositTrait + sample_cashdep.csv + CashDepositTraitTest), U0000011 (README plaid note), U0000012 (tests/http_samples/test.http \u2014 host token already `REDACTED_LAN_HOST`). OK.\n- 3 bcrypt `$2y$12$\u2026` hits \u2014 all in database/prod_to_dev.sql (dev sanitization script that replaces prod hashes with dev hashes; lines 34/61/64). Replacement hashes, not prod. OK.\n- 2 RFC1918 false positives \u2014 composer.lock:7557 (\"orchestra/canvas\": \"^v9.2.2 || ^10.0.1 || ^11\" matched via the `10.0.` prefix in a SemVer range) and tests/Unit/LoginActivityTest.php:109 (test fixture REMOTE_ADDR='192.168.1.100'). OK.\n- 37 envlike `^KEY=VAL$` hits \u2014 all are shell variable definitions with parameter expansion / defaults (e.g. `GL_IMAGE=\"${GITLEAKS_IMAGE:-ghcr.io/gitleaks/gitleaks:latest}\"`, `DB_PASS=\"${DB_PASS:-1234}\"`). No actual secret material. OK.\n\n# Archive\n\nPath: ~/dev/familyfund-secrets/sync-archives/2026-05-31-FamilyFund-final.tar.gz (40,357 bytes)\nContents: PINNED_HEAD.txt, HEAD_AT_CLONE.txt, gitleaks-HEAD.json, gitleaks-ALL.json, grep-paths.txt, grep-rfc1918.txt, grep-ib-real.txt, grep-keys.txt, grep-envlike.txt, grep-family-emails.txt, grep-bcrypt.txt, workflow-secrets.txt, workflow-diff.txt, files-pinned.txt, files-suspicious.txt, files-large.txt, human-diff.patch, commits-since-last-sync.txt.\n\n## runs.md line appended\n\n| 2026-05-31 | FamilyFund | 42621466 | PASS | Final audit post-rename (v2\u2192FamilyFund) and post-RFC1918 scrub (#4262146). 1007 commits on main, 862 unique commits scanned by gitleaks. gitleaks-strict HEAD=0/ALL=0. Step 2: family-emails grep now uses SOP-fix pre-filter (07126ec) \u2014 0 hits against 16 active patterns, no 269k spurious noise; 6 IB hits all synthetic (U0000001/10/11/12) carryover; 3 bcrypt hits in database/prod_to_dev.sql carryover; 2 rfc1918 hits (composer.lock version-string + 192.168.1.100 test fixture) carryover \u2014 the substantive 10.0.0.86 ddl-header hit from prior run is GONE; 37 envlike all shell-var false positives incl. DB_PASS=1234 default carryover; 0 path/key hits. Step 3 FIRST SYNC: 2 workflow files (security-scan.yml + tests.yml), 0 secrets.* refs. Step 4: same 9 suspicious-ext + 4 large blobs as prior run. Step 5 FIRST SYNC: 1007 commits, top = the RFC1918 scrub. Step 6 NOT run per brief \u2014 manager+owner action after 24h human review. Artifacts: ~/dev/familyfund-secrets/sync-archives/2026-05-31-FamilyFund-final.tar.gz |\n\nReady for the 24h human-review window before Step 6 (6a mirror push to jdtogni78/FamilyFund-public)."
+      },
+      {
+        "role": "assistant",
+        "text": "Final SOP returns PASS. Acking + doing the Step-5 spot-check now (per ask-less, not waiting for permission)."
+      },
+      {
+        "role": "assistant",
+        "text": "## Step 5 spot-check results\n\n**Methodology:** Targeted grep across 6 high-risk pattern classes (forgotten TODOs, \"DO NOT\" warnings, personal identifiers, tracked IDE/screenshot dirs, real emails, private-context mentions).\n\n**Findings:**\n\n| Class | Hits | Verdict |\n|---|---|---|\n| 1. TODO/FIXME with sensitive context | All Laravel `remember()` cache method + `remember_token` columns + documented `TEMPORARY_UNAUTHENTICATED_API_*` allowlist | \u2705 Clean |\n| 2. \"Do not\" warnings | 2 tax/legal \"do not deploy real money\" advisories | \u2705 Clean |\n| 3. Personal identifier shapes | **Notable** \u2014 `SETUP.md` references `melnick`/`spirit`/`jdtogni` nicknames | \u26a0\ufe0f See below |\n| 4. Tracked screenshots/.idea/.vscode | None found | \u2705 Clean |\n| 5. Real-looking emails outside known sets | All hits are OSS author addrs (Taylor Otwell, barryvdh), service test addrs, or synthetic fixtures | \u2705 Clean |\n| 6. Private-context in LICENSE/README/AGENTS | All acceptable: GPLv3 standard text, generic bastion topology, OK references to \"private secrets repo\" | \u2705 Clean |\n\n**The one notable finding:** `SETUP.md` documents the personal homelab topology \u2014 `melnick` (Synology NAS, GPG bundle source), `spirit` (prod server), ssh as `jdtogni`. The IPs are already redacted as `REDACTED_NAS_HOST` / `REDACTED_PROD_HOST` placeholders, so no direct credentials leak. What does leak: the nicknames and the fact that the user runs a Synology NAS as part of the dev workflow. Low credential risk; some personal-context exposure.\n\n## My recommendation\nProceed to first sync \u2014 the spot-check is otherwise clean, this is the 3rd audit pass, your stance on rollback is relaxed. The `SETUP.md` hostnames are uncomfortable-not-dangerous; can be scrubbed in a follow-up commit if you want, or shipped as-is."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "generalize setup, but add to secrets an addendum, or main doc that points to this doc"
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-650ead71-b26857bca611a18b",
+  "sig": "answer:rollout-650ead71:b26857bca611a18b",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 650ead71-3e8a-4a02-8b7d-cc2f75aaa8a3.jsonl turn #169",
+  "input": {
+    "action": {
+      "session_id": "rollout-650ead71",
+      "repo": "dstrader-docker",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/dstrader-docker",
+      "question": "How should the sensitive docs in docs/security/ be handled for the public sync?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Qhch8G2QTuv6TaXhzPRa1W",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the sensitive docs in docs/security/ be handled for the public sync?",
+            "header": "docs/security/",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Move to dstrader-secrets (Recommended)",
+                "description": "Mirror ddoc#27's pattern: relocate HISTORY-AUDIT, HISTORY-REAUDIT, PROD-CUTOVER-RUNBOOK, PRE-PUBLIC-SECRETS-AUDIT, SWAP-PLAN, history-purge-paths.txt to dstrader-secrets. Leave a stub README in docs/security/ pointing readers to the companion. Aligns with CLAUDE.md guidance + lasts across future syncs."
+              },
+              {
+                "label": "sync-exclude.txt only",
+                "description": "Add the six paths to the SOP's sync-exclude.txt mechanism so 6b's snapshot strips them. Lighter touch \u2014 docs stay in daily-driver clear. But CLAUDE.md says these belong in dstrader-secrets, so this leaves the inconsistency."
+              },
+              {
+                "label": "Split: short summary public, evidence ledger private",
+                "description": "Keep a sanitized HISTORY-AUDIT-SUMMARY.md in the public repo (narrative only, no IDs/IPs/hostnames). Move the detailed evidence files to dstrader-secrets. More work but preserves the 'this repo had a scrub on date X' record for outside readers."
+              }
+            ]
+          },
+          {
+            "question": "And the cosmetic .DS_Store / .iml \u2014 clean up in the same PR?",
+            "header": "Cosmetic",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, both (Recommended)",
+                "description": "git rm --cached dstrader/.DS_Store dstrader-docker.iml; add .DS_Store + *.iml to .gitignore. Trivial, professional-looking public repo."
+              },
+              {
+                "label": "Just .DS_Store",
+                "description": ".iml is common in repos with IntelliJ users; leave it. Only clean the macOS Finder metadata."
+              },
+              {
+                "label": "Skip, just exclude from 6b",
+                "description": "Don't touch the daily-driver; add both to sync-exclude.txt. Avoid churn on the private side."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Worker is `cse_01Hvh9nUQCZFfEGF1kPB5zXG`, idle. Submitting brief."
+      },
+      {
+        "role": "assistant",
+        "text": "Dry-run looks right (reply-to embedded, correct target). Submitting."
+      },
+      {
+        "role": "assistant",
+        "text": "Worker dispatched. SOP audit running against HEAD `26ca60c`. I'll wait for the worker's `send-to-session` reply with PASS / PASS-head-clean / BLOCK-step1 / FINDINGS, then triage. Typical Steps 0\u20135 walk on this repo size takes ~10\u201320 min."
+      },
+      {
+        "role": "user",
+        "text": "[from cse_01Hvh9nUQCZFfEGF1kPB5zXG \u2014 reply via send-to-session]\n\nSOP Steps 0-5 audit complete for jdtogni78/dstrader-docker. **Verdict: FINDINGS** (HEAD clean, but doc-residue + a credential-shaped tracked file need manager triage before any 6b push).\n\n**Pinned HEAD:** `26ca60c19bdd81988413727588a268a8cf54b5c2` (exact match to brief; `PINNED_HEAD.txt` == `HEAD_AT_CLONE.txt`).\n\n**Per-step summary:**\n- **Step 0** \u2014 fresh mirror clone, pin verified (empty diff).\n- **Step 1** \u2014 strict gitleaks (mounted `gitleaks-strict.toml`, NOT in-repo `.gitleaks.toml`): HEAD=0 findings, ALL=0 findings (114 commits scanned both passes). Not a `PASS-head-clean` situation \u2014 ALL is clean too.\n- **Step 2** \u2014 family-emails block N/A (no family-emails class for ddoc, per brief). Six grep files: 7 path/owner-email hits, 18 RFC1918 hits, 14 IB-real-shape hits, 3 key-pattern hits, 12 hostname hits, 26 envlike hits. Triaged below \u2014 the systemic finding is **audit-doc residue** in `docs/security/HISTORY-AUDIT.md` + `docs/security/HISTORY-REAUDIT.md`.\n- **Step 3** \u2014 FIRST SYNC (public mirror 404 as expected). 1 workflow file (`.github/workflows/security-scan.yml`), 0 `secrets.*` references \u2192 `workflow-secrets.txt` empty. Triggers `pull_request`/`push:main`/`schedule`/`workflow_dispatch`, default `GITHUB_TOKEN`, `contents: read`, no input interpolation into `run:` shell \u2014 clean.\n- **Step 4** \u2014 233 tracked files, 0 SOP-regex `files-suspicious.txt` hits, 0 `*.encr` (confirms ddoc#27), 0 `*.sops` ciphertext in main tree (only `.sops.yaml` recipe at root, expected per ddoc credential-management split). `files-large.txt`: 4 entries >1MB, all deliberate.\n- **Step 5** \u2014 first-sync artifacts: `commits-since-last-sync.txt` = last 50; `human-diff.patch` = diff-against-empty-tree = 2.6 MB (under 5 MB cap, so no fallback needed).\n\n**`workflow-secrets.txt`** \u2014 empty (0 lines).\n\n**`files-suspicious.txt`** \u2014 empty (0 lines on the SOP regex).\n\n**`files-large.txt` (4 entries, all expected vendored assets):**\n```\n74f9b1f5\u2026 dstrader/DSTrader.jar                            (11.1 MB)\nfa5f429c\u2026 dstrader/auto_login/images/FullScreenDSTrader.png ( 3.4 MB)\n1287e825\u2026 dstrader/prod/DSTrader-withIB.jar                (10.9 MB)\nb8b9b7a9\u2026 dstrader/tws_profile/tws.xml                     ( 2.2 MB)\n```\n\n**Headline findings (redacted shapes + counts; no live values reproduced):**\n\n1. **AUDIT-DOC RESIDUE (systemic, FINDINGS-class)** \u2014 `docs/security/HISTORY-AUDIT.md` and `docs/security/HISTORY-REAUDIT.md` are evidence-ledger documents that contain plaintext versions of values they describe scrubbing. Hits split by shape:\n   - 4 owner-gmail mentions across both files (2 distinct addresses, both `jdtogni*@gmail.com` shapes).\n   - 16 internal-IP mentions: 1 distinct `192.168.0.x` host IP repeated, plus tabular references to `192.168.68.x`, `192.168.0.100`, `192.168.0.255` (the last three appear as \"0 findings\" rows describing patterns that did NOT match elsewhere).\n   - 12 prod-hostname mentions (`spirit` substring) across HISTORY-REAUDIT.md (5) + the \u00a75 row in HISTORY-AUDIT.md narrative.\n   - 7 real-IB-account mentions (3 distinct IDs: 2 live-prefix + 1 paper-prefix), described in HISTORY-AUDIT.md \u00a7findings + HISTORY-REAUDIT.md \u00a7carryover table.\n   - 1 personal-dev path (`/Users/claudio1/...` worktree path) in HISTORY-REAUDIT.md L40.\n   - HISTORY-REAUDIT.md L155 self-acknowledges: \"Audit doc is the evidence ledger for the scrub. No live code/config carries these values.\" Team is aware. Option 6b ships the HEAD tree, so these docs ship if not excluded.\n\n2. **CREDENTIAL-SHAPED TRACKED FILE (not caught by SOP suspicious-ext regex)** \u2014 `dstrader/dstrader.passphrase`: 11-byte single-line ASCII file containing a `<Word><4digits>.` pattern that looks synthetic-shaped (consistent with HISTORY-AUDIT.md \u00a76 documenting `docker-compose.prod.yml` plaintext `4321`/`654321` as LOW-risk synthetic), but no scoring confirmed. The SOP's `files-suspicious.txt` regex (`.env|.sql|.dump|.pgp|.gpg|.asc|.key|.pem|.p12|.jks|.sops|.cookies|.swp|.orig`) does NOT cover `.passphrase` \u2014 rule gap worth feeding back into the SOP itself regardless of this file's disposition.\n\n3. **COSMETIC** \u2014 `dstrader/.DS_Store` (6 KB Apple Finder metadata) tracked in main tree. Harmless content but unprofessional for a public-facing repo. Also `dstrader-docker.iml` (IntelliJ project) tracked \u2014 common in IDE-using repos, mention only.\n\n4. **CLEAN (low-noise hits)** \u2014 5 IB-shaped hits in code/config are all synthetic `U0000004`/`U0000005`/`DU0000001` (within documented `U0000001`-`U0000099` synthetic range); 2 hits in troubleshooting docs same. 2 RFC1918 hits in code (`local/wake_dstrader.sh:7`, `local/wakeonlan.py:8`) are `192.168.1.255` placeholder examples in \"e.g.\" comments \u2014 benign. 3 key-pattern hits are descriptive rows in HISTORY-REAUDIT.md enumerating `BEGIN PGP/RSA/OPENSSH PRIVATE KEY` as search patterns that found 0 actual matches \u2014 not key blobs. 26 envlike hits all benign (shell-var assignments, noreply-redacted placeholders, git-zero-SHA constant).\n\n**Archive:** `~/dev/familyfund-secrets/sync-archives/2026-05-31-dstrader-docker.tar.gz` (~297 KB). Contains: `PINNED_HEAD.txt`, `HEAD_AT_CLONE.txt`, `gitleaks-{HEAD,ALL}.json`, `grep-{paths,rfc1918,ib-real,keys,envlike,hostnames}.txt`, `workflow-secrets.txt`, `files-{pinned,suspicious,large}.txt`, `human-diff.patch`, `commits-since-last-sync.txt`.\n\n**`runs.md` line appended** (matched the existing pipe-table format used by the recent FF/dstrader-r2 rows, not the bullet shape the brief suggested) \u2014 full Notes column captures verdict + per-step counts + triage. End-of-file row reads: `| 2026-05-31 | dstrader-docker | 26ca60c1 | FINDINGS | First SOP audit of dstrader-docker @ pinned HEAD ... <full per-step + finding breakdown> ...`.\n\n**What you need next (manager+owner judgment):**\n1. Decide disposition of audit-doc residue in `docs/security/HISTORY-{AUDIT,REAUDIT}.md`. Two surgical options:\n   (a) Add both paths to a `sync-exclude.txt` for the 6b snapshot (cleanest \u2014 keeps the evidence ledger on the private daily-driver, just doesn't ship it).\n   (b) Redact the values in those docs to the placeholders already documented in the doc itself (more durable for future syncs, but rewrites the audit ledger which has historical value).\n2. Confirm `dstrader/dstrader.passphrase` is synthetic-and-known (likely, given the LOW-risk classification of equivalent docker-compose passwords in HISTORY-AUDIT.md \u00a76), and either: rename/move it to where the live-secret loader expects (the SOPS path), exclude it from the 6b snapshot, or accept it as a documented placeholder. Either way, **propose a SOP amendment**: add `passphrase|password|secret` to the `files-suspicious.txt` regex so the rule gap doesn't recur for other families.\n3. Consider whether `dstrader/.DS_Store` (and `dstrader-docker.iml`) should be removed-and-gitignored on the private daily-driver before sync \u2014 purely cosmetic.\n4. Human-review pass over `human-diff.patch` (2.6 MB, readable) + the 24-hour pause, per the SOP \u2014 or fast-track if `public-track-rollback-acceptable` applies. Then Step 6 (6b single-commit fresh-init push to a newly-created `jdtogni78/dstrader-docker-public`).\n\nRead-only on `~/dev/dstrader-docker` and `~/dev/familyfund-secrets` was observed except for the documented scratch dir + the tarball + the runs.md append. No commits, no PRs, no Step 6."
+      },
+      {
+        "role": "assistant",
+        "text": "Triaging the worker reply. Need to inspect the flagged files before recommending."
+      },
+      {
+        "role": "assistant",
+        "text": "Worker finished. Triaging:\n\n**Critical:** `dstrader/dstrader.passphrase` is the **live GPG passphrase** read by `dstrader/opt/encr_files_lib.sh:57,89` to decrypt prod `.encr` files in the `dstrader-secrets` companion. Not synthetic. **BLOCK-class** for public sync. Worker was right to call out the SOP regex gap, but understated the live-cred angle.\n\n**Systemic:** `docs/security/{HISTORY-AUDIT,HISTORY-REAUDIT,PROD-CUTOVER-RUNBOOK,PRE-PUBLIC-SECRETS-AUDIT,SWAP-PLAN}.md` + `history-purge-paths.txt` carry plaintext `spirit` hostname, prod IPs, real IB IDs, owner gmail, dev paths. Per CLAUDE.md the canonical location for these is the `dstrader-secrets` companion (\"Operational runbooks that name internal hostnames/IPs / developer paths live in the PRIVATE companion repo. Do not move them back here.\") \u2014 same pattern as ddoc#27 used for `.encr` files.\n\n**Cosmetic:** `dstrader/.DS_Store` + `dstrader-docker.iml` tracked. Trivial cleanup.\n\n**Recommended path \u2014 one consolidated PR on the daily-driver** mirroring ddoc#27's structure:\n1. Move `dstrader/dstrader.passphrase` \u2192 `dstrader-secrets/secrets/dstrader-docker/dstrader.passphrase`, update `encr_files_lib.sh` to read from `$DSTRADER_SECRETS_DIR/dstrader.passphrase`. Same shape as #27's `.encr` move.\n2. Handle `docs/security/` sensitive docs \u2014 see picker below.\n3. `git rm --cached dstrader/.DS_Store dstrader-docker.iml`, add to `.gitignore`.\n\nThen re-run SOP Step 0\u20135 against the new HEAD.\n\nI want your call on the docs question before I dispatch the fix worker:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Split: short summary public, evidence ledger private, Yes, both (Recommended)"
+  }
+}

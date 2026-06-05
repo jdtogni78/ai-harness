@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4e501b37-7381ab6802da3743",
+  "sig": "answer:rollout-4e501b37:7381ab6802da3743",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4e501b37-25a3-4f03-af26-cddbd89350b1.jsonl turn #52",
+  "input": {
+    "action": {
+      "session_id": "rollout-4e501b37",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control/.claude/worktrees/bridge-cse_01QCUdWyipDfDDSdo6MDbpPL",
+      "question": "Given those are cloud sessions the local tooling can't reach, what's most useful next?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01LDoC6ycRUV6r2MDSt2mBTz",
+        "description": "",
+        "questions": [
+          {
+            "question": "Given those are cloud sessions the local tooling can't reach, what's most useful next?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Just the answer",
+                "description": "You now know it's a cloud-side manual 'Try again'. Stop here, no code changes."
+              },
+              {
+                "label": "Fix local detector gap",
+                "description": "Patch usage-limit-monitor.py to scan recent lines (not just the last) so local 429-paused sessions aren't missed when an ai-title entry lands after."
+              },
+              {
+                "label": "Investigate cloud resume",
+                "description": "Dig into whether any API/CLI path can resume cloud-sandbox sessions, and document findings in the README TODO."
+              },
+              {
+                "label": "Tombstone the ghost",
+                "description": "Mark the dead local sid 897c7901\u2026 resumed so the monitor stops retrying it every 30 min."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "I'll investigate what's available \u2014 both the skills and the remote-control mechanisms in this repo \u2014 before answering."
+      },
+      {
+        "role": "assistant",
+        "text": "Short answer: **there's no skill that broadcasts \"resume\" to all sessions at once** \u2014 and right now there's nothing resumable to broadcast to anyway. Here's the full picture:\n\n## What exists for resuming\n\n| Mechanism | Scope | What it does |\n|---|---|---|\n| `usage-limit-monitor.py` (daemon, **running** as pid 1352) | Auto, all usage-limit-paused sessions | Detects sessions stuck on the cloud usage limit and runs `claude --resume <sid> -p continue`, **one at a time**, oldest first, with 5/15/30-min backoff |\n| `/resume-work` skill | One session, interactive | Lists recent/interrupted sessions, you pick one, it reconstructs the goal and continues |\n| `/session-triage` skill | Per-repo, read-only | Finds sessions that hit API failures / ended mid-task and emits resume prompts \u2014 but doesn't fire the resumes |\n\nSo \"all sessions resume\" is already a thing for the **usage-limit** case \u2014 by design it's a steady drip, not a broadcast, specifically to avoid one mass-resume immediately re-tripping the org limit. There is no skill (and the README explicitly notes the remote-control *server* has no resume) for waking every live session.\n\n## Why there's nothing to resume right now\n\nThe monitor is tracking exactly **one** paused session, and it's a dead end:\n\n```\nsid=897c7901-\u2026  cwd=\u2026/FamilyFund/.claude/worktrees/\u2026/app1\n17 attempts, every one: rc=1 \"No conversation found with session ID: 897c7901-\u2026\"\n```\n\nThat conversation no longer exists on disk (worktree likely merged/cleaned), so `--resume` can never succeed. The monitor will keep retrying every 30 min until the 7-day GC drops it on **~2026-05-28**.\n\n## So, your options\n\n- **Nothing to do** \u2014 the only auto-resumable session is the unresumable ghost above; no real work is paused.\n- **Stop the wasted retries** \u2014 I can tombstone `897c7901\u2026` in `logs/paused-sessions.json` (set `resumed_at`) so the monitor quits hammering a session that's gone.\n- **Resume a *specific* interrupted chat** \u2014 run `/resume-work` (it'll list candidates per repo).\n\nWant me to tombstone the dead session, or were you thinking of a different set of sessions (e.g. interrupted-mid-task rather than usage-limit-paused)?"
+      },
+      {
+        "role": "user",
+        "text": "see example"
+      },
+      {
+        "role": "assistant",
+        "text": "Good \u2014 that's a different and more important case than what I was looking at. Those are live cloud sessions parked at \"Usage limit reached / Try again,\" and the monitor is only tracking one ghost session. Let me find out why these aren't being detected."
+      },
+      {
+        "role": "assistant",
+        "text": "The only local match is *this very conversation's* transcript (it matched because I typed \"review-unused-controllers\" here). That's the key clue. Let me confirm whether the screenshot session even exists locally, and check the recent FamilyFund worktrees/transcripts."
+      },
+      {
+        "role": "assistant",
+        "text": "That confirms it. Here's what's actually going on \u2014 and it's not good news for automating those:\n\n## The sessions in your screenshot are **cloud-hosted**, not local\n\nThe clues all line up:\n- The session says *\"This is a Debian container with PHP 8.4\u2026 I can install MariaDB server locally\"* \u2014 that's an Anthropic **cloud sandbox**, not your Mac (which is Darwin and uses the FamilyFund `lease-env`/`test-env` pools, never \"install MariaDB in a Debian container\").\n- No local worktree, no local branch `review-unused-controllers-vLL1Q` / `vLL1Q`, and no local transcript for it. The only file that even matched \"review-unused-controllers\" was *this* chat's own transcript.\n\nSo those PR #11 sessions run in the cloud, and their transcripts never touch `~/.claude/projects/`.\n\n## Why nothing here can resume them\n\n| Tool | Sees cloud sessions? |\n|---|---|\n| `usage-limit-monitor.py` daemon | \u274c Only scans local `~/.claude/projects/**/*.jsonl`. Its one tracked entry is a local ghost. |\n| `/resume-work`, `/session-triage` skills | \u274c Same \u2014 local transcripts only. |\n| RemoteTrigger API (the only cloud surface I have) | \u274c It's for scheduled *routines* (new runs), not resuming a paused conversation. List is empty anyway. |\n\n**So: no \u2014 there's no skill and no command I can run to tell those sessions to \"Try again.\"** That button is cloud-side state. Practically, you either click \"Try again\" per session in the app, or wait for your limit to reset (some will continue on their own when you re-engage). There's no \"resume all\" in the cloud product surfaced to this environment.\n\n## Two things worth flagging\n\n1. **The whole local auto-resume design doesn't cover your real pain.** It was built and \"verified\" against *local* remote-control workers, but your actual usage-limit pileups are **cloud** sessions it structurally can't touch. That's a meaningful gap vs. the README's \"usage-limit auto-resume monitor\" framing.\n\n2. **Even for local sessions there's a detection hole:** the monitor only inspects the **last line** of each transcript. Recent FamilyFund transcripts end with a `type: ai-title` entry \u2014 if any non-error line lands after the 429, the session reads as \"not paused\" and gets skipped. (Moot for the screenshot, but a real bug for the local case.)\n\nWhere do you want to go from here?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Fix local detector gap"
+  }
+}

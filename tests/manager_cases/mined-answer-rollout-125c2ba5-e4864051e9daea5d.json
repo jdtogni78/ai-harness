@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-125c2ba5-e4864051e9daea5d",
+  "sig": "answer:rollout-125c2ba5:e4864051e9daea5d",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 125c2ba5-2ad4-49c6-92f6-365837bc2dc6.jsonl turn #50",
+  "input": {
+    "action": {
+      "session_id": "rollout-125c2ba5",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How should the main high-level overview be structured in the repo?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01A2Ar7JXfeXujH2uDA4Dk2U",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the main high-level overview be structured in the repo?",
+            "header": "Doc structure",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Rewrite README as the overview",
+                "description": "Make README.md the portfolio landing page (pitch + architecture + all systems + links). Move the current operational README content into docs/ as a deep technical reference. Nothing is lost; the front page becomes the overview. Best for a GitHub portfolio export."
+              },
+              {
+                "label": "New OVERVIEW.md, keep README",
+                "description": "Add a separate OVERVIEW.md as the high-level pitch and leave the current detailed README untouched. Two top-level docs; README stays the operational manual."
+              },
+              {
+                "label": "Rewrite README + add ARCHITECTURE.md",
+                "description": "README becomes the pitch/overview, plus a dedicated docs/ARCHITECTURE.md with diagrams and the deeper system-by-system technical breakdown. Most thorough split."
+              }
+            ]
+          },
+          {
+            "question": "Since this is for a portfolio export, how candid should the new overview be about your private infra?",
+            "header": "Sanitization",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Sanitized overview",
+                "description": "Keep the new overview generic for an outside reader: 'two Macs', no internal IPs/NAS hostnames/home paths/GitHub username. Existing docs (DECISIONS.md etc.) stay as-is; only what I write is kept clean. Safer if it ever goes public."
+              },
+              {
+                "label": "Keep it candid",
+                "description": "Write the overview with the real specifics (hostnames, paths, username) like the rest of the repo. More concrete, but exposes private infra details if published."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "I'll start by exploring the repository thoroughly to understand everything that's here, then create the documentation. Let me get a lay of the land first."
+      },
+      {
+        "role": "assistant",
+        "text": "There's already a substantial README. Let me read the existing documentation and explore the codebase in parallel before deciding what to build."
+      },
+      {
+        "role": "assistant",
+        "text": "This repo already has strong technical docs. The user wants a portfolio-grade overview that ties everything together. Let me explore the remaining pieces \u2014 the session manager, skills, pools, and the deeper docs \u2014 before writing."
+      },
+      {
+        "role": "assistant",
+        "text": "Now let me round out the picture \u2014 the skills system, the session manager code, the pools, and the overall scope. I'll explore these in parallel."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me look at the session manager + dashboard (the newest major feature) and the pool README to complete the picture."
+      },
+      {
+        "role": "assistant",
+        "text": "I've now reviewed the whole repo. Here's what I'm working with: ~6,100 lines of stdlib-only Python (394 tests), built over 8 days, spanning several distinct systems \u2014 the remote-control supervisor, the usage-limit auto-resume monitor, the autonomous session manager + dashboard, cross-engine work orchestration, multi-agent workflow skills, and shared env pools, plus the cross-repo decisions log.\n\nBefore I write, two choices that change the shape of the deliverable:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Rewrite README + add ARCHITECTURE.md, Sanitized overview"
+  }
+}

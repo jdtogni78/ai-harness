@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-897c7901-19c00debadd68f31",
+  "sig": "answer:rollout-897c7901:19c00debadd68f31",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 897c7901-4a91-4657-8909-c9a1c81e1b68.jsonl turn #189",
+  "input": {
+    "action": {
+      "session_id": "rollout-897c7901",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01BvT6ZgRnhw2V6MJDABBT6P",
+      "question": "How should I reconcile? Main's QA_BUGS doc already lists all 24 bugs with reproducers. Of those, 13 now pass and 6 still fail. What's the right output?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Tipv33LSJYeFQ4ei3Abebf",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I reconcile? Main's QA_BUGS doc already lists all 24 bugs with reproducers. Of those, 13 now pass and 6 still fail. What's the right output?",
+            "header": "Reconcile shape",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Status header on existing doc",
+                "description": "Add a 'Status as of 2026-05-20 (post-fix)' section to docs/QA_BUGS_2026-05-20.md with pass/fail/no-test for each of the 24 entries. Commit on this branch (= main). No new doc."
+              },
+              {
+                "label": "Mark passing bugs RESOLVED in place",
+                "description": "Edit each of the 24 table rows to prefix Sev with \u2705/\u274c and add a 'Closed by <commit>' line. Heavier edit but the table becomes self-documenting."
+              },
+              {
+                "label": "Separate follow-up doc",
+                "description": "Leave docs/QA_BUGS_2026-05-20.md untouched; write docs/QA_BUGS_2026-05-20_STATUS.md with just the current pass/fail summary + reproducer pointers for the 6 open ones."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Let me verify the Dusk/ChromeDriver state in pool0 (the memory could be stale)."
+      },
+      {
+        "role": "assistant",
+        "text": "Run finished. I should note: a new `test-env` skill was just surfaced that's the correct tool for this \u2014 it leases isolated-DB test slots so `RefreshDatabase` doesn't wipe the shared dev DB. Pool0 was the wrong choice; I got lucky that most tests don't use `RefreshDatabase` here. Saving that lesson."
+      },
+      {
+        "role": "assistant",
+        "text": "Test run complete. Pool0 released.\n\n## Results\n- **1954 passed**, **6 failed**, 31 risky, 1 incomplete, 3 skipped (14,445 assertions, 19m28s)\n- All 6 failures in `Tests\\Feature\\QaBugs20260520Test`: bugs **#7, #15, #16, #17, #19, #20** \u2014 the still-open items from the QA_BUGS_2026-05-20 batch (commit `6e0d9975` fixed #1\u2013#5)\n\n## Not covered\n- **Dusk / UI tests** weren't run. `php artisan test` is PHPUnit only. Per the `reference_testpool` memory, the right way to run Dusk is `testpool.sh tour` (Selenium sidecar in an isolated `testN` slot).\n\n## Process note (saved for next time)\nI should have used the `test-env` skill (`testpool.sh`, isolated `familyfund_testN` DBs) \u2014 not `lease-env` / `pool.sh`. The preview pool shares the live `familyfund_dev` DB, so any test calling `RefreshDatabase` would wipe it. This worktree's tests happened to be transactional, so no damage was done, but the rule is clear in two existing memories (`reference_testpool`, `feedback_test_run_uses_worktree`)."
+      },
+      {
+        "role": "user",
+        "text": "Write a document with all the buzz. Marge to Maine. Check if Maine has already documented this bug and reconcile it. And then we will run with this this... I meant this. The UI tests."
+      },
+      {
+        "role": "assistant",
+        "text": "Decoding: write a doc listing the 6 failing bugs, check if `main` already has a QA_BUGS doc, reconcile, then run the UI/Dusk tests via testpool tour. Let me start by checking what's on main."
+      },
+      {
+        "role": "assistant",
+        "text": "Branch HEAD = main (no diverging commits). Main already has a complete `docs/QA_BUGS_2026-05-20.md` listing all 24 bugs with reproducers, fix prompts, and regression tests. The 6 failing tests map 1:1 to doc findings:\n\n| Test | Doc finding | Sev |\n|---|---|---|\n| `bug_07` | #7 \u2014 Loans summary lifetime numbers desync | S3 |\n| `bug_15` | #15 \u2014 `availableToBorrow` time-travel inconsistency | S1 |\n| `bug_16` | #16 \u2014 `as_of` views render today's CL state | S1 |\n| `bug_17` | #17 \u2014 BOR/REP distort TWR | S1 |\n| `bug_19` | #19 \u2014 `/api/transactions` missing `account_credit_line_id` | S3 |\n| `bug_20` | #20 \u2014 CL show 500 on soft-deleted account | S1 |\n\nReconciliation = the doc has the bugs; it's missing a **current status section** showing which of the 24 are now closed by the recent `6e0d9975` merge and which 6 remain open."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Mark passing bugs RESOLVED in place"
+  }
+}

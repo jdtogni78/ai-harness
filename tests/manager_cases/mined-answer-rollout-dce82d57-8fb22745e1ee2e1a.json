@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-dce82d57-8fb22745e1ee2e1a",
+  "sig": "answer:rollout-dce82d57:8fb22745e1ee2e1a",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from dce82d57-cf2b-4b1d-864e-6d2491c9fa16.jsonl turn #445",
+  "input": {
+    "action": {
+      "session_id": "rollout-dce82d57",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/private/tmp/gl66/ff-mirror3.git",
+      "question": "#66 audit + validated purge are complete (non-destructive). How do you want to wrap up?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01YN17ZS4xwMtt9mmqkpv64g",
+        "description": "",
+        "questions": [
+          {
+            "question": "#66 audit + validated purge are complete (non-destructive). How do you want to wrap up?",
+            "header": "Wrap-up",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Land docs + comment #66 (Recommended)",
+                "description": "Commit the 3 audit docs on this worktree (close-work merges to main) and post the findings + checklist as a #66 comment. Force-push stays deferred for a coordinated window."
+              },
+              {
+                "label": "Land docs only, no #66 comment",
+                "description": "Commit the audit docs but don't post to the GitHub issue yet."
+              },
+              {
+                "label": "Execute the live purge now",
+                "description": "Proceed to the destructive rewrite + force-push of all branches now. Requires quiescing pools/test slots + coordinating the 46 live worktrees/sessions first; everything must re-clone."
+              },
+              {
+                "label": "Leave uncommitted for now",
+                "description": "Stop here; docs stay in the worktree uncommitted, nothing pushed or posted."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "The PII sweep is still running. Let me wait for it to finish (block until it writes its result)."
+      },
+      {
+        "role": "assistant",
+        "text": "The scan results went to `final-pii.txt` (the task's own log just has \"done\"). The sweep completed \u2014 let me read the actual result."
+      },
+      {
+        "role": "assistant",
+        "text": "APP_KEY occurrences now **0** \u2713. But the sweep shows **15 bcrypt + 32 emails still remain in 5 files** \u2014 so the recipe isn't fully clean yet. I need to classify these (real PII vs open-source noise) before calling it. Also addressing your \"monitor\": both background scans are **done**; nothing else is running.\n\nLet me classify the 5 residual files."
+      },
+      {
+        "role": "assistant",
+        "text": "Now it's definitively clean. Classification of the residual:\n- **composer.lock (\u00d72) + `_ide_helper.php`** \u2192 the 32 emails are **open-source package-author emails** (Laravel/Symfony/Carbon contributors the lockfile lists) \u2014 public, not family PII, and inherent to a lockfile.\n- **`FundReportTest.php` / `prod_to_dev.sql`** \u2192 no real emails (grep empty); the 15 bcrypt are **synthetic/test fixture hashes** (the anonymizer's dev-password targets, test fixtures).\n- **prod_to_dev.sql history** \u2192 replace-text scrubbed the owner email from *every* version (all blobs empty). \u2713\n\n**So the full recipe eliminates 100% of real family PII, all 1189 real password hashes, and all 8 leaked APP_KEYs.** Residual = public open-source author emails + synthetic test hashes (not an exposure).\n\n**Monitor status:** both background scans are **complete**; nothing is running now. Let me record the final proof in the audit doc."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me update the \u00a76 checklist to reflect the now-validated complete recipe."
+      },
+      {
+        "role": "assistant",
+        "text": "The audit doc now records the proven full-recipe result. Here's the complete picture.\n\n## #66 \u2014 full-recipe dry-run: validated \u2713 (non-destructive)\n\nRan the complete recipe on a fresh post-cleanup mirror clone (live repo & `origin` untouched):\n\n| metric | before | after full recipe |\n|---|---:|---:|\n| `app1/datadir_acl/` objects | 253 | **0** |\n| dead legacy-dir objects | ~4,900 | **0** |\n| leaked APP_KEYs | 8 | **0** |\n| **real family PII (emails)** | ~15 | **0** |\n| **real password hashes** | bulk (in dumps/datadir) | **0** |\n| `.git` size | 56 MB | **24 MB** |\n\nResidual is **not exposure**: 32 open-source *package-author* emails (composer.lock must list them), 15 synthetic/test bcrypt hashes, and 38 already-rotated dead dev DB literals. **100% of real family PII, real password hashes, and leaked APP_KEYs are eliminated.**\n\n## Worktree cleanup \u2713\nRemoved **8 orphaned worktrees** (dead bridge-manager pid) + their merged branches; preserved the 46 live-managed ones. \u26a0\ufe0f Flagged `01XwDewU` \u2014 it holds unfinished security/service-token work (rescued to `/tmp/gl66/wt-rescue/`), should be resumed not cleaned.\n\n## Where things stand\n- **Done & non-destructive:** audit + classification + validated full-recipe purge + sign-off docs (3 files, uncommitted in this worktree).\n- **Still gated:** the live history rewrite + force-push \u2014 rewrites all SHAs, every clone/worktree/pool must re-sync. Only needed *before going public* (#68, blocked), and dev creds are already rotated, so no urgency."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Land docs + comment #66 (Recommended)"
+  }
+}

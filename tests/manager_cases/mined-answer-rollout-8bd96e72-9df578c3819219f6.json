@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-8bd96e72-9df578c3819219f6",
+  "sig": "answer:rollout-8bd96e72:9df578c3819219f6",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 8bd96e72-f99f-4549-b171-f00db14bdf47.jsonl turn #206",
+  "input": {
+    "action": {
+      "session_id": "rollout-8bd96e72",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control/.claude/worktrees/bridge-cse_01NKvwYGeB7Z8x4L65cgsJ78",
+      "question": "What should the repo be renamed to? (becomes the GitHub repo, ~/dev/<name>, and all paths)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01TM3pYNYzpfmginWAAukYEA",
+        "description": "",
+        "questions": [
+          {
+            "question": "What should the repo be renamed to? (becomes the GitHub repo, ~/dev/<name>, and all paths)",
+            "header": "New name",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "ai-harness",
+                "description": "Your suggestion. Clean, general, signals 'harness for AI agents across all projects'. Works for both Claude Code and Codex."
+              },
+              {
+                "label": "agent-harness",
+                "description": "Emphasizes 'agents' (Claude/Codex sessions) over 'AI' generically. Same harness framing."
+              },
+              {
+                "label": "ai-workbench",
+                "description": "Workbench framing \u2014 a place where you manage skills, sessions, servers, workflows for AI work."
+              },
+              {
+                "label": "ai-control",
+                "description": "Control-plane framing \u2014 restartability, servers, session/workflow management as a control plane for AI agents."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now let me actually verify the sed patterns produce a clean result \u2014 extract main's tracked files to a temp dir, apply the exact replacements, and confirm the only remaining `claude-remote-control` occurrences are the launchd labels/filenames (and that `claude remote-control` CLI refs are untouched)."
+      },
+      {
+        "role": "assistant",
+        "text": "Validation is clean and conclusive:\n\n- **Remaining `claude-remote-control` after the rewrite** = *only* the launchd labels & plist filenames (intended \u2014 we keep labels) plus the plan doc itself (which I'm about to rewrite). No path, URL, or prose reference is left behind.\n- **`claude remote-control` CLI refs**: all 11 untouched. \u2713\n- **Tests: 122 passed** against the rewritten tree \u2014 `test_installer.py` stays green precisely because labels are kept.\n\nNow let me rewrite the runbook doc to match reality (2 hosts, 22 worktrees, the script, keep-labels default, two-host sequence)."
+      },
+      {
+        "role": "assistant",
+        "text": "Now I'll rewrite the runbook."
+      },
+      {
+        "role": "user",
+        "text": "[Request interrupted by user]"
+      },
+      {
+        "role": "user",
+        "text": "I am actually wanting to rename to ai-harness or similar, as i am going to add skills, restartability, servers, etc, session renaming, workflow management skills and other all-procjets ai work for both claude code/codex"
+      },
+      {
+        "role": "assistant",
+        "text": "Got it \u2014 that changes the destination name (and broadens the framing from \"agent infra\" to a general all-projects AI harness for both Claude Code and Codex). Good news: **none of the work is wasted** \u2014 the migration script and runbook are fully parameterized by a single `NEW_NAME` variable, and all the hard analysis (the two-host coordination, 22-worktree repair, keep-labels decision, the precise collision-safe replacements that leave the `claude remote-control` CLI untouched) is name-independent. Swapping the target is a one-line change plus the doc.\n\nSince you said \"ai-harness **or similar**,\" let me lock the exact name before I bake it into the GitHub repo name, the dir, and all the paths."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "ai-harness"
+  }
+}

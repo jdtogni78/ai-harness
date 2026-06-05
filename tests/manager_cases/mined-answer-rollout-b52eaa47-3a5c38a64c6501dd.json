@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b52eaa47-3a5c38a64c6501dd",
+  "sig": "answer:rollout-b52eaa47:3a5c38a64c6501dd",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b52eaa47-5382-433a-bd53-6b35deaff5c1.jsonl turn #274",
+  "input": {
+    "action": {
+      "session_id": "rollout-b52eaa47",
+      "repo": "ai-harness-private",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness-private",
+      "question": "Which switch model do you want?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Mn9RLBG1nkvVfLSmH2v4um",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which switch model do you want?",
+            "header": "Switch model",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Rename current dir to ai-harness-private; clone public as new ai-harness (Recommended)",
+                "description": "~/dev/ai-harness \u2192 ~/dev/ai-harness-private (keeps your full private history + .claude state + operational launchd files intact). Fresh `git clone jdtogni78/ai-harness ~/dev/ai-harness`. New development happens on the public clone, where you commit clean code without needing sanitization. Supervisor active-dirs.txt updates to point at the new public clone for any tracked work. The private dir stays for archives/publish tooling/GD-0007. Highest blast radius up front but cleanest separation going forward."
+              },
+              {
+                "label": "Repoint origin in this dir to public; keep all local content; archive private history as a branch",
+                "description": "Add public as origin (rename current origin \u2192 `private`). Push current main as a `archive/private-main` branch to private remote so the history is preserved. Reset local main to public/main \u2014 DESTRUCTIVE: rewrites tracked files locally to the placeholder versions, removes GD-0007, removes scripts/publish/, and renames the plist files (breaking the running launchd install until you re-load). Worktree branches still live in the object store. New commits to main go to public."
+              },
+              {
+                "label": "Dual-remote, no content change \u2014 add public as a second remote",
+                "description": "Keep `origin` = private (no change to local content). Add `public` as a second remote whose push-mode is rejected unless via sanitize+replay. This isn't really a switch \u2014 it's just labeling. Future syncs still use the per-commit replay flow we just built. Smallest blast radius; you keep doing what you've been doing."
+              },
+              {
+                "label": "Stop \u2014 explain the trade-offs more first",
+                "description": "Don't act yet. Walk through what each option means for the supervisor, worktrees, and your day-to-day workflow in more detail before deciding."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "All 4 commits replayed cleanly. Final state:\n\n- Public tree equals `sanitize_export(main) + LICENSE` exactly (only differences vs sanitized export are `.git` and `LICENSE`).\n- Forbidden-strings sweep on the actual public tree: **zero hits**.\n- Public log: `eb12b64 perm_gate_lab` \u2192 `7d0dfe2 manager-eval` \u2192 `a517c42 transcript_tail` \u2192 `bcea753 docs(manager)` \u2192 `3e31445` baseline.\n\nTwo pushes are pending. The private prep (4fd098c \u2014 the new sanitization rule) needs to go to `ai-harness-private`; the 4 replays need to go to public `ai-harness`."
+      },
+      {
+        "role": "assistant",
+        "text": "Both pushes succeeded. Let me update the memory entry tracking the public portfolio state."
+      },
+      {
+        "role": "assistant",
+        "text": "Done. Summary:\n\n**Private (`jdtogni78/ai-harness-private`)** \u2014 pushed `5e49977..4fd098c`: one new `feat(publish): rewrite ai-harness-private \u2192 ai-harness in sanitized output` commit, which adds rule batch 2b plus the FORBIDDEN tripwire entry so future syncs don't leak the renamed-private placeholder into public docs.\n\n**Public (`jdtogni78/ai-harness`)** \u2014 pushed `3e31445..eb12b64`: four new sanitized commits on top of the existing snapshot, one per feature, replayed via per-commit delta (not wholesale rsync \u2014 that would have flapped CI dotfiles like `.gitleaks.toml` that came in through the publish-prep merge but weren't in 80e07da's side-branch tree):\n- `bcea753` \u2014 docs(manager): plan for guideline regression-test harness\n- `a517c42` \u2014 refactor(manager): inject transcript_tail into investigator prompt\n- `7d0dfe2` \u2014 feat(manager-eval): capture flow + seed corpus\n- `eb12b64` \u2014 feat(perm_gate_lab): phase 1 \u2014 corpus + import\n\nFinal public tree matches `sanitize_export(main) + LICENSE` exactly; forbidden-strings sweep clean.\n\nThe \"switch to public as primary\" cutover stays open per your direction. Whenever you want to plan it, the lifts I see are: re-point local origins on both hosts (mini + note), repoint all open worktrees, decide what to do with the private-only material (GD-0007, secrets posture, `.claude/`, `logs/`), and whether to keep the private repo as a \"private-only files overlay\" remote or archive it."
+      },
+      {
+        "role": "user",
+        "text": "Let's switch the public to be the the one we use on this directory."
+      },
+      {
+        "role": "assistant",
+        "text": "This is a bigger move than the sync. Let me check what's actually at risk before I touch anything."
+      },
+      {
+        "role": "assistant",
+        "text": "Before I touch anything: a \"switch to public as primary\" here isn't just a remote-URL change. Real things this directory's current state binds to:\n\n- **`com.claudio1.*.plist`** files \u2014 actually loaded by launchd. The public version is `com.user.*.plist`. Identifier-rewrite drift breaks the install.\n- **`active-dirs.txt`, `session-nicknames.txt`** \u2014 supervisor reads these. Public has template comments only, no real allowlist.\n- **`DECISIONS.md` GD-0007** \u2014 exists only privately; the export strips it. Resetting to public erases it from this tree.\n- **`scripts/publish/sanitize_export.sh`** + the rule I just added \u2014 also stripped from public, so it'd disappear locally.\n- **50+ bridge worktrees** under `.claude/worktrees/` \u2014 their branches' ancestry references private commits that aren't reachable from public/main. They keep working locally but their `main` diverges sharply.\n- **Source files referencing real paths/identifiers** \u2014 many tracked files (CLAUDE.md, scripts, configs) literally say `claudio1`/`jdtogni78`. Resetting to public turns those into placeholders; the running install on this machine doesn't match the tracked content.\n\nGiven that, \"switch\" can mean several different things. The light option doesn't actually switch much; the heavy option is a real migration."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Rename current dir to ai-harness-private; clone public as new ai-harness (Recommended)"
+  }
+}

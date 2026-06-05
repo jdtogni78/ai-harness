@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-fbd6b665-8c2157ba49edde47",
+  "sig": "answer:rollout-fbd6b665:8c2157ba49edde47",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from fbd6b665-4afb-45fb-a556-89b203245b22.jsonl turn #132",
+  "input": {
+    "action": {
+      "session_id": "rollout-fbd6b665",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "What does \"failed\" mean for these forks?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01EvrtYieEA5uHVmEJ2W63B8",
+        "description": "",
+        "questions": [
+          {
+            "question": "What does \"failed\" mean for these forks?",
+            "header": "Failure mode",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Tried to resume, claude -r errored or showed wrong content",
+                "description": "You ran `claude -r <new_id>` and it didn't load the transcript, or loaded the wrong session. Means the jsonl is malformed or in the wrong project dir."
+              },
+              {
+                "label": "Forks open but cwd is the bridge worktree, not main",
+                "description": "The forks resume into `.claude/worktrees/bridge-cse_*` instead of `~/dev/ai-harness`. Original fork was done WITHOUT `--into-main`. Fix: re-fork with --into-main into the main checkout."
+              },
+              {
+                "label": "Source cse_ is stuck disconnected, blocking something",
+                "description": "The forks themselves are fine, but the source cse_ sessions need to be archived/cleaned up and that step failed. Fix: archive the sources (needs new code)."
+              },
+              {
+                "label": "Something else",
+                "description": "None of the above \u2014 you'll explain."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "[Request interrupted by user]"
+      },
+      {
+        "role": "user",
+        "text": "can you fork all now?"
+      },
+      {
+        "role": "assistant",
+        "text": "There's nothing left to fork on mini. Checked all 8 active sessions:\n\n- **5 are already forked** \u2014 the `[AH.mini] \u2026 \u2192 forked to <id>` titles (`cse_01K5Kv\u2026`, `cse_01GKTK\u2026`, `cse_01UosQ\u2026`, `cse_01XtFh\u2026`, `cse_01KEWo\u2026`)\n- **2 are live but on note**, not mini \u2014 `cse_0164WQ\u2026` (\"macmini-local-cozy-piglet\", running) and `cse_01SseXL\u2026` (\"Remote control titles apply\", idle). I checked `~/.claude/projects/*bridge-cse-<tail>/` for both \u2014 no local transcript on mini, which is the proof: their bridge worktrees live on note.\n- **1 is on neither**, `cse_0143ii5b\u2026` (`[DST] dstrader/-docker PII scrub \u2026`), disconnected \u2014 also no local transcript here.\n\nThe `macmini-local-cozy-piglet` title is misleading \u2014 that's the API's auto-generated name, not a location stamp. The classify-location is authoritative (it checks the actual bridge-worktree presence), and it says `other-host` for all the live ones.\n\nIf you want me to fork the 2 live ones, I need to do it **from note**, not mini. Two ways:\n\n1. **SSH to note** and run `python3 -m remote_control fork cse_0164WQtyStdUtXwjG9MCGaTV --into-main --mark` (and the other one). Direct, no new code.\n2. **Wait** and build `fork-all` first so it's a one-shot on note.\n\nWant me to do #1 over SSH right now, or hold for the build?"
+      },
+      {
+        "role": "user",
+        "text": "those were forked but failed, need other fork"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me check what state the existing forks are actually in before re-forking."
+      },
+      {
+        "role": "assistant",
+        "text": "The forks have content (230-664 lines each), the bridge worktrees still exist, and the local jsonl files are sitting in their bridge-worktree project dirs. So they're not missing or empty.\n\nNeed a bit more before I act \u2014 \"failed\" could mean several different things and the fix differs:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "just refork them"
+  }
+}

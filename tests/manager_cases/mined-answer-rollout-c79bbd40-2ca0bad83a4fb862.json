@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-c79bbd40-2ca0bad83a4fb862",
+  "sig": "answer:rollout-c79bbd40:2ca0bad83a4fb862",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from c79bbd40-e0cd-4f3b-a71e-b271fbd0b2b6.jsonl turn #78",
+  "input": {
+    "action": {
+      "session_id": "rollout-c79bbd40",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/app1/family-fund-app",
+      "question": "How should the manual payment UI work against the generated schedule rows?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01TxM7vkVBh6CosMmsC3SPLK",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the manual payment UI work against the generated schedule rows?",
+            "header": "Payment UI",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Per-row register",
+                "description": "Show the schedule; admin picks a specific past-due row and marks it paid with the real settlement date. Best for reconciling external-system payments one-by-one. Needs new logic beyond RepayService's lump-sum walk."
+              },
+              {
+                "label": "Lump-sum (existing)",
+                "description": "Admin enters a total shares amount + date; RepayService auto-applies it across rows oldest-first. Reuses existing backend as-is; just needs a form."
+              },
+              {
+                "label": "Both modes",
+                "description": "Per-row registration for precise reconciliation plus a lump-sum quick path. Most flexible, most work."
+              }
+            ]
+          },
+          {
+            "question": "After backdating, how should the past-due generated rows be treated?",
+            "header": "Past-due rows",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Leave scheduled (separate)",
+                "description": "Generate rows as 'scheduled' only; late-flagging/reconciliation is a separate concern handled later, as you indicated. Simplest, matches stated scope."
+              },
+              {
+                "label": "Flag late immediately",
+                "description": "Run late-detection on save so past-due rows show 'late' right away, making the backlog visible in the UI."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "FF will not handle the cash disbursements/receivables, but only the accounting/fund allocated/unallocated"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me verify how FF actually models allocated/unallocated shares and what a borrow does to them, so the warning is accurate."
+      },
+      {
+        "role": "user",
+        "text": "[Request interrupted by user for tool use]"
+      },
+      {
+        "role": "user",
+        "text": "The backdating of a credit line only impacts the fund allocated/unnalocated shares. lets say I backdate 6 months, and we create all the expected receivables, we will still have to choose/set whether each receivable is marked as executed or not, that is a separate issue. An external system is expected to trigger receivables. We need an UI that allows us to register manual payments"
+      },
+      {
+        "role": "assistant",
+        "text": "Got it \u2014 that narrows the scope cleanly. Let me restate the design as I now understand it, then check the two pieces that actually matter for it.\n\n**Refined scope**\n- Backdating a credit line **only** moves shares between allocated/unallocated. No cash, no receivable-as-asset modeling in FF. (So the historical-NAV catch is gone \u2014 share price is invariant to allocation-only moves.)\n- Backdating 6 months \u2192 the schedule generator emits all the **expected payment rows** that fall in that window, but they are **not** auto-marked executed. Execution is an **external system's** responsibility.\n- Each payment row carries an executed / not-executed status \u2014 set/reconciled separately, not at draw time.\n- We need a **manual payment registration UI** so an admin can record a payment that actually happened against a scheduled row.\n\nLet me ground this in the existing payment-schedule and repayment code before proposing the plan."
+      },
+      {
+        "role": "assistant",
+        "text": "This is the key finding: **the backend already does almost everything you described.** The gap is purely UI/wiring. Let me lay out exactly where things stand.\n\n## What already works (no new logic needed)\n\n- **Backdated origination** \u2014 `DrawService::open()` takes `$originationDate` (`DrawService.php:53-61`). It stamps the BOR transaction's `timestamp` to that date (`:99`) and calls `AmortizationScheduleBuilder::build($line, $principal, $originationDate)` (`:106`).\n- **Expected receivables auto-generated, NOT executed** \u2014 the schedule builder writes `credit_line_payments` rows; the migration defaults `status` to `'scheduled'` (`2026_05_13_000002...:16`). So backdating 6 months at monthly frequency produces ~6 rows with **past `due_date`s, all `scheduled`** \u2014 exactly your \"create the expected receivables, leave execution open.\" Nothing auto-pays them.\n- **Manual payment backend** \u2014 `RepayService::repay($line, $shares, $date)` creates a REP transaction at an explicit date and walks the scheduled rows in due-date order, flipping them to `paid`/`partial` and stamping `paid_transaction_id` (`RepayService.php:50-115`). Route `POST credit-lines/{line}/repay` already exists (`web.php:231`).\n\n## The gap (what's actually missing)\n\n1. **No `origination_date` input** \u2014 the create form + `CreateAccountCreditLineRequest` don't collect it; `store()` passes `null`. ~3 small edits.\n2. **Manual payment UI shape** \u2014 a repay route exists, but `RepayService` applies a *lump sum in due-date order*. Your framing (\"each receivable marked executed or not\", \"register manual payments\") sounds like you want **per-scheduled-row registration** \u2014 pick a specific due row, mark it paid with the actual date the external system settled it. That's a different UX than lump-sum.\n\n## The warning you asked for (now scoped correctly)\n\nSince FF only touches allocated/unallocated shares, there's no NAV rewrite. The remaining real caveat to surface to the admin:\n\n> \u26a0\ufe0f Backdating to {date} generates **{N} payment rows already past due**, all left `scheduled`. FamilyFund will **not** trigger or execute them \u2014 an external system records actual settlement. Until each is reconciled, this line shows {N} unpaid past-due installments and may be flagged late. You must register any payments that already happened manually.\n\nTwo decisions drive the implementation:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Per-row register, Flag late immediately"
+  }
+}

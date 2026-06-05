@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-1fa33f48-cf68b9ebaf484e6c",
+  "sig": "answer:rollout-1fa33f48:cf68b9ebaf484e6c",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 1fa33f48-d471-4827-b953-2237c7aabab1.jsonl turn #1643",
+  "input": {
+    "action": {
+      "session_id": "rollout-1fa33f48",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/sweet-driscoll-0b292c",
+      "question": "Confirm teardown \u2014 release the pool0 (:3020) preview lease?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01M9ReFLwRt92ZQJjUMsAiq2",
+        "description": "",
+        "questions": [
+          {
+            "question": "Confirm teardown \u2014 release the pool0 (:3020) preview lease?",
+            "header": "Teardown",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Release pool0, finish close",
+                "description": "Release the :3020 lease now; defer worktree removal to session exit. Work is already on main."
+              },
+              {
+                "label": "Keep pool0 leased",
+                "description": "Leave the :3020 env up (e.g. you still want to browse the dev stack / re-render); just finish closing otherwise."
+              }
+            ]
+          },
+          {
+            "question": "The deferred demo items (admin/trading-config tweaks\u2192finals, poster frames, 5 stubs) \u2014 how should I leave them?",
+            "header": "Deferred",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Just note them, drop for now",
+                "description": "Leave them as informal future work; no tickets. You'll pick them up when you want."
+              },
+              {
+                "label": "File a tracking note",
+                "description": "Write them into a follow-up (e.g. a GitHub issue or a note in demos/README) so they're not forgotten."
+              },
+              {
+                "label": "Do one now",
+                "description": "Don't close yet \u2014 loop back and knock out one of them (e.g. finalize admin/trading-config in onyx)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Is it all committed and pushed to main"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me do a final sweep across all three repos to confirm."
+      },
+      {
+        "role": "assistant",
+        "text": "Yes \u2014 everything from this work is committed and pushed. All three repos are **in sync with `origin/main`** (0 ahead, 0 behind), working trees clean:\n\n| Repo | `origin/main` | Status |\n|---|---|---|\n| **FamilyFund** | `a3d444e7` | \u2713 in sync \u2014 demo storyboards + README all in main's history |\n| **ai-harness** | `f7df945b` | \u2713 in sync \u2014 all 5 narrate fixes |\n| **jdtogni-site** | `755cfa23` | \u2713 in sync \u2014 3 videos + page section |\n\nThis session's worktree branch is **0 commits ahead** of main and has nothing uncommitted \u2014 so nothing of ours is dangling.\n\nTwo honest notes (neither is our work):\n- **ai-harness** has one untracked file, `scripts/logrotate.sh` \u2014 **not mine** (I only touched `narrate/` and the pool `link.sh`). It's from another session or pre-existing; I left it alone.\n- FamilyFund main has moved past my README to `a3d444e7` \u2014 that's other sessions' commits (the `/configSettings` fix, PII hardening, etc.) layered on top. My work (demos + README) is in that history; local == origin, so all pushed.\n\nSo: storyboards + README on FamilyFund main, tool fixes on ai-harness main, videos on jdtogni-site main. All committed, all pushed. \u2705"
+      },
+      {
+        "role": "user",
+        "text": "close work"
+      },
+      {
+        "role": "assistant",
+        "text": "Working through the close-work flow. Let me gather the final state \u2014 git status across the work, the preview lease, and whether there's a tracking ticket."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the close-work review.\n\n## Phase 1 \u2014 What this thread did\nStarted as \"plan a demo\" \u2192 became a full **narrated demo-video suite + the tooling to produce it**, delivered across **3 repos, all on `main`**:\n- **FamilyFund** \u2014 `demos/` storyboards (5 real demos + 5 stubs) + rewritten README\n- **ai-harness** \u2014 5 narrate-tool features/fixes (OpenAI TTS, `reveal`, pre-warm, stale-webm, setup-trim)\n- **jdtogni-site** \u2014 3 video walkthroughs embedded in `familyfund.html`\n\nWorktree branch is **0 ahead of `origin/main`, clean** \u2014 everything's committed and pushed.\n\n## Phase 2 \u2014 Test gate\nNo FamilyFund **app code** changed (only demo YAML + README), so the PHP suite is N/A. The ai-harness narrate changes were verified **functionally** \u2014 by rendering demos and extracting frames (screens match narration, no white, no PII). Bonus: the `/configSettings` 500 I flagged got its own fix **with a feature test** (`da3c67e5`) via the spun-off task.\n\n## Phase 3 \u2014 Loose ends (all deferred, none block close)\n1. **admin + trading-config** demos are free-voice **test** renders \u2014 you said \"tweak before finals,\" but never specified tweaks \u2192 onyx finals pending.\n2. Once finalized, those 2 could join the site like the other 3.\n3. **Poster frames** for the videos (offered, not taken).\n4. **5 stub demos** still TODO.\n\n## Phase 4 \u2014 Verdict: **READY TO CLOSE**\nClean tree, everything pushed, no half-done *committed* scope. The above are optional future work. No board ticket was claimed (ad-hoc work), so nothing to close there.\n\n## Phase 5 \u2014 Teardown needs your OK\n- **Release the preview lease** pool0 (`:3020`, held by this worktree).\n- **Worktree removal: deferred** \u2014 I'm running *inside* this worktree, so removing it now would break the session (self-lock); it cleans up on session exit, or you can `git worktree remove` it later from the main checkout."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Release pool0, finish close, File a tracking note"
+  }
+}

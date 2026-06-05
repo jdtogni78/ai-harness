@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-73c96459-b0cbf0baa4264491",
+  "sig": "answer:rollout-73c96459:b0cbf0baa4264491",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 73c96459-02bf-4ac9-893b-2c70f41f73b7.jsonl turn #398",
+  "input": {
+    "action": {
+      "session_id": "rollout-73c96459",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01C3q3aBYqrJqJeeTQdXieCA",
+      "question": "Which slice should I build next?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01RGdDtTpRXcMTmwBipeg4hb",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which slice should I build next?",
+            "header": "Next slice",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Trigger new work",
+                "description": "The headline feature: spawn fresh work from a prompt. Codex via `codex exec` is clean; Claude side likely local `claude -p` headless (no cloud-create API). Outward-facing \u2014 I'd default it to dry-run (print the command, require an explicit --go to actually launch)."
+              },
+              {
+                "label": "Migrate work engine\u2192engine",
+                "description": "Wrap the existing codex-import (Codex\u2192Claude) + Codex's built-in Claude\u2192Codex import + session_fork into one `work move` command. Code-only, low-risk, reuses what's there."
+              },
+              {
+                "label": "Pause & hand off",
+                "description": "Stop here for now. Two slices are committed; I'll leave #13 In Progress with trigger + migrate as the remaining checklist items and give a short handoff."
+              }
+            ]
+          },
+          {
+            "question": "If trigger: how aggressive should the default be?",
+            "header": "Trigger safety",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Dry-run by default (Recommended)",
+                "description": "`work start` prints exactly what it would spawn; an explicit flag (e.g. --go) is required to actually launch. Safe to experiment with."
+              },
+              {
+                "label": "Launch immediately",
+                "description": "`work start` spawns the agent right away. Faster, but every invocation creates real work."
+              },
+              {
+                "label": "N/A \u2014 not doing trigger",
+                "description": "Skip this; I picked migrate or pause above."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now update the tests that referenced the dropped `running` heuristic and the USAGE/docstring wording:"
+      },
+      {
+        "role": "assistant",
+        "text": "Update the USAGE text that still mentions \"hung\":"
+      },
+      {
+        "role": "assistant",
+        "text": "Now `work stale` shows only the 7 genuine \"awaiting response\" Codex items \u2014 no false positives. Let me document `work stale` in the README and commit:"
+      },
+      {
+        "role": "assistant",
+        "text": "Two slices delivered and committed (`972a872` inventory, `1344627` stale-detect). Let me mark the task done and sync progress to the epic ticket."
+      },
+      {
+        "role": "assistant",
+        "text": "Epic checklist now reflects both done. Before the **trigger** slice \u2014 which actually *spawns* new agent work (outward-facing, and the mechanism has real unknowns) \u2014 let me check what the existing API client supports for creating sessions, so I can frame the choice accurately."
+      },
+      {
+        "role": "assistant",
+        "text": "Good \u2014 that clarifies the trigger landscape:\n\n- **Codex trigger** is well-supported: `codex exec \"<prompt>\"` detached in the target repo dir, mirroring the existing `codex exec resume` spawn pattern (`monitor.py:348`). Low-risk to build.\n- **Claude trigger** is murky: the API client can POST anywhere, but there's no known *create-session* endpoint \u2014 cloud/bridge sessions are created on-demand from the app, and the API's write path (`POST /sessions/{id}/events`) only injects a turn into an **existing** session. So \"start fresh Claude work from a prompt\" realistically means local headless `claude -p \"<prompt>\"`, not a cloud spawn.\n\nSince **trigger** actually launches real agent work (outward-facing, hard to undo) and its Claude side has genuine unknowns, I want your call on direction before building it.\n\nStatus so far this turn: **2 of 4 epic slices delivered & committed** \u2014 inventory (`972a872`) and stale-detect (`1344627`), 231 tests green, epic #13 checklist updated."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Migrate work engine\u2192engine, Dry-run by default (Recommended)"
+  }
+}

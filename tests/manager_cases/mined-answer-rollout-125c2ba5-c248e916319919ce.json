@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-125c2ba5-c248e916319919ce",
+  "sig": "answer:rollout-125c2ba5:c248e916319919ce",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 125c2ba5-2ad4-49c6-92f6-365837bc2dc6.jsonl turn #128",
+  "input": {
+    "action": {
+      "session_id": "rollout-125c2ba5",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How do you want to publish \u2014 this determines whether we deal with git history at all?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01WB4RT8d3rj7paVmjZXzgNq",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want to publish \u2014 this determines whether we deal with git history at all?",
+            "header": "Strategy",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Fresh public repo (Recommended)",
+                "description": "Create a new public repo, copy in the sanitized snapshot, single fresh commit. This private repo and its 92-commit history stay private and untouched. Zero history-leak risk, full control over what's shown. Best for a portfolio."
+              },
+              {
+                "label": "Make THIS repo public",
+                "description": "Sanitize files, then rewrite git history (git filter-repo) to scrub the password/IPs/names across all 92 commits, then flip visibility and force-push. Keeps history/stars but is more fragile \u2014 any miss is permanently public and cached."
+              },
+              {
+                "label": "Decide later",
+                "description": "Don't pick a publish path yet. I capture the audit + a step-by-step sanitization plan as a durable artifact (GitHub issue on board #2, or a local note) so it's ready whenever you want to pull the trigger."
+              }
+            ]
+          },
+          {
+            "question": "What should I do right now versus later?",
+            "header": "Timing",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Just the plan for now",
+                "description": "Don't edit anything yet. Deliver the prioritized sanitization checklist (what to change, file-by-file) so you can execute it on your schedule. Nothing in the repo changes today."
+              },
+              {
+                "label": "Sanitize the safe stuff now",
+                "description": "Do the low-risk genericization now (the new README/ARCHITECTURE I wrote, the test hostnames leaking real names, DECISIONS GD-0007 infra redaction), and defer the operational pool.sh password refactor to a deliberate step."
+              },
+              {
+                "label": "Full sanitization now",
+                "description": "Do everything now including the pool.sh/testpool.sh password refactor \u2014 accepting that touching the live symlinked pool scripts needs care so the running dev/test DBs keep working."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Let me confirm the test suite actually passes, so the README's claim is honest."
+      },
+      {
+        "role": "assistant",
+        "text": "Done. Here's what I built, all in the repo's working tree.\n\n## What changed\n\n**`README.md`** \u2014 rewritten as the portfolio front page. Pitch \u2192 \"why this exists\" (the operational problem) \u2192 a systems table \u2192 an at-a-glance Mermaid architecture diagram \u2192 engineering highlights \u2192 repo map \u2192 docs index \u2192 status. Sanitized: \"two Macs,\" no IPs, usernames, home paths, or GitHub handle.\n\n**`docs/ARCHITECTURE.md`** (new) \u2014 the deep technical companion: a context diagram, the six design principles, a system-by-system breakdown (supervisor, usage-limit monitor, session manager + dashboard, cross-engine work orchestration, multi-agent coordination, env pools), the pure/impure test seam, a data-sources/integration table, and the testing strategy. Mermaid diagrams, sanitized.\n\n**`docs/OPERATIONS.md`** (new) \u2014 the previous README's operational content relocated intact: install/manage, the full `python3 -m remote_control \u2026` CLI reference, tunables, the activation list, known limitations, resume recovery. Kept functional (real commands) since it's the runbook.\n\n**`DECISIONS.md`** \u2014 one-line fix: GD-0004's *Activation list* pointer now targets `docs/OPERATIONS.md` (the section moved there).\n\nThe three-tier shape matches your request: README = high-level pitch, ARCHITECTURE = technical detail, OPERATIONS + existing `docs/*` + `DECISIONS.md` = the separate deep docs, all cross-linked.\n\n## Verified, not assumed\n- **394 tests pass** (`Ran 394 tests in 1.699s \u2026 OK`) \u2014 so the README's count is honest.\n- Counts checked against the repo: ~6,100 LOC Python, 10 skills, 2 LaunchAgents per host, 8-day build window.\n- All seven doc links in the README resolve; no dangling pointers left after the relocation.\n\n## Two things to flag\n\n1. **Not committed.** The files are in the working tree on branch `worktree-bridge-cse_01K5KvV7qdfBcZByfrPGiTiq`, not committed/merged. Say the word and I'll commit (and merge to `main`) \u2014 I left it for you since you didn't ask to ship.\n\n2. **Pre-publish sanitization checklist.** You chose to keep *only the new overview* clean and leave existing docs as-is \u2014 sensible for now, but before a **public** export these still contain private infra: `DECISIONS.md` GD-0007 (internal NAS IPs + hostnames + SSH-identity reuse) and GD-0001 (GitHub username); the `com.<user>.*.plist` filenames; `scripts/pool/README.md` and `docs/rename-to-ai-harness.md` (hardcoded home paths + usernames); `CLAUDE.md` (prod-access notes + board URLs). Worth a sanitizing pass on those if it goes public \u2014 happy to do that as a follow-up.\n\nWant me to commit these docs (and/or do the sanitization pass on the existing files)?"
+      },
+      {
+        "role": "user",
+        "text": "Well, I wanna make sure that everything is ready to go public, so we need to sanitize it. If now... not now, later. And we may need to use SOPs or whatever other things we need to do to clean it up."
+      },
+      {
+        "role": "assistant",
+        "text": "Making it public-ready is the right framing, and it's a bigger question than the new docs \u2014 it spans the whole repo and its git history. Before changing anything, let me do a thorough audit of what's actually sensitive, so we can decide scope and timing with concrete findings. This is read-only."
+      },
+      {
+        "role": "assistant",
+        "text": "Found the critical item: a hardcoded DB password in `scripts/pool/pool.sh:142`. Let me get its context, check where the test-pool password comes from, scan git history for secrets, and confirm what's in commit metadata."
+      },
+      {
+        "role": "assistant",
+        "text": "I've completed the audit. Here's the full picture before we touch anything.\n\n## Pre-publish audit\n\n**Good news first** \u2014 across all 92 commits: **no API keys, SSH keys, GitHub tokens, or personal email were ever committed.** Runtime auth is keychain-based, so nothing's baked in. Commit author email is GitHub's `noreply` form (already public-safe). So there's no \"rotate everything\" emergency.\n\n**What does need handling, by severity:**\n\n| # | Category | Where | Notes |\n|---|---|---|---|\n| 1 | **Committed secret** | `scripts/pool/pool.sh:142`, `testpool.sh:73` \u2014 hardcoded DB password `6cfb\u2026` | A **local LAN** dev/test MariaDB root password \u2192 low real-world risk, but it's a credential in plaintext, in the working tree *and* history. |\n| 2 | **Infra topology** | `DECISIONS.md` GD-0007 | Internal NAS IP, prod-host IP, hostnames `melnick`/`spirit`, SSH-identity-reuse posture. Reveals your private network. |\n| 3 | **Identity / PII** | ~26 files | Usernames `claudio1`/`dtogni` (config, plists, installer, tests, docs); GitHub handle `jdtogni78` (board URLs, skills); **real first names leaked** via test hostnames `Daniels-MacBook-Pro` / `Claudios-MacMini` in `test_discovery.py`. |\n| 4 | **Private project names** | ~33 files | `FamilyFund` / `dstrader` / `DSTraderAnalysis` / `job-search` \u2014 names your personal finance/trading projects. |\n| 5 | **Home paths** | config, plists, pool scripts, tests | `/Users/claudio1`, `/Users/dtogni`. |\n\n**Two things shape the whole effort:**\n\n- **Git history is the multiplier.** All of the above lives across 92 commits. Sanitizing the current files does *not* remove it from history \u2014 so the publish *strategy* matters more than the file edits.\n- **On SOPS:** I'd argue **you don't need it for this repo.** SOPS+age (your GD-0008 standard) is for secrets you want to keep *versioned but encrypted*. Here there's exactly one secret \u2014 a local dev DB password \u2014 and the clean fix is to **take it out of git entirely** (source it from the untracked `~/.familyfund-pool/` config the scripts already use), not encrypt it in place. \u26a0\ufe0f One caveat: `pool.sh`/`testpool.sh` are the **live symlinked** scripts (GD-0006) and the dev DB actually authenticates with that password, so that change is a careful refactor with operational impact \u2014 not a quick redaction. SOPS stays relevant for FamilyFund/dstrader-docker, just not here.\n\nTwo decisions drive everything else:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Fresh public repo (Recommended), Just the plan for now"
+  }
+}

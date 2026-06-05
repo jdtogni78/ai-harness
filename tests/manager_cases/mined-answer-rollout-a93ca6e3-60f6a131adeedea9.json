@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a93ca6e3-60f6a131adeedea9",
+  "sig": "answer:rollout-a93ca6e3:60f6a131adeedea9",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a93ca6e3-1d6d-4011-a7c7-f7a34510daac.jsonl turn #49",
+  "input": {
+    "action": {
+      "session_id": "rollout-a93ca6e3",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01J4raNmzhpmMenDhwQdrQUq",
+      "question": "What should this trial remote agent do?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01MPKLjseev2sinVLZnjSfMv",
+        "description": "",
+        "questions": [
+          {
+            "question": "What should this trial remote agent do?",
+            "header": "Task",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Repo summary demo (Recommended)",
+                "description": "Agent checks out ai-harness, reads the README + repo layout, and writes a short summary of what the project does. Read-only, harmless, easy to verify it ran."
+              },
+              {
+                "label": "Open-tickets digest",
+                "description": "Agent runs `gh` to list open issues on the project boards and summarizes them. Needs gh auth in the remote env \u2014 may not be available."
+              },
+              {
+                "label": "Let me describe it",
+                "description": "You'll tell me the exact task/prompt for the agent."
+              }
+            ]
+          },
+          {
+            "question": "When should it run?",
+            "header": "Schedule",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Once, in ~5 min (Recommended)",
+                "description": "One-time run_once_at a few minutes from now, so you can watch it fire and then it auto-disables. Best for a trial."
+              },
+              {
+                "label": "Recurring",
+                "description": "A cron schedule (minimum interval is 1 hour). I'll ask for the cadence."
+              }
+            ]
+          },
+          {
+            "question": "Which environment should it run in?",
+            "header": "Environment",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Anthropic cloud (Recommended)",
+                "description": "env 'Family Fund' (anthropic_cloud) \u2014 fully cloud, doesn't depend on your macmini/macbook being awake. Cleanest for a trial."
+              },
+              {
+                "label": "macmini:ai-harness",
+                "description": "Bridge env on your macmini tied to ai-harness. Runs on your actual machine \u2014 needs it awake/online."
+              },
+              {
+                "label": "macbook:dev",
+                "description": "Bridge env on your MacBook Pro. Runs on that machine \u2014 needs it awake/online."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Yes \u2014 there are a few distinct mechanisms, depending on what kind of \"session\" you mean. Here's the honest breakdown of what I can actually trigger from here:\n\n## 1. Remote Claude Code agents \u2014 yes, directly\nI have a `RemoteTrigger` tool that calls the claude.ai remote-trigger API (the same thing the `/schedule` skill wraps). With it I can:\n- **`create`** a scheduled routine (cron or one-time) that spins up a Claude Code agent in the cloud\n- **`run`** an existing trigger immediately, on demand\n- `list` / `get` / `update` them\n\nThese run server-side and show up on claude.ai \u2014 not on your machine. This is the cleanest \"you trigger a Claude session\" path.\n\n## 2. Codex \u2014 no cloud trigger, only local resume\nThere's no remote-trigger equivalent for Codex. The way this repo starts Codex work is `remote_control/usage_limit` spawning a detached **`codex exec resume`** subprocess in the session's recorded cwd (`monitor.py:293`). That's *resuming* an existing rollout, not opening a brand-new session. I could launch `codex exec ...` via Bash to start a fresh local one, but that's the crude manual route.\n\n## 3. What the repo already does autonomously (I don't hand-trigger these)\n- **`supervisor.py`** spawns long-running `claude remote-control` servers for each dir in `active-dirs.txt` \u2014 a background service, not per-task.\n- **`usage_limit/monitor.py`** auto-resumes sessions paused by usage limits: Claude via a POST resume event to the cloud session API (`attempt_resume`), Codex via the local `codex exec resume` above.\n\n## 4. Sub-agents (within *this* session)\nI can also spawn `Agent` sub-agents for parallel work \u2014 but those are children of this conversation, not standalone Claude Code/Codex sessions.\n\n---\n\nSo: **remote Claude Code \u2192 yes, I can create or fire one now.** **Codex \u2192 only local spawn/resume via Bash.** \n\nWant me to actually do one \u2014 e.g. fire off a scheduled remote Claude routine, or list what triggers already exist?"
+      },
+      {
+        "role": "user",
+        "text": "lets try one"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me first see what triggers already exist, so we either reuse one or create a fresh simple one."
+      },
+      {
+        "role": "assistant",
+        "text": "No triggers exist yet, so we'll create one. Let me check the `/schedule` skill for the exact body format the create call expects."
+      },
+      {
+        "role": "assistant",
+        "text": "The `/schedule` skill is built-in (not file-based). Let me invoke it to get the correct body format and requirements."
+      },
+      {
+        "role": "assistant",
+        "text": "Good \u2014 let's create one. A few quick choices, then I'll show you the full config before firing."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "just say hi, Once, in ~5 min (Recommended), macmini:ai-harness"
+  }
+}

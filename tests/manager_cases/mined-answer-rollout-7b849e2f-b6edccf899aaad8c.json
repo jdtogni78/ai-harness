@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-7b849e2f-b6edccf899aaad8c",
+  "sig": "answer:rollout-7b849e2f:b6edccf899aaad8c",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 7b849e2f-db1e-4d0f-85c9-b211a7de0d15.jsonl turn #434",
+  "input": {
+    "action": {
+      "session_id": "rollout-7b849e2f",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_016sw9GJsprdtJWad9DPwp7X",
+      "question": "How do you want to roll out 'Share Loan' (vs the existing 'Loan Share')?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01KgAuB7dwcuzj3RCoFtb3sq",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want to roll out 'Share Loan' (vs the existing 'Loan Share')?",
+            "header": "Rename scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Flip UI labels first, then re-render demo",
+                "description": "Edit the Blade views (breadcrumbs, badges, headers, section nav) to say 'Share Loan'/'Share Loans' everywhere, then re-render the demo against the updated screens so narration and visuals match. Most coherent, more work."
+              },
+              {
+                "label": "Just flip narration now, accept mismatch",
+                "description": "Edit the YAML narration to say 'Share Loan' immediately. The viewer hears 'Share Loan' but sees 'Loan Share' on screen \u2014 useful to validate how the term sounds in context, but visually inconsistent."
+              },
+              {
+                "label": "Pause demo, just file the rename in ticket #4",
+                "description": "Don't change the demo. Update issue #4 (the rename umbrella) and the prior [[share-loan-rename]] memory to reflect that the new target term is 'Share Loan', and let a future thread carry it out together with the deeper rename."
+              },
+              {
+                "label": "Discuss more before deciding",
+                "description": "Talk through tradeoffs \u2014 e.g. whether 'Share Loan' really beats 'Loan Share' enough to undo the prior rename, or whether either fits a broader brand voice."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "All three new routes 200, and account 7 is in fund 2 (so loan #2 rolls up to fund 2's exposure card). Rewriting the storyboard now."
+      },
+      {
+        "role": "assistant",
+        "text": "Storyboard updated \u2014 16 scenes now (was 13). Three new beats added:\n- **`/credit-lines/2/actions`** \u2014 the admin actions page with the readjust card detail\n- **`/credit-lines/2/simulator`** \u2014 what-if planning (absorbs the no-interest + dollar\u2194share framing)\n- **`/funds/2#section-credit-lines`** \u2014 fund-level Shares Loan Exposure rollup (split into a goto + reveal so the section anchor lands below the sticky nav)\n\nClosing line widened to mention the fund-level view too. Re-rendering and overwriting the iCloud copy."
+      },
+      {
+        "role": "assistant",
+        "text": "Render kicked. Expect ~5\u20136 min (3 new scenes added). I'll overwrite `familyfund-loan-shares.mp4` in iCloud Demos when it finishes."
+      },
+      {
+        "role": "assistant",
+        "text": "Done. **v4 mp4** copied to iCloud \u2014 9.1 MB, **3:43** onyx (was 2:50). Sixteen scenes now including:\n- Admin actions page detail (readjust)\n- Payment simulator (both modes + share-price exposure framing)\n- Fund-level Shares Loan Exposure rollup at `/funds/2#section-credit-lines`\n\nClosing line widened to mention the fund-level view."
+      },
+      {
+        "role": "user",
+        "text": "think we should switch from loan share to shared loans. No. not shared loans. Share loans."
+      },
+      {
+        "role": "assistant",
+        "text": "Two thoughts on the rename before I touch anything:\n\n1. **Linguistically \"Share Loan\" reads more naturally** \u2014 \"share\" as a modifier on \"loan\" (analogous to \"auto loan\", \"student loan\", \"share loan\") is cleaner than \"loan share,\" which can sound like a stake in someone else's loan. So the swap is reasonable.\n\n2. **There's an on-screen vs. narration coupling.** The app's UI still says \"Loan Share\" \u2014 breadcrumbs, badges, headers, even the section nav label (\"Loan Shares\"). If the narration starts saying \"Share Loan\" while the screen reads \"Loan Share,\" that's a jarring mismatch for the viewer. The label-only rename in `[[share-loan-rename]]` would need to flip too, and then the demo re-renders against the updated UI.\n\nSo the question is scope. A few ways to go:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "change narration. file ticket"
+  }
+}

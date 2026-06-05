@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-42d207ac-c439fe8a187b60be",
+  "sig": "answer:rollout-42d207ac:c439fe8a187b60be",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 42d207ac-0d8c-43e5-bea7-284fc877754b.jsonl turn #188",
+  "input": {
+    "action": {
+      "session_id": "rollout-42d207ac",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01EtXEXPYqqMoqciMAqKyVk4",
+      "question": "Migration succeeded (25/25). 9 new bodies have stale `#N` refs that now silently mis-link. Pick the repair path:",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01NAr5HfjMTXpxCEqs2ydRwj",
+        "description": "",
+        "questions": [
+          {
+            "question": "Migration succeeded (25/25). 9 new bodies have stale `#N` refs that now silently mis-link. Pick the repair path:",
+            "header": "Stale-refs fix",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "(R1) Rewrite all 9 bodies (Recommended)",
+                "description": "Worker edits the 9 new bodies, substituting each #N per the map (migrated \u2192 new ai-harness#M; closed-on-archive \u2192 full archive URL for cross-repo render). Updates the migration header on each rewritten issue from \"verbatim\" to \"lightly edited for cross-reference integrity\" with an audit line listing the subs. Cleanest end state."
+              },
+              {
+                "label": "(R4) R1 for #53, R2 for rest",
+                "description": "#53 (formerly archive#21) has 12 stale refs and is the worst single offender \u2014 rewrite it. The other 8 just get a one-line annotation. Smaller surface change but inconsistent treatment."
+              },
+              {
+                "label": "(R2) Annotate every affected body",
+                "description": "Append a one-liner to each of the 9: 'Note: #N refs use legacy archive numbering \u2014 see docs/board-issue-transfer-map.md'. Preserves verbatim wording, but every reader must translate via the map."
+              },
+              {
+                "label": "(R3) Document only in map header",
+                "description": "Don't touch the 9 bodies. Add a paragraph to the map file's header warning that some bodies contain stale #N refs. Cheapest; landmines persist forever in the issue bodies."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Good catch by the worker \u2014 paused at #1/38, no damage, no work done. Board state unchanged.\n\n**My read: (A4) document the workaround.** The reason the public/archive split exists is precisely that the archive log has unscrubbed real-name / hostname literals (tickets #12 and #13 still open for HEAD+history scrub on the *public* repo \u2014 the archive is worse). Even a few seconds of public visibility on the archive would seed GitHub's search index with that material, and the flip-back doesn't unindex it. (A1) trades a permanent risk for a transient board-UI tidy. (A2) defeats the portfolio's whole point during the window. (A3) loses the multi-agent claim-comment history. **(A4) gets the operational win** (skills/helpers no longer trip on the legacy URLs) **without touching visibility**.\n\nIf you want a longer-term plan, file a `#XX archive\u2192public migration after history-scrub` ticket once `#13` lands \u2014 then (A1) becomes viable because the archive history would also be sanitized."
+      },
+      {
+        "role": "assistant",
+        "text": "Relaying (A3) to worker."
+      },
+      {
+        "role": "assistant",
+        "text": "The nudge crossed in flight with my A3 relay \u2014 both events landed essentially simultaneously. The A3 instruction (3395 chars) was submitted successfully *after* the worker queued the nudge but *before* I read this reminder. So the worker's inbox has both: the stale \"still waiting\" nudge, then the A3 go-ahead. The worker will process A3 next turn.\n\nLet me confirm the order on disk."
+      },
+      {
+        "role": "assistant",
+        "text": "Confirmed: worker is `running`, `last_event_at` = 06:37:12 UTC (after the A3 submit). A3 instruction landed and the worker is now executing the recreate-25-issues plan. The earlier nudge was sent in the brief window before A3 reached it \u2014 no action needed on it.\n\nNext reply from the worker will be the post-migration report (map file + first/last 3 rows + skipped labels + post-board count). I'll surface it and ask for `/close-work` OK then."
+      },
+      {
+        "role": "user",
+        "text": "[from cse_01JfV8eL9nezYhTUFUmNm3ns \u2014 reply via send-to-session]\n\nPAUSING per your snag rule \u2014 all 25 migrations completed, but 9 of the 25 new bodies contain embedded `#N` self-references to the legacy numbering that now silently point at the WRONG issue on ai-harness. The boss flagged this exact case as a pause-trigger; the map is built but not yet committed pending your decision on how (or whether) to repair these.\n\n## Migration result (board state already mutated)\n\n- 25/25 transferred, 0 failures.\n- Map file written at `docs/board-issue-transfer-map.md` (uncommitted on this working tree). First / last 3 rows:\n  - archive#5  \u2192 ai-harness#44  (Resume mechanism: 'true retry' vs injected continue)\n  - archive#6  \u2192 ai-harness#45  (Codex approval rules: force-push prompt)\n  - archive#7  \u2192 ai-harness#46  (Claude.ai dead env_ entries)\n  - \u2026\n  - archive#37 \u2192 ai-harness#66  (manager: guideline eval harness)\n  - archive#40 \u2192 ai-harness#67  (manager-eval phase 3 runner)\n  - archive#41 \u2192 ai-harness#68  (manager-eval phase 4 compare)\n- Board #2 post-state (via GraphQL): jdtogni78/ai-harness 48 OPEN + 8 CLOSED = 56 issue cards; jdtogni78/ai-harness-archive 0 OPEN + 13 CLOSED (the intentionally-not-migrated closed legacy items, untouched).\n- Spot-checked ai-harness#48 (the SOPS+age, formerly archive#14): title verbatim, migration header rendered, Status=\"In Progress\" on the board card. \u2713\n- Spot-checked ai-harness#68 (last, formerly archive#41): title verbatim, migration header rendered. \u2713\n- Source labels skipped: none \u2014 all 25 sources had zero labels (and the two repos' label taxonomies are identical anyway).\n\n## The snag \u2014 embedded `#N` self-references in 9 bodies\n\nEach `#N` below was authored when the body lived on archive \u2014 it meant archive#N. After migration, GitHub will resolve `#N` against the **new repo (ai-harness)**, so each reference now silently links to a different, unrelated issue.\n\n| new ai-harness# | (formerly archive#) | embedded refs in body | what they actually meant | what they NOW resolve to on ai-harness |\n| --- | --- | --- | --- | --- |\n| #47 | archive#12 | `#3`           | archive#3 (Codex resume, CLOSED, kept on archive)              | ai-harness#3 (session_resume bugs) \u2014 WRONG |\n| #48 | archive#14 | `#3`           | archive#3 (same)                                                | ai-harness#3 \u2014 WRONG |\n| #49 | archive#15 | `#14`          | archive#14 \u2192 now ai-harness#48                                 | ai-harness#14 (this very ticket) \u2014 WRONG |\n| #53 | archive#21 | `#1,#2,#5,#6,#7,#8,#12,#14,#15,#16,#17,#19` | mostly migrated archive items (5,6,7,12,14,15,16,17,19) plus closed archive#1,#2,#8 | every single one now resolves to a different ai-harness issue \u2014 ALL WRONG |\n| #55 | archive#24 | `#22,#23`      | archive#22 \u2192 ai-harness#54; archive#23 closed on archive       | ai-harness#22 / #23 \u2014 WRONG |\n| #56 | archive#25 | `#22,#23`      | same                                                            | WRONG |\n| #57 | archive#26 | `#22`          | archive#22 \u2192 ai-harness#54                                     | ai-harness#22 \u2014 WRONG |\n| #58 | archive#27 | `#22`          | same                                                            | WRONG |\n| #67 | archive#40 | `#37`          | archive#37 \u2192 ai-harness#66                                     | ai-harness#37 (docs: AGENTS.md) \u2014 WRONG |\n| #68 | archive#41 | `#37`          | same                                                            | WRONG |\n\n(That's the union of 9 issues, with #53 being a heavy cross-referencer.)\n\n## Options for the boss\n\n(R1) **Rewrite the new bodies** to remap each `#N` to its new ai-harness#M using the map. For refs to closed-and-not-migrated archive items (#1, #2, #3, #8, #23), rewrite as the full archive URL \u2014 `jdtogni78/ai-harness-archive#N` \u2014 which renders as a clickable cross-repo ref. ~9 edits, mechanical, I can script it. Cleanest reader experience, no map-consultation needed.\n\n(R2) **Annotate, don't rewrite.** Append a one-line note to each affected new body:\n     > Note: `#N` references in the body above use the legacy archive numbering \u2014 see [`docs/board-issue-transfer-map.md`](\u2026).\n     Lighter touch, preserves the original verbatim wording, but every reader has to translate via the map.\n\n(R3) **Do nothing in the bodies**, document the gotcha only in the map file header. Cheapest, but the issue bodies themselves silently mislead. The boss's framing \u2014 \"the map file is the only forward-link\" \u2014 gestures this way.\n\n(R4) **R1 for the heavy cross-referencer (#53)**, R2 for the rest. #53 alone has 12 stale refs and is the worst single offender; the others have 1-2 each.\n\nI'd lean (R1) \u2014 the cost is small (~9 issues, scriptable from the map I already have in memory) and it removes a foot-gun that lives forever in the new issue bodies. (R3) leaves landmines.\n\n## What I'm holding\n\n- `docs/board-issue-transfer-map.md` is on disk, uncommitted. The header paragraph matches your spec (recreate, no redirect, the 13 closed left as-is).\n- No body rewrites done on any of the 25 new issues.\n- All 25 archive sources closed with `Moved to <new-url>` comment + removed from board #2.\n\nAwaiting your pick (R1 / R2 / R3 / R4). Once you choose, I'll do the body work (if any), commit + merge the map to main, and send the final report. /close-work still on hold per your instruction.\n\nWorker on jdtogni78/ai-harness#14 (claimed: youruser+ai-harness@mini)."
+      },
+      {
+        "role": "assistant",
+        "text": "Migration itself landed cleanly (25/25, board now uniformly on `ai-harness` for the open work). Worker correctly paused on the stale-`#N` foot-gun: 9 of the 25 new bodies have inline `#N` refs that now silently link to wrong issues.\n\n**My read: (R1) rewrite all 9.** (R3) leaves landmines that will burn anyone clicking `#3` in ai-harness#48 (lands on the session_resume bug \u2014 totally unrelated). (R2) annotation forces every reader to do a map lookup for every `#N` they encounter. (R1) is scriptable from the map the worker already has \u2014 small one-time cost, correct bodies forever. One thing to flag: the migration header says \"original body verbatim\" \u2014 after rewrite that's no longer literally true, so the worker should change the header on rewritten issues to \"Migrated and lightly edited from archive#N for cross-reference integrity\" (and a one-line list of which `#N\u2192#M` subs were made, so the edit is auditable).\n\n(R4) is a weird hybrid; if rewriting is scriptable for #53 it's just as cheap for the rest."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "(R1) Rewrite all 9 bodies (Recommended)"
+  }
+}

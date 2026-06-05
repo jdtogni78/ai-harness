@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-7dcf6886-d2ea7d678707513e",
+  "sig": "answer:rollout-7dcf6886:d2ea7d678707513e",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 7dcf6886-8457-4a6e-b535-4416fe8b3043.jsonl turn #93",
+  "input": {
+    "action": {
+      "session_id": "rollout-7dcf6886",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01XwDewUgFeC5bPu6rT9Rmk4",
+      "question": "How do you want to proceed on the dstrader auth coupling?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01MJBRTNdp5j1s35RGFQb2Pr",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want to proceed on the dstrader auth coupling?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Claim #82, plan full fix",
+                "description": "Claim #82 on the board, then design the end-to-end plan: FF service user + token + bulk-endpoint gating, dstrader Java header, dstrader-docker bash header, coordinated deploy."
+              },
+              {
+                "label": "Implement dstrader auth now",
+                "description": "In dstrader + dstrader-docker worktrees, add the Bearer-token plumbing (HTTPUtils, HolidayAPIClient, familyfund_bashlib.sh + properties/env) so they auth correctly."
+              },
+              {
+                "label": "File coupling as a ticket",
+                "description": "Capture this cross-repo finding (dstrader must send a system-admin Sanctum token; coordinate with #82) as a tracked issue/note on the board, no code yet."
+              },
+              {
+                "label": "Just the review, stop here",
+                "description": "You take the findings; no claim, no code, no ticket from me right now."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "You're right \u2014 if dstrader pushes asset prices (and possibly assets/holidays) into FamilyFund's API, then admin-gating those writes will break it unless dstrader authenticates as a system admin. Let me locate the repos and trace the integration before concluding anything."
+      },
+      {
+        "role": "assistant",
+        "text": "Key finding already: **dstrader sends no auth header at all.** Before I write up the review, I need to reconcile one critical thing on the FamilyFund side \u2014 dstrader writes to `asset_prices_bulk_update` / `portfolio_assets_bulk_update` (custom Ext controllers), **not** the generated `asset_prices`/`assets` resource controllers that #82 targets. Let me check exactly what's gated where."
+      },
+      {
+        "role": "assistant",
+        "text": "Now let me check the two bulk-write controllers dstrader actually hits, to see their current auth state and whether #82 would touch them."
+      },
+      {
+        "role": "assistant",
+        "text": "I have the full picture now. Let me handle the rename you asked for, then give you the review."
+      },
+      {
+        "role": "assistant",
+        "text": "The `--self` derivation needs to run from inside the worktree. Let me check the right invocation."
+      },
+      {
+        "role": "assistant",
+        "text": "Session renamed to **`[FF] #82 dstrader API auth review`**. Now the review.\n\n---\n\n## dstrader \u2194 FamilyFund auth review\n\nYour instinct is correct, but the real coupling is **bigger than #82** \u2014 and #82 only catches part of it.\n\n### 1. The headline problem: dstrader sends **no authentication at all**\n\nEvery FamilyFund endpoint dstrader touches is already behind `auth:sanctum` on `main` (routes/api.php:34, merged 2026-05-24 with #13/#49). But dstrader's HTTP layer sets only `Accept`/`Content-Type` \u2014 **no `Authorization: Bearer` header anywhere**:\n\n- `dstrader/.../utils/HTTPUtils.java` \u2014 `sendPost` / `sendGet` / `sendGetJson`\n- `dstrader/.../utils/HolidayAPIClient.java` \u2014 `fetchHolidays`\n- `dstrader-docker/dstrader/scheduler/familyfund_bashlib.sh` \u2014 `ff_post` / `ff_get` (curl, no token)\n- `familyfund.properties` (both `dstrader/` and the prod/stage copies in dstrader-docker) hold **URLs only, zero credentials**\n\n**So the moment prod FamilyFund is upgraded to current `main`, every dstrader call returns `401 Unauthenticated`** \u2014 price pushes, position pushes, gap reads, trade-portfolio reads, holiday reads. This is almost certainly why prod still runs the *old* FamilyFund (no-auth) and likely tangles with the Jan\u2192today price gap (#30 / dstrader-aws #6). dstrader is broken against new-FF *today*, before #82 even lands.\n\n### 2. What dstrader actually calls vs. what #82 gates \u2014 they barely overlap\n\n| dstrader call | FamilyFund route \u2192 handler | Verb | #82 touches it? |\n|---|---|---|---|\n| `asset_prices_bulk_update` | `AssetPriceAPIControllerExt::bulkStore` (api.php:42) | **WRITE** | \u274c custom method, not a generated `store` |\n| `portfolio_assets_bulk_update` | `PortfolioAssetAPIControllerExt::bulkStore` (api.php:44) | **WRITE** | \u274c custom method |\n| `asset_prices/gaps` | `AssetPriceAPIControllerExt::gaps` (api.php:43) | read | \u274c (read) |\n| `trade_portfolios` | `TradePortfolioAPIControllerExt::index` (api.php:102) | read | \u274c but **tenant-scoped** by `AuthorizesApiAccess` |\n| `exchange_holidays/{ex}/{year}` | `ExchangeHolidayAPIController::index` (api.php:114) | read | \u274c (read; #82 only gates its writes) |\n\n#82's admin-gating targets the **generated resource** controllers (`assets`, `asset_prices` *resource*, `matching_rules`, `schedules`, `change_logs`, `asset_change_logs`, `exchange_holidays` writes). dstrader's two writes go through the **custom `bulkStore`** endpoints, which a strict #82 wouldn't touch. The two bulk Ext controllers currently have **no admin check** (plain constructors, no `requireSystemAdmin`).\n\n### 3. The decision #82 forces\n\nThose bulk endpoints are *the* price/position mutators for global reference data. Leaving them open to any authenticated user while admin-gating the generated `asset_prices` resource would be inconsistent. **You should extend #82's policy to gate `asset_prices_bulk_update` and `portfolio_assets_bulk_update` to a system-admin/service identity too** \u2014 otherwise the gate has a wide-open back door. And once you do, dstrader's identity must be **system-admin**.\n\nSeparately, `trade_portfolios` reads are already tenant-scoped \u2014 a non-admin token would only see funds it's granted. A **system-admin** service token sidesteps that (bypasses scoping), which is what you want for a trading daemon that feeds all funds.\n\n### 4. What \"auth correctly\" requires (the fix, both repos together)\n\n1. **FamilyFund:** create a dedicated **service user** with system-admin role; mint a **Sanctum personal access token**. (Decide as part of #82 whether to also gate the two `*_bulk_update` endpoints \u2014 recommend yes.)\n2. **Secret handling:** store that token via SOPS+age (the repo's direction \u2014 ED-0002, #80/#8), inject at deploy. Add a `familyfund.api_token` key (read from env, **not committed**) to the prod/stage `familyfund.properties`.\n3. **dstrader (Java):** add `Authorization: Bearer <token>` in `HTTPUtils` (all 3 methods) and `HolidayAPIClient`.\n4. **dstrader-docker (bash):** add `-H \"Authorization: Bearer ${FF_API_TOKEN}\"` to `ff_post`/`ff_get` in `familyfund_bashlib.sh`, and plumb `FF_API_TOKEN` through the compose/run scripts.\n5. **Deploy as one unit:** the auth requirement is already live on `main`; #82 tightens it. FamilyFund-with-token-gating and dstrader-with-token must ship in the same window or prod price feeds go dark.\n\n### Bottom line\n\n#82 is real and you've correctly spotted it needs dstrader changes \u2014 but the **urgent** coupling is that dstrader has *never* sent a token and is already incompatible with deployed-`main` FamilyFund. I'd treat this as: **(a)** dstrader gets a system-admin Sanctum token + `Authorization` header (Java + bash), **(b)** #82 extends to the bulk endpoints, **(c)** both deploy together.\n\n---\n\nPer the worktree rule, any dstrader / dstrader-docker edits should happen in their own worktrees, not the canonical checkouts. How do you want to proceed?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Claim #82, plan full fix"
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-c1698e5e-a265bfa0c6845684",
+  "sig": "answer:rollout-c1698e5e:a265bfa0c6845684",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from c1698e5e-7ae1-473d-940d-1cdbcf04659a.jsonl turn #48",
+  "input": {
+    "action": {
+      "session_id": "rollout-c1698e5e",
+      "repo": "job-search",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/job-search/.claude/worktrees/bridge-cse_01DyS5ww5EXCYBRqozmN8SXh",
+      "question": "What does the Family Fund app actually do today? (pick all that apply)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Fiuxnhzhcu3paisn98ZN6b",
+        "description": "",
+        "questions": [
+          {
+            "question": "What does the Family Fund app actually do today? (pick all that apply)",
+            "header": "Family Fund",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Tracks contributions / balances per family member",
+                "description": "Like a shared pot \u2014 who put in what, who owes what, family ledger."
+              },
+              {
+                "label": "Tracks expenses / spending against goals",
+                "description": "Categorized spending, budget vs. actual, savings goals."
+              },
+              {
+                "label": "Internal lending / IOUs between family members",
+                "description": "Tracks who lent who what, repayment schedules, interest."
+              },
+              {
+                "label": "Investments / shared brokerage / asset allocation",
+                "description": "The fund actually invests money \u2014 stocks, bonds, real estate, etc."
+              }
+            ]
+          },
+          {
+            "question": "What does the Trading app do today?",
+            "header": "Trading app",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Tracks my portfolio / positions / P&L",
+                "description": "Read-only \u2014 imports brokerage data, shows positions, performance."
+              },
+              {
+                "label": "Executes trades / connects to a broker API",
+                "description": "Actually places orders \u2014 IBKR, Alpaca, Schwab, etc."
+              },
+              {
+                "label": "Backtests / runs strategies on historical data",
+                "description": "Quant-style \u2014 define strategy, replay against history."
+              },
+              {
+                "label": "Tracks watchlists / research notes / theses",
+                "description": "Note-taking and tracking ideas separately from positions."
+              }
+            ]
+          },
+          {
+            "question": "What stack are these apps in? Helps me sketch concrete AI integrations.",
+            "header": "Stack",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Mobile (iOS / Android / React Native / Flutter)",
+                "description": "Apps are primarily mobile-first."
+              },
+              {
+                "label": "Web (React / Next.js / Vue / etc.)",
+                "description": "Browser-based, likely with a backend API."
+              },
+              {
+                "label": "Both mobile and web",
+                "description": "Some mix \u2014 e.g. backend serves both."
+              },
+              {
+                "label": "Something else / mostly backend scripts",
+                "description": "Python/Node/Go backend, maybe no real frontend yet."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Good \u2014 that gives me a sharp profile to work with. Here's how I'd read your situation, then a concrete next step.\n\n## The honest read\n\nYou're a strong fit for a role shape that's *very* in demand in 2026: **Staff / Founding / Forward-Deployed engineer at an AI-first company** \u2014 hands-on but trusted to own architecture and influence direction, often remote, usually less politics than Visa. Your EM experience is a feature, not a bug, for these roles (founders love hiring senior ICs who've actually shipped with teams).\n\nThe catch: hiring managers at AI-native companies weight *visible AI work* heavily. EM at Visa + big-data background gets you taken seriously, but it won't be the deciding factor \u2014 a couple of real LLM/agent projects you can point at will.\n\n## The four realistic lanes\n\n1. **Staff / Founding Eng at AI startups (Series A\u2013C).** Best match for \"interesting work + flexibility + hybrid leadership.\" Anthropic, OpenAI, Sierra, Decagon, Cresta, Harvey, Hebbia, etc. all hire this shape.\n2. **Forward-Deployed Engineer roles** (Anthropic, OpenAI, Palantir, Sierra). Hybrid IC + customer-facing leadership \u2014 uses your EM muscle directly. High-leverage, well-paid, often remote-friendly.\n3. **Applied AI / \"AI team\" inside a mature company that's remote-friendly** (Stripe, Shopify, Vercel, Cloudflare, GitLab). Lower risk, still flexible, but less \"interesting\" upside than #1.\n4. **Fractional / advisory / AI consulting.** Uses both EM history and new AI skills. Maximum flexibility, requires you to do your own sales.\n\n## My recommendation for the next 4\u20136 weeks\n\nDon't start applying yet \u2014 you'd be undervalued. Instead:\n\n- **Build 2 small but real LLM/agent projects** (something agentic, not just \"wrap GPT in a Streamlit\"). One should solve a problem in a domain you already know (payments? mobile? data pipelines?). That domain bridge is your differentiator vs. a 25-year-old who only knows AI.\n- **Write 2 short posts** about what you built and what surprised you. Doesn't need to go viral \u2014 recruiters and hiring managers Google you.\n- **Then** start outbound: targeted reach to ~15 companies in lanes #1 and #2, not job-board spray.\n\nWant me to:\n- **(a)** brainstorm specific project ideas that bridge your background \u2192 AI?\n- **(b)** put together a target-company list with the actual current AI/Staff openings?\n- **(c)** look at your resume / LinkedIn and reposition it for the AI-startup lane?\n\nPick whichever feels most useful to start, and we can do the others after."
+      },
+      {
+        "role": "user",
+        "text": "a"
+      },
+      {
+        "role": "assistant",
+        "text": "Here are the strongest candidates I'd consider, ranked by **signal per week of effort**. The bar to aim for: each project has a clear eval (not vibes), a real agent loop (not a single GPT call), and something a hiring manager can click in 30 seconds.\n\n## 1. Agentic merchant resolver (payments \u00d7 LLM) \u2014 *highest signal, lowest risk*\nRaw card-transaction descriptors are notoriously ugly (`SQ *COFFEE 4837 SF`, `AMZN MKTP US*RT4...`). Build an agent that resolves them to canonical `{merchant, category, location, confidence}`, with tool calls out to web search / a merchant DB when uncertain. **What it shows:** structured outputs, evals (you can label ~500 examples and report precision/recall), tool use, judgment about when to escalate. **Why it works for you:** instantly credible to anyone in fintech, and it's a real problem Visa, Plaid, Ramp, Mercury, Brex all care about. Scope: ~2 weekends.\n\n## 2. On-device LLM mobile app (mobile \u00d7 LLM) \u2014 *most differentiated*\nShip something real running on-device with Apple Foundation Models / `MLX` or Gemini Nano on Android. A private journaling coach, a meeting summarizer that never leaves the phone, an offline travel companion \u2014 pick whatever you'd use. **What it shows:** something 95% of \"AI engineers\" can't do because they've never shipped mobile. Latency budgeting, model size tradeoffs, mobile UX with non-deterministic outputs. **Why it works for you:** your mobile background becomes a moat instead of legacy. Scope: ~3 weekends. Risk: tooling is still rough \u2014 budget for friction.\n\n## 3. NL\u2192SQL agent over a real public dataset (big-data \u00d7 LLM)\nPick a meaty open dataset (NYC taxi, SEC EDGAR, Common Crawl stats). Build an agent that goes question \u2192 plan \u2192 SQL \u2192 execute \u2192 critique own result \u2192 retry. **What it shows:** the agent loop, eval discipline (use Spider or BIRD benchmarks for a real number), retry/correction logic. **Why it works:** ubiquitous problem, easy demo. **Downside:** crowded space \u2014 only worth doing if you can post a *number* that's competitive.\n\n## 4. Fraud-investigation co-pilot (payments \u00d7 agent)\nGiven a flagged transaction (Kaggle fraud dataset or synthetic), an agent pulls related transactions, builds a timeline, drafts an investigator-ready narrative with cited evidence. **What it shows:** multi-tool agent, citations, long-context reasoning, the \"human in the loop\" UX pattern that's hot right now. **Risk:** harder to make crisp without messy data plumbing. Scope: ~3 weekends.\n\n---\n\n## What I'd actually pick\n\n**Do #1 first** (low risk, fast, hits payments). Then **do #2** (high differentiation, leverages a real moat of yours). Skip #3 unless you genuinely enjoy it \u2014 it's the most generic. Hold #4 in reserve as a \"v2\" if you want a flagship project later.\n\nBoth #1 and #2 give you something to write about: *\"Here's the eval set, here's what worked, here's what surprised me, here's what I'd build next.\"* That posture \u2014 engineer-with-taste, not prompt-tinkerer \u2014 is what gets Staff offers from AI startups.\n\nWant me to scope out #1 in detail (architecture sketch, eval plan, dataset sources, what \"done\" looks like) so you could start this weekend?"
+      },
+      {
+        "role": "user",
+        "text": "I actually have a financial, uh, Family Fund app that I'm developing for my own family. I could build something with Agentic for that. The project is... the Family Fund and they are straight there. So I have also a trading app. So I could... both of them... either of them, we could work that out. Maybe those are the... my pet projects that I can try to use for something. I can do some sort of stock stock related, um, picker suggestions based on a or analysis of portfolios or, I don't know, something else on these lines."
+      },
+      {
+        "role": "assistant",
+        "text": "This is actually much better than starting from zero \u2014 you already have the code, the domain knowledge, and (importantly) the motivation to keep maintaining it after the demo. Let me save that and then push back a little on the stock-picker idea, because the framing matters a lot."
+      },
+      {
+        "role": "assistant",
+        "text": "## One important warning first\n\n**\"AI stock picker\"** is the single most overdone \u2014 and lowest-signal \u2014 AI project genre. Every junior CS grad has shipped a sentiment-analysis-picks-stocks demo. To a hiring manager at a serious AI shop, it can actually be a *yellow flag* \u2014 it suggests you don't realize markets are efficient and that LLMs are bad at numerical prediction.\n\nBut the same trading app, framed as a **research and workflow agent** instead of a predictor, is genuinely strong signal. The trick is *what the AI does*:\n\n- \u274c \"AI suggests stocks to buy\" \u2014 predicting prices. Doesn't work, looks naive.\n- \u2705 \"AI does the research work a thoughtful investor would do\" \u2014 reading 10-Ks, summarizing earnings calls, building a thesis doc, finding contradictions in management guidance, flagging when a position drifts from your stated thesis. **This is real, useful, and shows engineering taste.**\n\nSame for the Family Fund app \u2014 the agentic surface is rich and *less crowded*: a financial coach that knows your family's actual situation, anomaly detection on spending, goal-tracking conversations, receipt ingestion, \"explain this fee\" research.\n\n## Which one to lead with\n\nMy instinct is **Family Fund is the better flagship**, because:\n- Less crowded space \u2192 easier to stand out\n- Family-shaped data is a rich agentic playground (multiple people, goals, constraints, conversations)\n- Easier to demo without legal disclaimers (\"not investment advice\")\n- The story \u2014 *\"I built an AI financial assistant for my own family\"* \u2014 is memorable and personal\n\nTrading app is a strong **second project** if framed as a research-agent.\n\nBut I need to know what these apps actually do before I can sketch concrete features. Quick questions:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "The review the family fund directory, review the de trader directory, Web (React / Next.js / Vue / etc.)"
+  }
+}

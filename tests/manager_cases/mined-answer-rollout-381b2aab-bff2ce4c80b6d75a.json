@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-381b2aab-bff2ce4c80b6d75a",
+  "sig": "answer:rollout-381b2aab:bff2ce4c80b6d75a",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 381b2aab-c46c-4d28-b14d-f7f7d1c0e83f.jsonl turn #65",
+  "input": {
+    "action": {
+      "session_id": "rollout-381b2aab",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01FGYsmgUW8mpPQoJAtz5nBy",
+      "question": "How should resume_brief.sh stop re-listing sessions we've already dealt with?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_013UcJ5N2ZYuugpWkDTByhaV",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should resume_brief.sh stop re-listing sessions we've already dealt with?",
+            "header": "Resume list filter",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Both: auto-hide + ack (Recommended)",
+                "description": "Auto-hide sessions whose worktree is gone AND branch is merged. Plus add `ack <uuid>` to manually dismiss the rest. `list --all` shows everything."
+              },
+              {
+                "label": "Just auto-hide merged+gone",
+                "description": "Hide rows when worktree dir is gone AND branch is merged (or no longer exists locally). Zero manual work, but you can't dismiss a still-around abandoned worktree."
+              },
+              {
+                "label": "Just an explicit `ack` marker",
+                "description": "Add `resume_brief.sh ack <uuid>`; list filters acked UUIDs by default. Fully manual \u2014 nothing is hidden until you say so."
+              },
+              {
+                "label": "Leave it alone",
+                "description": "Keep the current behavior; I'll mentally filter the gone/merged ones."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Do we have a way to recognize the things that we already reviewed? Um, I feel like when I call resume work, we are getting to review over and over the same things. Can you double check that that is true, or do we have a mechanism to annotate that we already resolved the sessions?"
+      },
+      {
+        "role": "assistant",
+        "text": "Good question \u2014 let me check both scripts to see if there's any existing \"resolved/seen\" marker, and whether the same sessions are actually being re-listed each time."
+      },
+      {
+        "role": "assistant",
+        "text": "You're right \u2014 there's no \"seen/resolved\" marker today, and it's why the same sessions keep surfacing.\n\n**What `resume_brief.sh list` actually does** (resume_brief.sh:33-58):\n- Lists the N most-recently-ended `.jsonl` transcripts for this repo, sorted by mtime.\n- Only filter is existence of `cwd`/timestamp. No notion of reviewed, resumed, or resolved.\n- Cleanup step C6 in the skill *explicitly* preserves transcripts (\"Leave transcripts alone\"). So even after a worktree is GC'd and the branch is merged, its transcript stays and keeps appearing in the list.\n\nThe only \"hint\" you get today is the `WORKTREE` column showing `gone` and `DIRTY=gone` \u2014 but the row is still there.\n\n**So yes, your perception is correct.** Today's list included 12 of the same sessions you almost certainly already triaged earlier \u2014 all `gone` worktrees with merged branches.\n\n**Options to fix it** \u2014 pick the flavor you want, I can implement any of them:\n\n1. **Auto-hide done work** (no annotation needed). Filter `list` to drop rows where worktree dir is gone AND the branch is merged (or no longer exists locally). This is essentially \"if there's nothing left to resume, hide it.\" Cleanest because it requires no manual action \u2014 but it does hide history.\n\n2. **Explicit ack marker.** Add `resume_brief.sh ack <uuid>` that writes to a small `~/.claude/projects/<slug>/.resume-acked` file. `list` filters acked UUIDs by default; `list --all` shows everything. You explicitly mark sessions as \"handled.\"\n\n3. **Both.** Auto-hide merged+gone (most cases), and an `ack` for the long-tail cases where the worktree is still around but you decided to abandon it.\n\nMy recommendation: **#3** \u2014 auto-hide the obvious done ones so the list shrinks without effort, plus `ack` as the escape hatch when auto-detection can't tell. Want me to add it?"
+      },
+      {
+        "role": "user",
+        "text": "As a memory to when you have questions, ask in a easier way for me to respond with this list of questions."
+      },
+      {
+        "role": "assistant",
+        "text": "Saving that as feedback memory so I default to the structured question tool next time."
+      },
+      {
+        "role": "assistant",
+        "text": "Saved. Now back to your earlier question \u2014 let me re-ask the resume-list-improvement decision in the friendlier format."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Both: auto-hide + ack (Recommended)"
+  }
+}

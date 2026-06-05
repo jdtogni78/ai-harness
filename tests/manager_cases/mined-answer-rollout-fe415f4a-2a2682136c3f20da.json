@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-fe415f4a-2a2682136c3f20da",
+  "sig": "answer:rollout-fe415f4a:2a2682136c3f20da",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from fe415f4a-e261-43fb-ae2b-1be3e259a365.jsonl turn #45",
+  "input": {
+    "action": {
+      "session_id": "rollout-fe415f4a",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01FhbssBV5VZEzDYW5cZ1kte",
+      "question": "Which of the review findings should I act on now?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01AvaEHSM9UxJCGLUBSZLfK2",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which of the review findings should I act on now?",
+            "header": "Next step",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Fix ED log gaps",
+                "description": "Add ED-0014 to the index table; fix the stale --exclude-group line in SETUP.md. Small, safe doc edits in this worktree."
+              },
+              {
+                "label": "Verify Vite state",
+                "description": "Check origin/main for the #34 Vite-6 merge and reconcile the tests.yml --legacy-peer-deps comment vs ED-0011."
+              },
+              {
+                "label": "Start a cross-repo decision log",
+                "description": "Create a general/all-projects decisions doc (e.g. ~/dev/DECISIONS.md) capturing worktree workflow, two-pool model, agent-claim coordination, secrets posture."
+              },
+              {
+                "label": "Just the review",
+                "description": "Leave everything as-is; this written review is all that was needed."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "review the enginereing decisions doc, and reviwe all the other infra aand things worth mentioning.\nseparate general - all projcets decisions vs this projec"
+      },
+      {
+        "role": "assistant",
+        "text": "I'll review the engineering decisions doc and survey the infrastructure. Let me start by reading the key files."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me survey the broader infrastructure \u2014 CI workflows, scripts, and the cross-project tooling referenced in the docs."
+      },
+      {
+        "role": "assistant",
+        "text": "The FamilyFund-specific picture is clear. Now let me check the cross-project tooling referenced throughout (ai-harness, the shared GitHub board, worktree conventions)."
+      },
+      {
+        "role": "assistant",
+        "text": "I've reviewed the ED log, both CI workflows, the security/secrets docs, the bin scripts, and the cross-project tooling (ai-harness, the shared board, worktree/active-dirs conventions). Here's the review, split into **general (all-repo)** vs **FamilyFund-specific**, followed by a few gaps I found.\n\n---\n\n## A. The Engineering Decisions log \u2014 what it covers\n\n`docs/ENGINEERING_DECISIONS.md` is 14 ADR-lite entries, all FamilyFund-scoped. Grouped by theme:\n\n| Theme | EDs |\n|---|---|\n| **Secrets** | ED-0001 (git-ignored .env + rotate + scan, no Vault), ED-0002 (SOPS+age encrypted twins in-repo) |\n| **AuthZ / security** | ED-0003 (deny-by-default + `fund.full` gating), ED-0004 (object-level API authz / IDOR trait), ED-0012 (no intentionally-public API endpoints) |\n| **CI / quality gates** | ED-0005 (Security Scan as the gate, CodeQL dropped), ED-0013 (Larastan L5 behind baseline, non-blocking) |\n| **Testing** | ED-0006 (`@group nightly` excluded by default), ED-0007 (isolated testpool DBs), ED-0014 (synthetic seeder, not a data dump) |\n| **Domain / arch** | ED-0008 (repository + `*Ext`), ED-0009 (goal = net shares), ED-0010 (Loan Share = label-only), ED-0011 (Vite 6 pin) |\n\nThe format is solid \u2014 context\u2192decision\u2192consequences, dated, with verifiable sources (commits/PRs). It's the right home and it's being maintained.\n\n---\n\n## B. General \u2014 applies to ALL repos (not just FamilyFund)\n\nThese are cross-cutting conventions and tooling that live **outside** FamilyFund (mostly `~/dev/ai-harness` and `~/dev/GITHUB_PROJECTS.md`) and govern `dstrader`, `dstrader-aws` (cloned as `dstrader-docker`), `dstrader_python`, `DSTraderAnalysis`, `job-search`, etc. **None of these are recorded in any ED log** \u2014 they're tribal/README knowledge.\n\n- **GitHub Projects instead of Jira** (`~/dev/GITHUB_PROJECTS.md`). Three boards: **Trading & Fund #1** (spans the 5 trading/fund repos incl. FamilyFund), **Remote Control #2**, **Job Search #3**. `gh` needs the `project` scope. A repo's folder name \u2260 repo name (`dstrader-aws` \u2192 `~/dev/dstrader-docker`).\n- **Worktree-per-task workflow** for *every* repo \u2014 never switch the canonical checkout's branch in place. (This is in your memory as a standing preference; not written down in any repo.)\n- **Parallel-agent coordination** \u2014 `agent_claims.sh` (claim/release tickets so concurrent sessions don't double-work), structured claim comments, \"claim ALIVE = TTL-only, not a live session.\" The `start-work`/`list-tickets`/`close-work`/`resume-work`/`session-triage` skills wrap this.\n- **Remote-control supervisor** (`ai-harness`, `active-dirs.txt`) \u2014 spawns `claude remote-control` servers per allowlisted dir, re-read every ~30s, with `@host` scoping shared across machines via git. FamilyFund and `dev` are active on macmini+macbook; `dstrader`/`job-search` currently disabled.\n- **Session nicknaming** \u2014 `title` is the only writable grouping handle for sessions; `rename-sessions` prefixes `[FF]`/`[CRC]` etc.\n- **New-machine identity model** \u2014 single-operator, one SSH identity reused everywhere (melnick NAS `192.168.0.111`, spirit/dstrader server `192.168.0.120`, GitHub, mariadb). (Documented in FF's SETUP.md but it's really a machine-level fact.)\n\n**Worth noting:** the *patterns* in ED-0001/0002 (secrets out of git + SOPS+age) and ED-0005 (security-scan-as-gate) are reusable across repos, but they're written as FamilyFund decisions. dstrader-aws is explicitly called out (ED-0001) as still having weak/hardcoded prod creds \u2014 i.e. the general posture is **not** yet applied there.\n\n---\n\n## C. FamilyFund-specific \u2014 infra & decisions\n\n**Captured in the ED log** (all 14 above). Beyond those, the following infra is real but **only** in CLAUDE.md / SETUP.md / scripts, not the ED log:\n\n- **Two CI workflows**: `tests.yml` (boots the real compose stack; fast tier on PR, `@group nightly` on schedule/dispatch) and `security-scan.yml` (10+ jobs: composer/npm audit, gitleaks, semgrep, trivy config/fs/image, OSV, SBOM, ZAP baseline + authenticated, route-guardrail & access-regression test jobs, phpstan non-blocking).\n- **Local gate mirror**: `bin/security-scan.sh` is meant to mirror CI exactly; `bin/npm-audit-gate.cjs` honors `.npm-audit-ignore`; git hooks (`.githooks/`, installed via `bin/install-git-hooks.sh`) run gitleaks pre-commit/pre-push.\n- **Two pools** (in ai-harness, but FF-only): **preview pool** `pool.sh` (pool0\u2013pool5, ports 3020\u20133025, shares `familyfund_dev` \u2014 never for tests) vs **testpool** `testpool.sh` (test0\u2013test4, isolated `familyfund_testN`). ED-0007 covers testpool's *rationale* but not the preview pool or the \"don't cross the streams\" rule.\n- **Deploy**: `deploy_ff.sh` \u2192 spirit (`192.168.0.120`), prod container scripts, wake script. Strict \"never edit prod directly.\"\n- **Dev conveniences**: `/dev-login` aliases, `prod-to-dev.sh`, Mailpit (compose key `mailhog`), quickchart, the `as_of` historical-view convention.\n- **melnick** holds the dev DB dump + legacy GPG bundle + age key (off-repo secret transport).\n\n---\n\n## Gaps / inconsistencies I found\n\n1. **ED-0014 is missing from the index table.** The body has ED-0014 (synthetic seeder) but the index table (lines 17\u201331) stops at ED-0013. Easy fix.\n2. **Possible stale Vite state vs ED-0011.** ED-0011 says the project moved to **Vite 6**, emptied `.npm-audit-ignore`, and dropped `--legacy-peer-deps`. But `tests.yml` (this worktree) still runs `npm ci --legacy-peer-deps` with a comment saying *\"the project pins vite@^4.5.\"* Either this bridge worktree predates the #34 merge, or one of the two is stale \u2014 worth verifying against `origin/main`.\n3. **SETUP.md \u00a79** still suggests `--exclude-group=incomplete,needs-data-refactor`, which your own notes confirm is a **no-op** (those groups have zero members).\n4. **No ED for the worktree workflow, the two-pool model, or the parallel-agent claim system** \u2014 arguably the most load-bearing \"non-obvious, would-re-litigate\" decisions you have, and they're the *general* ones with no home at all. The ED log is per-repo, so there's no cross-repo decision log.\n\n---\n\nWant me to act on any of these? The concrete options:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "put the cross repo on ai-harness, review if there is info about docker/lease system, Fix ED log gaps, Verify Vite state, Start a cross-repo decision log"
+  }
+}

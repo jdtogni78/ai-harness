@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f48fbc87-5f2b45d705053cf2",
+  "sig": "answer:rollout-f48fbc87:5f2b45d705053cf2",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f48fbc87-69f2-435d-aeae-1cad21446e59.jsonl turn #1002",
+  "input": {
+    "action": {
+      "session_id": "rollout-f48fbc87",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01H9L9XjemcbagSpDhnBZxye",
+      "question": "Where should REPO-SANITIZATION-PLAYBOOK.md + PUBLISH-READINESS.md live? (push to FamilyFund main was denied)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01QD1puZBkGv5VQLE7xxDSC6",
+        "description": "",
+        "questions": [
+          {
+            "question": "Where should REPO-SANITIZATION-PLAYBOOK.md + PUBLISH-READINESS.md live? (push to FamilyFund main was denied)",
+            "header": "Docs home",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Private location, not the public repo",
+                "description": "Keep them OUT of the soon-public FamilyFund. I move them to a private home (e.g. ~/dev or the ai-harness/cross-repo docs, and/or the private archive). Best if you don't want the incident write-up public."
+              },
+              {
+                "label": "Put them in FamilyFund anyway",
+                "description": "You're OK with the security docs being in the public repo. You'll push the staged /tmp/ff-docs commit yourself, or re-approve me to push it."
+              },
+              {
+                "label": "Drop them for now",
+                "description": "Don't land them anywhere yet. They stay on the orphaned bridge branch; I clean up /tmp/ff-docs. Revisit later."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Working through close-work. **Phase 1 (review) + backup verification:**"
+      },
+      {
+        "role": "assistant",
+        "text": "Backups both verify \"complete history\" \u2713. Tree clean; the only un-landed content is the 2 doc files (284 insertions). Now the manager's asks #2 + #3. First, file the **one consolidated follow-up ticket** (human-only steps flagged):"
+      },
+      {
+        "role": "assistant",
+        "text": "The new repo doesn't have the custom labels yet (it was created fresh). Re-filing without labels:"
+      },
+      {
+        "role": "assistant",
+        "text": "Epic filed as **#33** + on board #1. Now land the 2 docs onto the new `main` (re-applying file contents, since the bridge branch is on the orphaned lineage):"
+      },
+      {
+        "role": "assistant",
+        "text": "Committing the docs and pushing to `main`:"
+      },
+      {
+        "role": "assistant",
+        "text": "Understood \u2014 push **denied**, so I won't land the docs into `main`, and I won't retry. (Good instinct if the worry is that a detailed security-incident write-up shouldn't ship in a soon-public repo \u2014 that's worth deciding deliberately.)\n\nEverything else in the close-out is done **without** any prod/irreversible action:\n\n## close-work summary\n\n**\u2705 Backups verified** \u2014 both `~/familyfund-repo-backups/2026-05-25-1328` and `\u2026-1600-round2` bundles report *\"complete history\"* (restorable rollback points).\n\n**\u2705 One consolidated follow-up ticket filed \u2192 epic #33** (on board #1), with every remaining step flagged **human-only / do-not-automate**: rotate prod secrets (#20), password reset (#18), the public flip (#10), code scanning (#11), delete `FamilyFund-r1-interim`, re-clone the macbook (#13).\n\n**\u23f8\ufe0f Docs not landed** (you denied the push). They're safe \u2014 committed on this session's bridge branch (`bb1b96eb`) and staged in a local `/tmp/ff-docs` commit \u2014 but **not** on `origin`.\n\n**No prod/irreversible actions taken** \u2014 no rotation, no flip, no deploy, no force-push, no repo deletion. The bridge worktree is left in place (supervisor-managed).\n\n## One decision left: where should the two security docs live?\nThe playbook describes the incident + method in detail and is meant for **dstrader/dstrader-docker reuse** \u2014 so the public FamilyFund repo may not be the right home."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "move them to secrets repo we created"
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-21876bd8-e58cd05bb466fc7c",
+  "sig": "answer:rollout-21876bd8:e58cd05bb466fc7c",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 21876bd8-c4cb-41e9-b7c6-9cd9b21e04f5.jsonl turn #176",
+  "input": {
+    "action": {
+      "session_id": "rollout-21876bd8",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_015gqE5KUKmngiZG6VcUrD1h/app1/family-fund-app",
+      "question": "5 of the 27 files are dead code (no references in routes/controllers/blades): inner_show_tables, show_fields, split_fields, group_table, show_fields_pdf (+ show_dates only feeds the dead forms). How should I handle them?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_012uthVLZQX9mycomKwUL6S2",
+        "description": "",
+        "questions": [
+          {
+            "question": "5 of the 27 files are dead code (no references in routes/controllers/blades): inner_show_tables, show_fields, split_fields, group_table, show_fields_pdf (+ show_dates only feeds the dead forms). How should I handle them?",
+            "header": "Dead views",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Delete them (Recommended)",
+                "description": "Remove the 5 unreferenced views (+show_dates) as part of the cleanup. Less surface to maintain; I'll confirm each is truly unused first."
+              },
+              {
+                "label": "Standardize anyway",
+                "description": "Apply the same dark-mode/BS5 fixes to them even though nothing renders them, in case they're revived later."
+              },
+              {
+                "label": "Leave untouched",
+                "description": "Don't edit or delete them; focus only on the live views and note the dead ones in the summary."
+              }
+            ]
+          },
+          {
+            "question": "Several detail partials (inner_show_alt, inner_show_compact, stacked_bar_*) are shared with the funds pages, so standardizing them changes the funds view too. After the edits I'll rebuild assets and verify in a browser. How thorough should verification be?",
+            "header": "Verify",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Browser + Dusk (Recommended)",
+                "description": "Lease a preview env, check trade_portfolios + funds detail pages in light AND dark mode, and add/run a Dusk test for the detail view. Matches the repo's UI-verification norm."
+              },
+              {
+                "label": "Browser only",
+                "description": "Lease a preview env and manually verify light/dark; skip writing a new Dusk test."
+              },
+              {
+                "label": "Build + render check",
+                "description": "Just rebuild assets and confirm pages render without errors; no full browser dark-mode pass."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "app.css redefines Bootstrap components (`.btn`, `.badge`, `.table`) via Tailwind `@apply` \u2014 so this is a hybrid. Key implication: custom badges (`badge-cyan/gray/purple`) and `badge-danger/success` *do* work, but BS4 spacing utils (`mr-`/`ml-`/`text-right`) don't. Let me confirm what's actually compiled/loaded and how dark mode toggles."
+      },
+      {
+        "role": "assistant",
+        "text": "Bootstrap's SCSS isn't in the Vite input \u2014 only `app.css` (Tailwind). I need to confirm how Bootstrap CSS/JS actually loads (CDN? app.js import?), since that determines whether BS5 utilities like `me-2`/`d-flex` even apply."
+      },
+      {
+        "role": "assistant",
+        "text": "Now I have the full architecture: **Bootstrap 5.3.8 via CDN** (BS4 classes like `mr-2`/`text-right`/`data-toggle`/`thead-light` are dead) + **Tailwind app.css** (dark mode via `.dark` on `<html>`, redefines `.btn`/`.badge`/`.table`, defines `badge-cyan/gray/purple`). Before editing, let me confirm which partials are actually used (skip dead views) and which are PDF-only."
+      },
+      {
+        "role": "assistant",
+        "text": "My include-scan misses controller-rendered views. Let me check controller `view()` calls for the `used_by=0` ones."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me confirm the 5 candidates are truly unreferenced anywhere (routes, all controllers, all blades) before treating them as dead."
+      },
+      {
+        "role": "assistant",
+        "text": "Complete picture now. Here's the breakdown of the 27 files:\n\n- **Live in-app detail views needing work** (dark-mode + BS4\u2192BS5 fixes): `inner_show`, `inner_show_graphs`, `inner_show_alt`, `inner_show_compact`, `stacked_bar_graph`, `stacked_bar_groups_graph`, `show`, `show_diff`(+`_fields`/`_inner`), `show_rebalance`, `rebalance`, `table`, `graph`, `group_graph`. Several are shared with the funds pages.\n- **PDF-only** (wkhtmltopdf, no dark mode \u2014 leave as-is): `inner_show_pdf`, `inner_show_alt_pdf`, `show_fields_pdf`.\n- **Forms** (already standardized per style guide): `create`, `edit`, `edit_dates`, `fields`.\n- **Dead code** (zero references anywhere \u2014 routes, controllers, blades): `inner_show_tables`, `show_fields`, `split_fields`, `group_table`, `show_fields_pdf` (and `show_dates` only feeds the two dead forms).\n\nReal functional bugs found beyond styling: `data-toggle=\"collapse\"` (BS4) is dead in BS5, so **collapse toggles are currently broken** in `inner_show_graphs`, `stacked_bar_graph`, `stacked_bar_groups_graph`, `show_rebalance`; and `thead-light` is dead in `show_rebalance`.\n\nOne scoping decision before I start editing:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Delete them (Recommended), Browser + Dusk (Recommended)"
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-7cdd2f87-e6c5fc1900a82e76",
+  "sig": "answer:rollout-7cdd2f87:e6c5fc1900a82e76",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 7cdd2f87-dccd-4548-bbb0-e3198f213da3.jsonl turn #34",
+  "input": {
+    "action": {
+      "session_id": "rollout-7cdd2f87",
+      "repo": "job-search",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/job-search/.claude/worktrees/bridge-cse_01T5q3R1xHdUuxrcKexRmSvZ",
+      "question": "The verified config is a token-driver guard, but 3 docs still say 'Laravel Sanctum'. Reconcile them?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01SqhFw2E3SpNGGKsU9E1qkN",
+        "description": "",
+        "questions": [
+          {
+            "question": "The verified config is a token-driver guard, but 3 docs still say 'Laravel Sanctum'. Reconcile them?",
+            "header": "Sanctum wording",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Reconcile to 'token guard' (Recommended)",
+                "description": "Fix the 4 'Sanctum' mentions in overview.md, operations.md, data-flow.md to match api.md's verified token-driver guard. Factual-correctness fix, low risk."
+              },
+              {
+                "label": "Leave as 'Sanctum'",
+                "description": "Keep the current wording; accept the inconsistency with api.md."
+              }
+            ]
+          },
+          {
+            "question": "The suggested next action was 'remove money-flow.md'. It currently documents the shipped IBKR-poll path and flags the webhook redesign as planned (honest about plan-vs-shipped). Keep or remove it?",
+            "header": "money-flow.md",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Keep money-flow.md",
+                "description": "It's factually honest about what's shipped vs planned; keep it in the doc set and the index."
+              },
+              {
+                "label": "Remove money-flow.md",
+                "description": "Delete the file and its README index row. (Matches the suggested chip from the prior session.)"
+              }
+            ]
+          },
+          {
+            "question": "After the edits above, how far should I take it? You'd originally wanted to review before committing.",
+            "header": "Commit / close",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Hold for my review",
+                "description": "Make the edits but don't commit. You'll review the docs in 01DNt6, then run /close-work yourself."
+              },
+              {
+                "label": "Commit + merge + close",
+                "description": "Stage everything, commit, merge 01DNt6 into main, and close the ticket (plus the coordination-note update for the parallel websites/ sessions)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "resume"
+      },
+      {
+        "role": "assistant",
+        "text": "I'll figure out where the previous session left off. The screenshot shows FamilyFund docs work that wasn't committed yet, but my current branch shows clean. Let me investigate the actual state."
+      },
+      {
+        "role": "assistant",
+        "text": "This worktree only has 5 docs and is clean \u2014 the \"FF Docs\" session that did the polish work (7 files, including `credit-lines.md`, `money-flow.md`, `permissions.md`, `matching-rules.md`, `api.md`) ran in a different worktree. Let me locate it."
+      },
+      {
+        "role": "assistant",
+        "text": "The FF Docs work is **safe** \u2014 it's all sitting uncommitted in worktree `01DNt6FHiUuydk6msJV84Wec` (where the disconnected session ran). I've been resumed in a *different* worktree (`01T5q3\u2026RmSvZ`), which is clean at main. Let me confirm the pending work is intact and matches what the screenshot described before I do anything."
+      },
+      {
+        "role": "assistant",
+        "text": "Nothing was lost \u2014 the disconnect only dropped the remote-control link; all the on-disk work survived in worktree `01DNt6`. Confirmed intact: the `domain-model.md` Transaction-type fix (`PUR/SAL/INI/MAT/BOR/REP`), the README index all flipped to \u2705, 7 modified files, and the 5 new docs. Let me check the one open inconsistency (the \"Sanctum\" vs \"token guard\" wording) precisely so I can tell you exactly what's pending."
+      },
+      {
+        "role": "assistant",
+        "text": "Everything's intact \u2014 the disconnect only dropped the FleetView remote-control link; the actual session work was written to disk and survived. Here's exactly where things stand.\n\n## Status\n\n**The work lives in worktree `01DNt6\u202684Wec`** (that's where the disconnected \"FF Docs\" session ran). I've been resumed in a *different* worktree (`01T5q3\u2026RmSvZ`), which is clean at main \u2014 so the pending changes aren't here, but they're safe over there. When I act, I'll edit in `01DNt6` so the changes stay together for the eventual commit.\n\n**Confirmed uncommitted in `01DNt6`:**\n- 7 modified docs (README index \u2192 all \u2705, `domain-model.md` Transaction-type bug fixed to `PUR/SAL/INI/MAT/BOR/REP`, etc.)\n- 5 new docs: `api.md`, `credit-lines.md`, `matching-rules.md`, `money-flow.md`, `permissions.md`\n- Nothing committed/merged \u2014 held for your review, as you asked.\n\n**The one real inconsistency still open (finding #2):** `api.md` correctly calls it a **token guard** (`config/auth.php`, `api` guard, `driver => token`) \u2014 that's the verified config. But 3 other files still say \"Laravel Sanctum\":\n- `overview.md:62`, `operations.md:59`, `data-flow.md:34` & `:79`\n\n**Two hero TODOs** in `familyfund/README.md` still need facts only you have:\n- go-live year (2021 is first git commit, not necessarily first family use)\n- optional live `php artisan test` pass count for the headline\n\nBefore I touch anything, a few forks:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Reconcile to 'token guard' (Recommended), Remove money-flow.md, Commit + merge + close"
+  }
+}

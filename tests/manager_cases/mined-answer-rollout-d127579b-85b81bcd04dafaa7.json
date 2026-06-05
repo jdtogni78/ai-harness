@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-d127579b-85b81bcd04dafaa7",
+  "sig": "answer:rollout-d127579b:85b81bcd04dafaa7",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from d127579b-6821-45d8-a979-9ddeda2d1008.jsonl turn #103",
+  "input": {
+    "action": {
+      "session_id": "rollout-d127579b",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How do you want to handle the two follow-ups (restart note's supervisor; the uncommitted @mini rename)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_0126zSmFrzX4KSnFhgZugBQJ",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want to handle the two follow-ups (restart note's supervisor; the uncommitted @mini rename)?",
+            "header": "Follow-ups",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Try note restart from here",
+                "description": "I'll check if SSH to note (the MacBook) is configured and, if so, run the same launchctl kickstart there. If unreachable, I'll tell you and you run it on note yourself."
+              },
+              {
+                "label": "File a GH issue (board #2)",
+                "description": "Open a Remote Control board issue so the recurring 'restart supervisor after nickname change' gotcha / note still-down is tracked across sessions."
+              },
+              {
+                "label": "Just close, I'll handle both",
+                "description": "Leave both to you \u2014 note restart and committing the rename are yours to do. Nothing more from me."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now let me give it a tick to come up and verify it derives `mini` and respawns the servers."
+      },
+      {
+        "role": "assistant",
+        "text": "Fixed. The new supervisor (pid 55630) now reports **`host=mini`** and immediately spawned all four servers. Let me confirm they're actually alive and connecting."
+      },
+      {
+        "role": "assistant",
+        "text": "All four are back: `mm-dev`, `mm-FamilyFund`, `mm-ai-harness`, `mm-job-search` are running and each reports **`Ready`** (connected to the cloud). Your Mac Mini remotes are working again.\n\nLet me record this gotcha so it's faster to diagnose next time."
+      },
+      {
+        "role": "assistant",
+        "text": "## Summary\n\nYour Mac Mini remotes were down because of a **stale-process bug**, now fixed.\n\n**Root cause:** Someone changed the host-nickname convention in the working tree but didn't restart the long-running supervisor:\n- `discovery.py:34` was changed from `*macmini* \u2192 \"macmini\"` to `*macmini* \u2192 \"mini\"`\n- `active-dirs.txt` was changed from `dev@macmini`, `FamilyFund@macmini`, \u2026 to `dev@mini`, `FamilyFund@mini`, \u2026\n\nBut the supervisor process (pid 55373) had been running since **Sat May 23 17:30**, so it was executing the *old* code and still computing its own nickname as `macmini`. When `active-dirs.txt` was edited to `@mini` (~18:14 today), its next tick found no entry matching `macmini`, declared all four servers **\"not in allowlist\"**, and SIGTERM/KILLed them \u2014 `manager.log` shows exactly that wave of `deactivate: ... not in allowlist` lines. It then sat there spawning nothing.\n\n**Fix applied:** `launchctl kickstart -k \u2026com.claudio1.claude-remote-control`. The new supervisor (pid 55630) came up as **`host=mini`**, and all four servers (`mm-dev`, `mm-FamilyFund`, `mm-ai-harness`, `mm-job-search`) are running and **Ready**.\n\n**Two things worth your attention:**\n\n1. **The MacBook (`note`) is probably down for the same reason.** The same rename mapped `*macbook* \u2192 \"note\"` and set `@note` scopes. If note's supervisor is also running pre-change code (deriving `macbook`), its servers got killed as \"not in allowlist\" too. Run the same `launchctl kickstart -k \u2026com.claudio1.claude-remote-control` on note to confirm/fix. I can't reach it from here.\n\n2. **The convention change is still uncommitted** (`active-dirs.txt`, `discovery.py`, `config.py` show as modified). The running fix is fine because the supervisor imports from the working tree \u2014 but you'll want to commit the `@macmini\u2192@mini` / `@macbook\u2192@note` rename so it's permanent and the next person isn't confused by the mismatch.\n\nI saved this as a memory so the `host=<old-nick>` + \"not in allowlist\" signature is quick to recognize next time."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll work through the close-work phases, but this thread is unusual: the \"work\" was a diagnostic + operational fix (restarting the launchd supervisor), not a repo code change. Let me verify the actual repo state before drawing conclusions."
+      },
+      {
+        "role": "assistant",
+        "text": "This is the \"working in main repo, nothing to deliver\" path. Here's the close-work assessment.\n\n## Phase 1 \u2014 Review\n\n- **Location:** `/Users/claudio1/dev/ai-harness`, branch `main` \u2014 the **primary checkout**, not a worktree (so no worktree teardown, no preview/test lease, no agent claim).\n- **Commits vs `origin/main`:** none. `git log origin/main..HEAD` is empty.\n- **What this thread changed in the repo:** **nothing.** The fix was operational \u2014 `launchctl kickstart -k` to restart the stale supervisor \u2014 plus two memory files written *outside* the repo (`~/.claude/.../memory/`).\n- **Pre-existing uncommitted pile (NOT mine):** the 23 `M` files match the session-start snapshot exactly, including an **unresolved merge conflict** `UU docs/session-manager-cases.md`. This is someone's in-progress work in this checkout. I have not touched it and won't \u2014 and I'd flag that you have an unresolved conflict sitting in `main`'s working tree.\n- **Tracking ticket:** none \u2014 this was an ad-hoc diagnostic request, not a board item.\n\n## Phase 2 \u2014 Test gate\n\nNot applicable: this thread made no code changes, so there's nothing to test. (The fix is verified behaviorally \u2014 all four servers came back `Ready`.)\n\n## Phase 3 \u2014 TODO sweep\n\nTwo follow-ups I surfaced earlier and explicitly said I couldn't finish here:\n\n1. **The MacBook (`note`) almost certainly has the same dead-supervisor problem** \u2014 the `@macbook\u2192@note` half of the rename means its servers were likely killed as \"not in allowlist\" too. Needs the same `launchctl kickstart -k \u2026com.claudio1.claude-remote-control` *on note*. I can't reach note from the mini.\n2. **The `@macmini\u2192@mini` rename is uncommitted** (part of that pre-existing pile). The live fix only persists because the supervisor imports from the working tree \u2014 but it's not \"official\" until that branch lands. Committing it is out of scope for this thread (it's entangled with someone's WIP + a merge conflict).\n\n## Phase 4 \u2014 Verdict\n\n**READY TO CLOSE** \u2014 nothing to merge, push, or tear down from this thread; the operational fix is live and verified. No state-changing delivery steps apply.\n\nBefore I consider it closed, one decision on the follow-ups:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "ill updathe note, close/commit the mini change"
+  }
+}

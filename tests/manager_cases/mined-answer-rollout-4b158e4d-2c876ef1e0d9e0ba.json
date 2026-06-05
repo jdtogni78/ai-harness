@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4b158e4d-2c876ef1e0d9e0ba",
+  "sig": "answer:rollout-4b158e4d:2c876ef1e0d9e0ba",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4b158e4d-ed58-4d90-ba30-31314fcf024b.jsonl turn #246",
+  "input": {
+    "action": {
+      "session_id": "rollout-4b158e4d",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01A1kArEtzcmq1JgrARBW4ib",
+      "question": "How should we handle `--require-idle` (CLI guard against submitting into a busy worker)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01WrHDqGyQpqrEdXcrMgeBCT",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should we handle `--require-idle` (CLI guard against submitting into a busy worker)?",
+            "header": "--require-idle",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Defer \u2014 file an issue on board #2",
+                "description": "I create a Remote Control board issue 'send-to-session: add --require-idle CLI guard', leave the current POC as-is."
+              },
+              {
+                "label": "Drop \u2014 the skill prose is enough",
+                "description": "Don't track it. The skill tells the agent to check worker state, that's acceptable for an ad-hoc tool."
+              },
+              {
+                "label": "Do it now \u2014 thread doesn't close yet",
+                "description": "Loop back into work, add the flag + a test, then close."
+              }
+            ]
+          },
+          {
+            "question": "What about unit tests for `_run_submit` and `submit_user_message`?",
+            "header": "Unit tests",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Add them now \u2014 thread doesn't close yet",
+                "description": "Mirror the _run_archive test pattern; cover dry-run body, --stdin, empty/missing message, mutex flags. Adds maybe 15 min."
+              },
+              {
+                "label": "Defer \u2014 file an issue on board #2",
+                "description": "POC is verified end-to-end live; tests follow. Filed as a board item."
+              },
+              {
+                "label": "Drop \u2014 mirrors existing patterns, low risk",
+                "description": "_run_archive has no unit tests either; not worth tracking."
+              }
+            ]
+          },
+          {
+            "question": "File a tracking ticket retroactively?",
+            "header": "Track on board",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 file + close in delivery",
+                "description": "I create a Remote Control board issue describing the POC, then close it in Phase 5 with the merge SHA so the board has a record."
+              },
+              {
+                "label": "No \u2014 deliver untracked",
+                "description": "POC was ad-hoc; commit message + merge to main is enough trail."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Symlinks now correctly split \u2014 17 skills \u2192 main, `send-to-session` \u2192 worktree. After eventual merge, `skills/link.sh` from main will re-point it. Final smoke test from the worktree."
+      },
+      {
+        "role": "assistant",
+        "text": "All green. POC complete.\n\n**Summary**\n\n| Layer | Change | Location |\n|---|---|---|\n| Helper | `submit_user_message(cfg, token, sid, message, log)` \u2014 mirrors `archive_session` | `remote_control/usage_limit/monitor.py:116` |\n| CLI | `python -m remote_control sessions submit CSE_ID (--message TEXT \\| --stdin) [--dry-run]` | `remote_control/session_list.py:311` `_run_submit` |\n| Skill | `send-to-session` \u2014 when to use, dry-run-first, idle-check guidance | `skills/send-to-session/SKILL.md` |\n| Live POC | self-send to this very chat \u2014 `submitted cse_01A1kArEtzcmq1JgrARBW4ib (113 chars)` and the turn arrived. | \u2014 |\n\nAll edits live on branch `worktree-bridge-cse_01A1kArEtzcmq1JgrARBW4ib` in the bridge worktree (43 existing tests still green). Main checkout is back to its prior dirty state (4 unrelated files I didn't touch). `~/.claude/skills/send-to-session` symlinks to the worktree until merge; `skills/link.sh` from main will re-point it after merge.\n\nTwo notes for follow-up if you want to harden this:\n1. **No idle-state pre-check in the CLI.** The skill doc tells the user to check `worker=idle` themselves, but the CLI happily submits into a `worker=running` session (which is how the self-send POC worked). A `--require-idle` flag that GETs `/sessions/{sid}` first would close that gap.\n2. **No unit tests added** for `_run_submit` arg parsing / `submit_user_message`. They'd mirror `_run_archive` tests if you want them \u2014 let me know."
+      },
+      {
+        "role": "user",
+        "text": "add to skill to list the sessions and interactively request"
+      },
+      {
+        "role": "assistant",
+        "text": "Updated `skills/send-to-session/SKILL.md` to drive the flow interactively: **list \u2192 AskUserQuestion to pick target \u2192 AskUserQuestion for message \u2192 idle-state warn \u2192 dry-run \u2192 confirm \u2192 send**. The CLI itself is unchanged \u2014 the interaction lives in the skill prose, which the agent (me in a future turn) follows."
+      },
+      {
+        "role": "assistant",
+        "text": "Starting Phase 1 \u2014 fetching main and gathering branch state."
+      },
+      {
+        "role": "assistant",
+        "text": "## Phase 1 \u2014 Review\n\n**Where we are**\n- `pwd`: `/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01A1kArEtzcmq1JgrARBW4ib`\n- Branch: `worktree-bridge-cse_01A1kArEtzcmq1JgrARBW4ib` (a **bridge worktree** \u2014 supervisor-managed, locked; per memory, don't `git worktree remove` it)\n- Branch is at `e8f9b5e`, same as `origin/main` \u2014 **0 commits ahead**, all my work is uncommitted\n\n**Original goal (your first turn)**: *\"Do we have a skill to talk to a given session? Can we use [the resume-work send] to create a skill that sends a message to different sessions?\"*\n\n**Uncommitted changes** (all mine, this thread):\n| File | Change |\n|---|---|\n| `remote_control/usage_limit/monitor.py` | +14 lines \u2014 new `submit_user_message(cfg, token, sid, message, log)` helper |\n| `remote_control/session_list.py` | +76 lines \u2014 new `_run_submit` CLI handler + USAGE update |\n| `skills/send-to-session/SKILL.md` | NEW \u2014 skill with interactive list\u2192pick\u2192idle-warn\u2192dry-run\u2192confirm flow |\n\nNothing surprising \u2014 scoped to the POC. No `.env`, no pool artifacts, no generated files.\n\n**Tracking ticket**: none. This was an ad-hoc POC request, not pulled from board #2. Per the close-work guidance, the board is \"out of sync\" for this work \u2014 I can file an issue retroactively so the delivery commit can close it, if you want a board trail.\n\n## Phase 2 \u2014 Test gate\n\nThis repo uses Python `unittest` (not Docker/PHP \u2014 that section of the skill is for the Laravel repo).\n\n- Ran `tests.test_session_list` (27) + `tests.test_usage_detect` (16) = **43 green** *after* the last edit \u2014 gate is fresh.\n- **What I did NOT do**: add new tests for `_run_submit` (arg parsing, dry-run, error paths) or `submit_user_message`. I flagged this in my prior summary. They'd mirror the existing `_run_archive` patterns.\n- The live POC turn (self-send) was the end-to-end smoke test \u2014 observed working.\n\n## Phase 3 \u2014 TODO sweep\n\nRe-read the thread end-to-end:\n\n1. **Follow-up I flagged, you didn't decide on**: `--require-idle` flag on the CLI (GET `/sessions/{sid}` first, refuse to submit into `worker=running` unless `--force`). Skill prose tells the agent to check, but the CLI doesn't enforce.\n2. **Follow-up I flagged, you didn't decide on**: unit tests for `_run_submit` + `submit_user_message`.\n3. **Out-of-scope side observation, you said \"ignore\"**: env picker still shows `macmini.local` (host rename not propagated to that surface) + duplicate `ai-harness` / `job-search` entries. Not mine to fix in this thread.\n4. No in-code `TODO`/`FIXME` introduced by my diff.\n5. Original goal is delivered: a working `send-to-session` skill backed by a `sessions submit` CLI and proven by a live POST.\n\n## Phase 4 \u2014 Verdict\n\n**READY TO CLOSE**, with three decisions for you first:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Drop \u2014 the skill prose is enough, Defer \u2014 file an issue on board #2, Yes \u2014 file + close in delivery"
+  }
+}

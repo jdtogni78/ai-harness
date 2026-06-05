@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-fb47d232-9e31d285d214fc47",
+  "sig": "answer:rollout-fb47d232:9e31d285d214fc47",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from fb47d232-9485-4619-94b6-dd551fb45143.jsonl turn #150",
+  "input": {
+    "action": {
+      "session_id": "rollout-fb47d232",
+      "repo": "dstrader-docker",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/dstrader-docker/.claude/worktrees/bridge-cse_01Mx3ppwowQxgTP7HoBiThzu",
+      "question": "How should I capture the go-public tracking on Project #1?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Xn2XTXfKRvVJU8qbRC5G1K",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I capture the go-public tracking on Project #1?",
+            "header": "Tracker shape",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Create master epic + flip + post-flip tickets (Recommended)",
+                "description": "Mirror FamilyFund: one umbrella epic linking #7/#8/#10/#11/#12/#15, plus a flip ticket and a post-flip code-scanning ticket. Three new issues on jdtogni78/dstrader-aws."
+              },
+              {
+                "label": "Single combined go-public ticket",
+                "description": "One ticket with the full checklist (gates \u2192 flip \u2192 post-flip), no separate flip/scan issues. Less granular but lighter."
+              },
+              {
+                "label": "Just update an existing ticket (#15)",
+                "description": "Repurpose #15 as the umbrella (it already lists most gates and mentions 'going public \u2014 separate future ticket'). Loses the flip/post-flip granularity."
+              }
+            ]
+          },
+          {
+            "question": "Companion private secrets/runbooks repo (like FamilyFund's `familyfund-secrets`)?",
+            "header": "Secrets repo",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Keep everything in-repo (Recommended)",
+                "description": "Current runbooks (SOPS_AGE_PROD.md, CLAUDE.md sections) reference internal hostnames but no live secrets after the scrub. Add as a checklist item in the master epic; revisit only if a future runbook needs to carry sensitive ops detail."
+              },
+              {
+                "label": "Create a private `dstrader-secrets` companion now",
+                "description": "Move SOPS twins + ops runbooks (SOPS_AGE_PROD.md, deploy notes mentioning spirit/IPs) out of the public-bound repo into a private companion before the flip. Matches FamilyFund exactly but adds a repo to maintain."
+              }
+            ]
+          },
+          {
+            "question": "Want me to fix the HEAD leak in `docs/IMPLEMENTATION_SUMMARY.md:211` now?",
+            "header": "HEAD leak fix",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, fix it now in this branch (Recommended)",
+                "description": "Replace `/Users/dtogni/dev/dstrader` with a placeholder path. Trivial one-line edit; commit on this branch."
+              },
+              {
+                "label": "Just file a ticket, don't touch code",
+                "description": "Add it to the README/docs-skim checklist on the master epic; fix in a separate PR later."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "What are we missing to make this repository public? Review if there is tickets and review all the activities needed. Review the\u2026 what was done for family fund and come up with a plan, update the ticket, and, uh, yeah, conclude this review."
+      },
+      {
+        "role": "assistant",
+        "text": "I've reviewed the audit docs, the relevant tickets on Trading & Fund board #1, and the FamilyFund precedent. Here's where things stand.\n\n## Where we are\n\n**Done:**\n- Full-history audit + dry-run-validated scrub recipe (`docs/security/HISTORY-AUDIT.md`)\n- Clean origin `jdtogni78/dstrader-docker` pushed (private, created 2026-05-25) \u2014 this worktree's origin\n- Lower envs (dev/stage) migrated to SOPS+age (commit `aa0a8fc`)\n- Gitleaks pre-commit/pre-push + Secret Scan CI workflow (commit `2297295`)\n- Hardened `.gitignore` (env, keys, datadirs, dumps, logs)\n- `dstrader-aws#9` (history finding) closed; PR #1 on dirty origin merged\n\n**Open hard gates (Project #1 \u2014 Trading & Fund):**\n| # | Title | Why it gates public |\n|---|---|---|\n| #10 | rotate TWS/IB + mail creds, migrate to SOPS+age | committed key burned them; must rotate before exposing history |\n| #11 | cut prod over to SOPS, retire GPG | prod still on the legacy `.encr`+GPG path |\n| #15 | swap spirit trading-host checkout to new origin | dirty `dstrader-aws` still feeds live cron |\n| #8 | de-hardcode compose/backup DB creds \u2192 SOPS | plaintext DB pw still in scripts |\n| #7 | deploy SOPS+age to prod (server + image) | enabler for #11 |\n| #12 | IB least-privilege user (no money-movement) | risk reduction on the credential that will live in a public-history repo |\n\n## Comparison with the FamilyFund precedent\n\nFamilyFund's go-public is tracked under epic **FamilyFund#36** with: hard gates table (rotate prod, README skim, screenshots audit) \u2192 flip ticket (#10) \u2192 post-flip enable-scanning (#11) \u2192 independent password-reset items. dstrader-docker mirrors most of the *technical* work (history scrub, gitleaks, SOPS) but is **missing the equivalent tracking and the post-flip pieces**.\n\n## Gaps not yet ticketed\n\n1. **No \"go-public master tracker\" epic** \u2014 equivalent of FF#36. Current tickets cover prerequisites but no umbrella + no decision record.\n2. **No \"make repo public\" flip ticket** \u2014 equivalent of FF#10. The visibility flip itself, human-only.\n3. **No \"enable code scanning / SARIF after flip\" ticket** \u2014 equivalent of FF#11. We have `security-scan.yml` (gitleaks-only); CodeQL/SARIF needs public to upload to the Security tab.\n4. **No README/docs skim ticket** \u2014 HEAD still has one personal path leak: `docs/IMPLEMENTATION_SUMMARY.md:211` (`/Users/dtogni/dev/dstrader`). Audit doc itself contains forensic references to scrubbed IDs/IPs \u2014 fine to keep as evidence, but worth a pass.\n5. **Companion secrets repo decision** \u2014 FamilyFund split runbooks into private `familyfund-secrets`. Here, `docs/SOPS_AGE_PROD.md` and parts of `CLAUDE.md` reference internal hostnames (`spirit`, `10.0.0.10`). Decide: stay in-repo (already redacted) vs. move to a private companion.\n6. **Archive `dstrader-aws`** after #15 lands \u2014 `SWAP-PLAN.md` \u00a77. Not yet ticketed.\n7. **Update project-board references** from `dstrader-aws` \u2192 `dstrader-docker` (CLAUDE.md still says \"the AWS deployment repo\").\n\n## Proposed plan\n\nMirror the FamilyFund structure. Concretely:\n\n1. Create a master tracker ticket on Project #1 (analog of FF#36) that links #7/#8/#10/#11/#12/#15 as hard gates and adds: the README/docs skim, the flip ticket, the post-flip code-scanning ticket, the `dstrader-aws` archive step, and the CLAUDE.md update.\n2. Create the **make-public flip** ticket (human-only, irreversible, gated on everything above).\n3. Create the **enable code scanning after public** ticket (CodeQL JS/TS + SARIF upload).\n4. Fix the one HEAD leak now (`docs/IMPLEMENTATION_SUMMARY.md:211`).\n\nBefore I create tickets, one decision:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Create master epic + flip + post-flip tickets (Recommended), Create a private `dstrader-secrets` companion now, yes in secrets repo"
+  }
+}

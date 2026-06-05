@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-18cbfd7a-ba43f150b67b4e65",
+  "sig": "answer:rollout-18cbfd7a:ba43f150b67b4e65",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 18cbfd7a-466f-429d-a9f1-f5447583493d.jsonl turn #60",
+  "input": {
+    "action": {
+      "session_id": "rollout-18cbfd7a",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_017kaRusfWWw9douzQ7aWaBm",
+      "question": "How aggressive a cleanup sweep do you want?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_019suLRrxiTirv5chzLUMYqX",
+        "description": "",
+        "questions": [
+          {
+            "question": "How aggressive a cleanup sweep do you want?",
+            "header": "Cleanup scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Safe: stale entries only",
+                "description": "Prune the 6 stale git-worktree entries (dirs already gone, branches MERGED) and delete their branches. Leave all on-disk worktrees alone."
+              },
+              {
+                "label": "Safe + remove the clean one",
+                "description": "Same as above, plus remove the on-disk bridge-cse_015pwJ9... (MERGED + clean + no lease)."
+              },
+              {
+                "label": "Full sweep w/ rescue",
+                "description": "Rescue uncommitted work in the 3 dirty worktrees first, then prune stale entries, remove the clean one, and review each dirty one with you to decide remove vs keep. Releases pool3 only if 019EqqE is removed."
+              },
+              {
+                "label": "Show me each one, no auto-remove",
+                "description": "Don't remove anything yet \u2014 print a per-worktree summary and let me decide one by one."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "#\tEnded\tWorktree\tDirty\tGoal\n1\t2026-05-21T04:06\tbridge-cse_01QPLeMYbKf7pZ6QTzEmtP1h\t0\t(no first prompt captured)\n\nresume / cleanup"
+      },
+      {
+        "role": "assistant",
+        "text": "The selector matched my own current session (the only one matching that string is mine). The `bridge-cse_01QPLeMYbKf7pZ6QTzEmtP1h` worktree in the table you pasted doesn't actually exist in the repo \u2014 there's nothing to resume from it.\n\nLooking at the broader picture though, there are 10 sibling worktrees here, several sitting at `2ec11630` (the current `main` HEAD). Let me check which are actually merged-and-disposable vs still holding work."
+      },
+      {
+        "role": "assistant",
+        "text": "The session referenced in your table doesn't exist on disk (and no `01QPLeMYbKf7pZ6QTzEmtP1h` is registered). So there's nothing to *resume* \u2014 but there's a real cleanup picture. Let me peek at what's dirty before recommending."
+      },
+      {
+        "role": "assistant",
+        "text": "Picture is clear now. There's **nothing to resume** \u2014 the worktree in your table doesn't exist on disk or in `git worktree list`. But cleanup has real candidates:\n\n**Stale git-worktree entries** (dir already gone, branch fully merged into `main`, locked by bridge pid 1156): 6 entries\n- `016Wjtn3vXQKQFuCqmgKZTzU`, `01AJzaV29tuSEJqgd17Zu1DC`, `01DLBweKtrPAYZfDyDzKwKQ5`, `01KejVCMVj7e53bp68VWqimt`, `01Q7acCYHsEeq4nGDWsRWkLu`, `01UsxHiiWZ9hpEKTm7KfspvW`\n\n**On-disk, MERGED, clean** (safe to remove): `bridge-cse_015pwJ9L3qZZCCB9W1W6c66Z`\n\n**On-disk, MERGED, dirty** (would need rescue first):\n- `019EqqEuMLfZAchxhuTRzxXb` \u2014 only `../`, `.playwright-cli/`, `output/` (adjacent noise, no real work in this tree) \u2014 **holds pool3 lease**\n- `01Ep1sQPMPRmQs42EyhmJbye` \u2014 5 uncommitted test files + 1 handoff `.md` (real work, never committed)\n- `01Hjb4HiDVQRZ6WSzBMX2Adm` \u2014 `docker-compose.test0.local.yml` + `.env.test0` (scratch env config)\n\n**Untouchable:** `017kaRusfWWw9douzQ7aWaBm` (this worktree)."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Safe: stale entries only"
+  }
+}

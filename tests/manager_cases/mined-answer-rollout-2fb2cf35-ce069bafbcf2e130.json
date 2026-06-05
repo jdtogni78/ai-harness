@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2fb2cf35-ce069bafbcf2e130",
+  "sig": "answer:rollout-2fb2cf35:ce069bafbcf2e130",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2fb2cf35-1e06-4ccf-8f19-661200f9ebeb.jsonl turn #131",
+  "input": {
+    "action": {
+      "session_id": "rollout-2fb2cf35",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_0143BLSi72cXwwaoR5TWBJAa",
+      "question": "Push the revised body to issue #29?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01S2ZjiUMvURsmcJ5YwTfr3N",
+        "description": "",
+        "questions": [
+          {
+            "question": "Push the revised body to issue #29?",
+            "header": "Update issue?",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Push as drafted",
+                "description": "Replace the issue body with the revised version (includes Update note at top documenting the design change)."
+              },
+              {
+                "label": "Tweak first",
+                "description": "Tell me what to adjust before pushing."
+              },
+              {
+                "label": "Don't update",
+                "description": "Leave the issue body as-is \u2014 the worker has my reply, that's enough."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "[from cse_01PRfu2ZFAJUF7AfKMD3QmEf \u2014 reply via send-to-session]\n\n[#29 worker] Design Q before I code: spec's \"spawn new server with --resume <uuid>\" doesn't have CLI support \u2014 `claude remote-control --help` has no --resume flag (just --name/--spawn/--capacity/--permission-mode/etc.).\n\nSo `RESUME_ON_RESTART=1` \"auto-resume on supervisor spawn\" can't be done as written. The realistic options for Part A:\n\n  A. Match the manual flow (supervisor-restart.sh): rehydrate = fork transcripts \u2192 surface for `/resume` picker. NO auto-resume on spawn. Drop the `RESUME_ON_RESTART` env var entirely; document the manual-pickup model. (Honest to the CLI.)\n\n  B. Keep `RESUME_ON_RESTART` as a placeholder env var but make it a no-op with a TODO + follow-up issue for \"wire --resume once `claude remote-control` supports it\".\n\n  C. Implement auto-resume via a different mechanism: after spawning the fresh `mm-<dir>` server, open Terminal.app or `open -a Claude.app <cwd>` with the forked uuid so the user is one click into the rehydrated session (no longer \"no manual claude -r\" \u2014 closer to \"no manual fork-and-pick\"). Noisy on reboot if the user wasn't there.\n\nI lean A \u2014 least surface, matches today's reality, leaves the door open for a real flag later. Want me to file the \"wait for --resume in remote-control\" follow-up as a separate ticket? Same call applies to the Part B `auto_resume` field.\n\n(Everything else in the spec is fine \u2014 orphan walk + TTL + archived marker + idempotency + oneoff checkpoints + sweep. Continuing on those while you answer.)"
+      },
+      {
+        "role": "assistant",
+        "text": "Worker's right \u2014 A is the call. Replying now, then I'll propose the issue-body cleanup to you."
+      },
+      {
+        "role": "assistant",
+        "text": "Session not found \u2014 the worker's session must have ended or rolled over. Let me find the live one."
+      },
+      {
+        "role": "assistant",
+        "text": "The `[from ...]` header pointed to a session that no longer exists (404). The live oneoff worker is still `cse_0194L9v2amdPMtmc8Wn1rChC` \u2014 worker=running, last activity moments ago. Sending the decision there instead (worker invited a mid-flight reply with \"continuing on those while you answer\")."
+      },
+      {
+        "role": "assistant",
+        "text": "Reply delivered. Now updating issue #29 to match the decision. Let me draft the diff, then push it after your OK."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the delta:\n\n- **Update note at top** explains why the design changed (worker found the CLI gap)\n- **Goal**: drop \"Allowlisted dirs may auto-resume\"\n- **Part A step 4** (auto-resume via `--resume <uuid>`): removed\n- **Part B step 1**: drop `auto_resume` field from checkpoint\n- **AC**: drop the two auto-resume bullets\n- **Tradeoffs**: drop the auto-resume tradeoff\n- **Out of scope**: add the auto-resume gap as a deferred item"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Push as drafted"
+  }
+}

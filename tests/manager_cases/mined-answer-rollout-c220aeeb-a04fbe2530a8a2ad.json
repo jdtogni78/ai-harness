@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-c220aeeb-a04fbe2530a8a2ad",
+  "sig": "answer:rollout-c220aeeb:a04fbe2530a8a2ad",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from c220aeeb-1ff6-4d18-91c9-3d870ae06b40.jsonl turn #173",
+  "input": {
+    "action": {
+      "session_id": "rollout-c220aeeb",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "Which worker style for the delegated tasks?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01NjpNMapPnH7ABZSWmsBtwY",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which worker style for the delegated tasks?",
+            "header": "Worker style",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Headless `work start` workers",
+                "description": "Fire-and-forget `claude -p` workers. No picker rows. I (manager) watch their logs and relay results. Best for well-scoped tasks like the emails extraction."
+              },
+              {
+                "label": "Picker-visible `new-session` sessions",
+                "description": "Show up in the Claude app picker as `oneoff-*` rows. You can tap in mid-run to inspect or steer. Heavier; useful if you want to drive the worker yourself."
+              },
+              {
+                "label": "Mix: headless for emails, picker for SOP run",
+                "description": "Headless for the extraction (low-touch). Picker-visible for the SOP audit so you can review findings live in Step 5 (human review window)."
+              }
+            ]
+          },
+          {
+            "question": "Dispatch FF only now, or queue dstrader / dstrader-docker workers in parallel?",
+            "header": "Fan-out",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "FF only \u2014 sequential by family",
+                "description": "Match your priority order (FF \u2192 dstrader \u2192 ai-harness \u2192 dstrader-docker). Cleanest, easiest for me to manage. dstrader uses the same SOP so its worker can copy FF's pattern."
+              },
+              {
+                "label": "FF + dstrader in parallel",
+                "description": "dstrader has no emails-prerequisite (no family-emails class), so its SOP run can start immediately. Saves wall-clock. Skip ai-harness (already public) and defer dstrader-docker."
+              },
+              {
+                "label": "All three families in parallel",
+                "description": "FF emails worker + FF SOP (chained), dstrader SOP, dstrader-docker SOP all kicked off. Maximum throughput; harder to track."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "its ok we can always archive/re-publish.\nget the family emails from the prod db/backups.\nLets use this session as a manager session, open new sessions for delegating work"
+      },
+      {
+        "role": "assistant",
+        "text": "Got it \u2014 manager mode. Let me capture the policy shift first, then check what the worker needs to know to extract the emails."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me check where the FF prod DB / backups live so the worker has a starting point."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me check the new-session skill to see how it dispatches the first prompt."
+      },
+      {
+        "role": "assistant",
+        "text": "Saving the policy update first, then setting up tasks and getting tool schemas I need."
+      },
+      {
+        "role": "assistant",
+        "text": "Worker location confirmed: melnick SSH works, latest dump is `familyfund_prod_2026-05-22-122916.sql.gz`. Before I dispatch, one decision on worker style."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Picker-visible `new-session` sessions, FF only \u2014 sequential by family"
+  }
+}

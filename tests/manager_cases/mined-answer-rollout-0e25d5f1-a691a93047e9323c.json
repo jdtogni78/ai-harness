@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-0e25d5f1-a691a93047e9323c",
+  "sig": "answer:rollout-0e25d5f1:a691a93047e9323c",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 0e25d5f1-b847-4e6f-8f9b-9ef926b3e1b8.jsonl turn #455",
+  "input": {
+    "action": {
+      "session_id": "rollout-0e25d5f1",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01KejVCMVj7e53bp68VWqimt",
+      "question": "Which next?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01QQsC7kpaxSkg7334ZC5vp4",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which next?",
+            "header": "Pick bug",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "S2 #4 \u2014 Cancel CL BOR ledger update",
+                "description": "Cancelled CL keeps being counted by borrowedSharesAsOf() until the next BOR/REP creates a fresh ledger row. Plus: a seed row (CL #3926) has status=cancelled with outstanding=108 \u2014 figure out the code path that produced that. Medium-complex (touches CancelService + AccountBalance chain)."
+              },
+              {
+                "label": "S2 #5 \u2014 Same-day BOR\u2192REP audit trail",
+                "description": "Same-day BOR\u2192REP cycle leaves zero historical BOR rows in account_balances. Audit trail says the account was never borrowed against, even though transactions remembers. Touches same-day collapse in OutstandingCalculator + balance chain."
+              },
+              {
+                "label": "S3 #6 \u2014 Readjust keeps old cancelled rows",
+                "description": "Readjust marks old credit_line_payments as cancelled but leaves them in the table; show page renders interleaved cancelled+scheduled rows; allocations get written against both. UI + ReadjustService scope."
+              },
+              {
+                "label": "S3 #7 \u2014 Loans summary numbers",
+                "description": "Header cards sum cancelled lines / phantom REPs into 'Lifetime disbursed' / 'Lifetime repaid'. Switch tile source from raw transaction sums to CL-row totals. Smaller scope; mostly LoansSummaryBuilder + Blade."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "All 195 pass. Let me also quickly verify bug #1 regression still passes alongside #2:"
+      },
+      {
+        "role": "assistant",
+        "text": "All 4 bug-specific regression tests pass. Let me view the final diff and commit:"
+      },
+      {
+        "role": "assistant",
+        "text": "Two S1 bugs from `QA_BUGS_2026-05-20.md` now fixed and committed:\n\n**Commits on `worktree-bridge-cse_01KejVCMVj7e53bp68VWqimt`**\n- `4df7d83a` \u2014 bug #1: reject `shares > outstanding` in repay\n- `967d9526` \u2014 bug #2: clamp repay date to `[origination_date, today]`\n\n**Test coverage**\n- Service-layer guards + 4 new regression tests, all passing (`RepayServiceTest::test_repay_overpayment_is_rejected`, `OutstandingCalculatorSameDayTest::test_repay_before_origination_date_is_rejected`, `CreditLineMessyHistoryTest::test_repay_overpayment_is_rejected`, `QaBugs20260520Test::test_bug_2_repay_rejects_dates_outside_origination_to_today`).\n- 195/195 credit-line + scenario tests pass on the leased `test2` slot (excluding 1 pre-existing baseline failure in `QaBugs20260519Test::bug_14` \u2014 unrelated `accounts.type` column mismatch).\n\n**Notes / leftovers**\n- The `test2` slot is still leased (port 3012). Release with `~/.familyfund-pool/testpool.sh release test2` when you're done.\n- Nothing pushed yet \u2014 the worktree's branch has two new commits ahead of where it started this session."
+      },
+      {
+        "role": "assistant",
+        "text": "#3 is structurally closed by #1's rejection \u2014 without overpayment being accepted, the cross-CL ghost can't form. Let me add a regression test that confirms it."
+      },
+      {
+        "role": "assistant",
+        "text": "#3 regression test passes \u2014 confirms the bug is structurally closed by #1's rejection."
+      },
+      {
+        "role": "assistant",
+        "text": "All three S1 bugs (the critical financial-integrity tier) from `QA_BUGS_2026-05-20.md` are now closed.\n\n**This session's commits on `worktree-bridge-cse_01KejVCMVj7e53bp68VWqimt`**\n- `4df7d83a` \u2014 #1: reject `shares > outstanding`\n- `967d9526` \u2014 #2: clamp REP date to `[origination_date, today]`\n- `79cf9e94` \u2014 #3: regression test confirming #3 is closed by #1\n\n**Test totals**\n- 5 new/updated regression tests, all passing.\n- 195/195 credit-line + scenario tests pass.\n\n**Leftover housekeeping**\n- `test2` pool slot still leased (port 3012). Release: `~/.familyfund-pool/testpool.sh release test2`.\n- Three new commits sit on the worktree branch, not yet pushed or merged to main.\n- The QA bug doc at `/Users/claudio1/dev/FamilyFund/docs/QA_BUGS_2026-05-20.md` (in the main checkout, not this worktree) needs bugs #1\u2013#3 flipped to \u2705 once these commits land."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "S2 #4 \u2014 Cancel CL BOR ledger update"
+  }
+}

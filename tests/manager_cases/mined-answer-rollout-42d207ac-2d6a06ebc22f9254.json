@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-42d207ac-2d6a06ebc22f9254",
+  "sig": "answer:rollout-42d207ac:2d6a06ebc22f9254",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 42d207ac-0d8c-43e5-bea7-284fc877754b.jsonl turn #82",
+  "input": {
+    "action": {
+      "session_id": "rollout-42d207ac",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01EtXEXPYqqMoqciMAqKyVk4",
+      "question": "Public-portfolio effort is shipped (#35 Done) and there are no real empty files to clean. Which follow-up should we tackle now?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01471nDuCT2yvtLRMXtXcNHm",
+        "description": "",
+        "questions": [
+          {
+            "question": "Public-portfolio effort is shipped (#35 Done) and there are no real empty files to clean. Which follow-up should we tackle now?",
+            "header": "Next thread",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "#14 board cleanup (Recommended)",
+                "description": "49 Todo cards on board #2 still link to jdtogni78/ai-harness-archive. Survey how many, then either bulk-transfer issues or update the start-work/close-work helpers to always pass --repo. Low-risk, immediately unblocks board-driven skills."
+              },
+              {
+                "label": "#12 + #13 history/HEAD scrub",
+                "description": "#12 rename mm- test fixtures to a neutral nickname (HEAD-only). #13 scrub note/mm-/m5 personal-identifier literals from past commits (force-rewrites public history \u2014 irreversible for anyone who cloned). Higher blast radius; do #12 first, then decide on #13."
+              },
+              {
+                "label": "Memory-bank docs (#17\u2013#28)",
+                "description": "Portfolio polish: refresh AGENTS.md/ARCHITECTURE.md/OPERATIONS.md, add DEVELOPMENT/SECURITY/DOMAIN_GLOSSARY/INTEGRATIONS/SKILLS_INDEX, doc-sync PR-template checklist. Mostly writing, no code risk. Good if you want the public repo to read well to a visitor."
+              },
+              {
+                "label": "Just give me the punch list",
+                "description": "Skip picking now \u2014 output a single prioritized list of every public-portfolio-adjacent ticket with one-line summaries so you can route them yourself or hand off to workers."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I want to resume the work of trying to make AI harness public, review all the tickets, and, uh, empty files in the folder, and let's see what we should do now"
+      },
+      {
+        "role": "assistant",
+        "text": "I'll check the current state and review tickets on the AI Harness public effort."
+      },
+      {
+        "role": "assistant",
+        "text": "The \"empty files\" are mostly inside `narrate/.venv/` (third-party package markers \u2014 `py.typed`, `__init__.py`, `REQUESTED` \u2014 all normal and ignored anyway). The only repo-tracked empties are `tests/__init__.py` and `tests/perm_gate_lab/__init__.py` \u2014 legitimate Python package markers, not garbage.\n\nLet me check the project board and the public-vs-private status."
+      },
+      {
+        "role": "assistant",
+        "text": "Status check \u2014 here's where the \"make ai-harness public\" effort actually sits:\n\n## Where it landed\n- **Public repo is LIVE**: `https://github.com/jdtogni78/ai-harness` \u2014 `~/dev/ai-harness` (this worktree's parent) points at it. Ticket **#35 (Publish ai-harness as a public portfolio repo)** is **CLOSED / Done** on board #2.\n- **Local layout on mini**: `~/dev/ai-harness` (public, primary) + `~/dev/ai-harness-archive` (the OLD private repo, renamed to free the name). Memory said the private was at `~/dev/ai-harness-private/` \u2014 that's stale; it's actually `ai-harness-archive`. I'll fix the memory.\n- **Empty files**: only ~50 inside `narrate/.venv/` (third-party `py.typed` / `__init__.py` / `REQUESTED` \u2014 vendored deps, gitignored) and `tests/__init__.py` + `tests/perm_gate_lab/__init__.py` (legit Python package markers). Nothing to clean.\n\n## Open tickets directly tied to the public-portfolio theme\n- **#13** \u2014 scrub `note`/`mm-`/`m5` personal-identifier literals from past commits (history hygiene)\n- **#12** \u2014 rename `mm-` test fixtures to a neutral host nickname (HEAD hygiene)\n- **#14** \u2014 board #2 cards still point at `ai-harness-archive` URLs; transfer or document workaround\n- **#17\u2013#28** \u2014 memory-bank doc refresh (ARCHITECTURE / OPERATIONS / DEVELOPMENT / SECURITY / SKILLS_INDEX / DOMAIN_GLOSSARY / INTEGRATIONS / CONTRIBUTING / docs-sync checklist). These are the \"polish the portfolio\" tickets.\n\nThe other open tickets (#1, #3-#7, #9, #36, #41, #42) are general harness work, not public-portfolio cleanup.\n\nLet me update the stale memory and then ask which thread to pick up."
+      },
+      {
+        "role": "assistant",
+        "text": "Memory updated. The publish itself is done \u2014 what's left is hygiene + polish follow-ups. Which thread do you want to pick up?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "#14 board cleanup (Recommended)"
+  }
+}

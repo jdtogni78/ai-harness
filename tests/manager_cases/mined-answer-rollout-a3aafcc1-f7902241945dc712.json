@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a3aafcc1-f7902241945dc712",
+  "sig": "answer:rollout-a3aafcc1:f7902241945dc712",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a3aafcc1-40fd-4785-a4ff-ed0a75823fad.jsonl turn #145",
+  "input": {
+    "action": {
+      "session_id": "rollout-a3aafcc1",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01VzsvPC2qtCr1SrEswWpsPa",
+      "question": "Which of these items should I add to the 'Trading & Fund' board?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01JG8Y4EFP5hXNUB25zGUnN5",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which of these items should I add to the 'Trading & Fund' board?",
+            "header": "Items",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "1 \u2014 One-time backfill",
+                "description": "The one-time asset-price refresh (the thing you asked to register). Recommended."
+              },
+              {
+                "label": "2 \u2014 Daily run not firing",
+                "description": "Root-cause fix: verify/reinstall the cron so the gap doesn't recur."
+              },
+              {
+                "label": "3 \u2014 Widen GAP_DETECT_DAYS",
+                "description": "Bump the 30-day self-heal lookback so short outages auto-recover."
+              },
+              {
+                "label": "4 \u2014 Alert on stalled run",
+                "description": "Add monitoring so a silent multi-month outage is caught fast."
+              }
+            ]
+          },
+          {
+            "question": "How should I create them?",
+            "header": "Type",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Draft cards",
+                "description": "Add as draft items directly on the project board. Quick, no repo issues; can convert to issues later."
+              },
+              {
+                "label": "GitHub issues",
+                "description": "Create real issues in jdtogni78/FamilyFund and add each to the board (assignable, closeable, linkable to PRs)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Let me check whether I can reach the repo's GitHub board before proposing items."
+      },
+      {
+        "role": "assistant",
+        "text": "`gh` isn't on PATH. Let me see if it's installed elsewhere or whether a token is available for the API."
+      },
+      {
+        "role": "assistant",
+        "text": "`gh` is installed at `/opt/homebrew/bin/gh` (just not on PATH). Let me check its auth and whether the repo has a Project board."
+      },
+      {
+        "role": "assistant",
+        "text": "I can access the board. You're authenticated as `jdtogni78`, and there are two Projects:\n- **#1 \"Trading & Fund\"** (`PVT_kwHOBOqy7s4BYmIS`) \u2014 the likely target\n- **#2 \"Remote Control\"** (`PVT_kwHOBOqy7s4BYmIU`)\n\nLet me peek at the \"Trading & Fund\" board's fields and existing items so my proposed cards match its conventions."
+      },
+      {
+        "role": "assistant",
+        "text": "The board uses a standard Status single-select. Let me grab its options and re-confirm the item count (the list came back empty)."
+      },
+      {
+        "role": "assistant",
+        "text": "I can access the board, and the target is clearly **Project #1 \"Trading & Fund\"** (it's currently empty; Status options are `Todo / In Progress / Done`). I won't create anything until you confirm.\n\nHere are the items I propose registering, drawn from this thread (the one-time refresh plus the root cause it exposed):\n\n**1. [Ops] One-time asset-price backfill \u2014 fill the 1\u20133 month prod gap** \u00b7 _Todo_\n> Daily DSTrader run hasn't fired for ~1\u20133 months, leaving a continuous hole in `asset_prices`. Execute the runbook: measure with `GET /api/asset_prices/gaps?days=120`; bring up prod stack with TWS logged in; run `AssetReportRun gaps prod 120 NYSE 7497` (fallback: `history price price_portfolios/portfolio_current.json prod <start> <end> 7497`); verify `missing_count: 0`. Idempotent for genuine holes; skips prices \u2264 0.\n\n**2. [Bug] Daily DSTrader run not firing in prod (root cause)** \u00b7 _Todo_\n> The actual cause of the gap. Verify cron `33 12 * * 1-5 \u2192 start_dstrader.sh restart prod` (`server/cron_user:18`) is installed/enabled; reinstall via `server/install.sh` if missing. Without this, the gap returns.\n\n**3. [Enhancement] Widen gap self-heal window (`GAP_DETECT_DAYS=30`)** \u00b7 _Todo_\n> `asset_report.sh:28` only looks back 30 days, so any missed window > 30 days is never auto-recovered. Bump to ~45\u201360 so short outages self-heal.\n\n**4. [Enhancement] Alert when the daily price run doesn't fire** \u00b7 _Todo_\n> The outage was silent for months. Add a heartbeat/alert (e.g. email when `gaps` `missing_count` exceeds a threshold, or a daily_run heartbeat) so a stalled pipeline is caught quickly.\n\nA couple of choices before I create anything:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "the alert on runs should belong to asset run scripts, 1 \u2014 One-time backfill, 2 \u2014 Daily run not firing, 3 \u2014 Widen GAP_DETECT_DAYS, 4 \u2014 Alert on stalled run, GitHub issues"
+  }
+}

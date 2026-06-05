@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-9150b997-97509184d1e7efa0",
+  "sig": "answer:rollout-9150b997:97509184d1e7efa0",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 9150b997-f925-41b1-bbf7-f5ef78ddc689.jsonl turn #250",
+  "input": {
+    "action": {
+      "session_id": "rollout-9150b997",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_015MduBVqyW8f9jfqwckJpT8",
+      "question": "Build the archive skill+CLI now or defer it?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_013t73AHbkB8Ub3U3UHBJtvm",
+        "description": "",
+        "questions": [
+          {
+            "question": "Build the archive skill+CLI now or defer it?",
+            "header": "Archive skill",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "File as follow-up, keep closing",
+                "description": "Open a GH issue on Remote Control board #2; finish close-work for the stale-analysis thread first"
+              },
+              {
+                "label": "Build it now",
+                "description": "Add `sessions archive <SID>` CLI + a skill wrapping it before finishing close-work (delays the push/merge close-out)"
+              }
+            ]
+          },
+          {
+            "question": "There are TWO archive code paths in the repo \u2014 the WRONG one in manager.py:530 (PUT body status, silently 200s as no-op) and the RIGHT one in monitor.py:105 (POST /archive). Should I file that as a bug too?",
+            "header": "Bug report",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, file the bug",
+                "description": "Open a separate GH issue: \"manager.archive_request returns wrong verb; silent no-op\""
+              },
+              {
+                "label": "No, I'll handle it",
+                "description": "Skip; you'll deal with it separately"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Found it. `api_request(cfg, \"PUT\", \"/sessions/<id>\", token, {\"status\": \"archived\"})`. The user explicitly asked to archive; precondition (\"nothing more there\") is verified \u2014 fork's final assistant message was the summary, the original is disconnected, and its 4 dirty files are merged.\n\nArchiving `cse_01KEWoeHzSKtc3YEiNRgKDxj`:"
+      },
+      {
+        "role": "assistant",
+        "text": "API returned 200 each time but I'm not seeing the `status` field in the response shape. Let me look at the raw response to verify the archive actually happened:"
+      },
+      {
+        "role": "assistant",
+        "text": "The PUT returned 200 but the session is still in the active list. The code comment warned \"the archive verb is still to be confirmed against the live API\" \u2014 the 200 may be misleading. Let me look at the response shape:"
+      },
+      {
+        "role": "assistant",
+        "text": "Found the verified endpoint: `POST /sessions/{id}/archive`. The `archive_request()` in manager.py is the unverified one \u2014 there's a verified `archive_session()` helper in monitor.py."
+      },
+      {
+        "role": "assistant",
+        "text": "Archived. Status = `archived`. Now I noticed something: **the codebase has two diverging archive implementations** \u2014 `manager.py:archive_request()` does PUT/status (wrong, silently 200s as no-op), while `monitor.py:archive_session()` does POST/archive (right). If the manager's auto-executor uses the wrong one, archives silently no-op. Worth filing as a follow-up. Let me verify which one the executor uses:"
+      },
+      {
+        "role": "assistant",
+        "text": "Good catch \u2014 the gap is real. `archive_session()` (the verified verb) exists as a helper in `remote_control/usage_limit/monitor.py:105` but isn't exposed via the CLI; the only callers are the manager's loop and my ad-hoc Python. A thin wrapper (`python3 -m remote_control sessions archive <SID>`) + a `/archive-session` skill would fix that.\n\nTwo answers to this needed:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Build it now, No, I'll handle it"
+  }
+}

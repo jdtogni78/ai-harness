@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f61ec1db-a7d51f33deb0433d",
+  "sig": "answer:rollout-f61ec1db:a7d51f33deb0433d",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f61ec1db-5c24-42d7-858f-86b8908611eb.jsonl turn #346",
+  "input": {
+    "action": {
+      "session_id": "rollout-f61ec1db",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_013XneiVcL77kUujQ1Xun4gU",
+      "question": "Push 2 commits to public origin/main now?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01G7G1kDe2bzxt5ExbB4AjH5",
+        "description": "",
+        "questions": [
+          {
+            "question": "Push 2 commits to public origin/main now?",
+            "header": "Push",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, push (Recommended)",
+                "description": "git push origin main \u2014 publishes the merge to jdtogni78/ai-harness. Then I'll re-run link.sh and report done."
+              },
+              {
+                "label": "Hold \u2014 let me eyeball the diff first",
+                "description": "I'll stop and show you `git show --stat 181b60f` or whatever you want before pushing."
+              },
+              {
+                "label": "Roll back the merge",
+                "description": "Undo the merge on local main (`git reset --hard origin/main`). Bridge-branch commit stays for further iteration."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "**Phase 1 \u2014 Review**\n\n- **Where**: bridge worktree `bridge-cse_013XneiVcL77kUujQ1Xun4gU` on branch `worktree-bridge-cse_013XneiVcL77kUujQ1Xun4gU` (locked \u2014 per memory, do not `git worktree remove`)\n- **Vs `origin/main`**: 0 commits ahead \u2014 **nothing committed yet**, all work is untracked\n\n**What this thread produced** (will be staged in one commit):\n| Path | Files | LOC | Status |\n|---|---|---|---|\n| `narrate/` package | 11 | ~530 | NEW \u2014 Python pkg + install/wrapper |\n| `skills/narrate-demo/SKILL.md` | 1 | 131 | NEW |\n| `demos/wikipedia.demo.yaml` | 1 | 36 | NEW \u2014 smoke-test YAML |\n| `demos/poc-narrated/make_demo.py` | 1 | 235 | NEW \u2014 original POC, **superseded by `narrate/`** |\n\n**Flags to address before delivery**:\n1. **`demos/poc-narrated/`** \u2014 duplicate of what `narrate/` does. You said \"decide at review whether to keep or remove\" \u2192 recommend **remove** (narrate/ is the canonical version, smoke-tested from YAML)\n2. **`demos/out/` artifacts** (17 generated files: mp4, wav, aiff, webm, ~10MB) \u2014 should NOT be committed. Need a `demos/.gitignore` entry for `out/`\n3. **`.DS_Store`** in poc dir \u2014 drop\n4. **No tracking ticket** for this work \u2014 it was exploratory. Small enough that I'd skip a retro ticket, but I can file one if you want history\n5. **`narrate-demo` skill symlink** currently points at this worktree. After merge to main, you'll want `~/dev/ai-harness/skills/link.sh` re-run from main so it repoints\n\n**Phase 2 \u2014 Test gate**: N/A. No test files in the new package. The Wikipedia smoke render (`narrate render demos/wikipedia.demo.yaml`) ran end-to-end and produced a 27.74s mp4 with timing matching narration exactly \u2014 that's the only validation. Calling this out explicitly rather than claiming a green gate.\n\n**Phase 3 \u2014 TODO sweep**: re-reading the thread.\n\n- \u2705 POC done\n- \u2705 CLI + skill built and smoke-tested\n- \u23f8 **FF integration** \u2014 explicitly paused by you, ticket already filed (`jdtogni78/FamilyFund#1`)\n- No half-done in-flight work, no in-code TODOs added, no implicit asks I dropped"
+      },
+      {
+        "role": "assistant",
+        "text": "Per your selections: removing `demos/poc-narrated/`, keeping `demos/out/` (no .gitignore added), no retro ticket. Before staging, one quick check \u2014 is `jdtogni78/FamilyFund` public or private? It matters because the public ai-harness commit policy scrubs app names, and the SKILL.md currently references \"Family Fund\" / \"FF\" as examples."
+      },
+      {
+        "role": "assistant",
+        "text": "FF is **PRIVATE**, ai-harness is **PUBLIC**. So FF references in the public repo's SKILL.md leak a private repo name \u2014 I need to scrub them. Let me find every mention."
+      },
+      {
+        "role": "assistant",
+        "text": "Scrubbing the four mentions in SKILL.md."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the delivery sequence. Going to do all the local steps (delete POC dir, stage, commit on bridge branch, then merge into main from the main checkout), then **pause before push** since that publishes to the public repo."
+      },
+      {
+        "role": "assistant",
+        "text": "Ready to push. **Pausing for your explicit OK** since this publishes to the public `jdtogni78/ai-harness` repo.\n\n**What will be pushed**:\n```\n181b60f  Merge: narrate package + skill           (--no-ff merge)\ne21ac2e  feat(narrate): AI-narrated browser demo CLI + skill\n```\n14 files, ~530 LOC + 131-line skill + 36-line smoke-test YAML. Commit body scrubbed (no app names, nicknames, cse/pid).\n\n**After push, the remaining cleanup**:\n1. Re-run `~/dev/ai-harness/skills/link.sh` from main \u2192 repoints `~/.claude/skills/narrate-demo` to the main checkout (currently points at this worktree)\n2. Bridge worktree stays in place (per memory: never `git worktree remove` a bridge); the bridge branch already contains the same commits as main, so next session here will be in sync after a `git fetch`\n3. No env leases to release, no tracking ticket to close (none was filed)"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Yes, push (Recommended)"
+  }
+}

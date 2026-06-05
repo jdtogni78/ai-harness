@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-ce34f624-0e668d1a2a103e40",
+  "sig": "answer:rollout-ce34f624:0e668d1a2a103e40",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from ce34f624-f17b-4ace-8eb7-15d9fd3a0fd5.jsonl turn #216",
+  "input": {
+    "action": {
+      "session_id": "rollout-ce34f624",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_019yjZhonxSzmiqka6XCFH8K",
+      "question": "The smoke test of sanitize_export passed identity subs + GD-0007 strip but the safety-net grep fired on familyfund/dstrader in 26 files \u2014 mostly source code outside batches A\u2013E (`remote_control/*.py` DEFAULT_NICKNAMES + docstrings, `scripts/pool/link.sh`, `active-dirs.txt`, `session-nicknames.txt`, `DECISIONS.md` 25 hits incl. GD-0006 'Shared FamilyFund env pools', `docs/session-manager-cases.md`). FF/DST appear only as legitimate nickname tokens (no FFmpeg-style false positives), so substitution is safe. How do you want this resolved?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_013ESQuhEdn4HEJ5uh7L5gtP",
+        "description": "",
+        "questions": [
+          {
+            "question": "The smoke test of sanitize_export passed identity subs + GD-0007 strip but the safety-net grep fired on familyfund/dstrader in 26 files \u2014 mostly source code outside batches A\u2013E (`remote_control/*.py` DEFAULT_NICKNAMES + docstrings, `scripts/pool/link.sh`, `active-dirs.txt`, `session-nicknames.txt`, `DECISIONS.md` 25 hits incl. GD-0006 'Shared FamilyFund env pools', `docs/session-manager-cases.md`). FF/DST appear only as legitimate nickname tokens (no FFmpeg-style false positives), so substitution is safe. How do you want this resolved?",
+            "header": "FamilyFund/DST",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Add subs to sanitize_export.sh",
+                "description": "Extend the perl pass: familyfund\u2192app-one, FamilyFund\u2192AppOne (case-preserving), dstrader\u2192app-two, dstrader-docker\u2192app-two-docker, \\bFF\\b\u2192AO, \\bDST\\b\u2192A2. Handles all 26 files at export time without touching source. Clean and matches Agent B's test scheme. (Recommended.)"
+              },
+              {
+                "label": "Hybrid: subs + empty configs",
+                "description": "Same as option 1 PLUS replace active-dirs.txt + session-nicknames.txt with empty templates in the export (just the format comment, no real entries). The user-config files in the public repo become true starter templates."
+              },
+              {
+                "label": "Refactor source in this thread",
+                "description": "Edit the source files in place (remote_control/*.py, configs, DECISIONS.md, session-manager-cases.md) to be project-agnostic. Sets a precedent that source itself is neutral. DECISIONS.md GD-0006 'Shared FamilyFund env pools' would need real content rewriting."
+              },
+              {
+                "label": "Relax the zero-hit rule",
+                "description": "Accept FamilyFund/dstrader as part of the developer's portfolio narrative \u2014 these were real projects the harness was built for. Update the verify command to allow them. Prior export had 274 hits and was deemed publishable. Cheapest."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Bug confirmed: `jdtogni78` \u2192 `juser278` instead of `youruser`. The prior public snapshot at `/Users/claudio1/dev/ai-harness-public/` shows zero `juser278` hits, so the original ad-hoc perl pass had the right ordering. This is an Agent C bug. Fixing it."
+      },
+      {
+        "role": "assistant",
+        "text": "Fixed. Now running smoke test against current HEAD (`66d2ff3`) \u2192 `/tmp/ai-harness-export-test/`. Expecting the safety-net grep to FIRE on familyfund/dstrader (since the refactor batches aren't committed yet) \u2014 that's a feature, not a bug. Validating the rest of the script."
+      },
+      {
+        "role": "assistant",
+        "text": "Pre-existing `/tmp/ai-harness-export-test/` from Agent C's earlier run. Re-running with `--force`."
+      },
+      {
+        "role": "assistant",
+        "text": "The safety net is doing its job \u2014 but it surfaced a wider gap than the brief anticipated. Source files outside the A\u2013E scope still contain familyfund/dstrader (e.g. `remote_control/session_titles.py` docstrings/DEFAULT_NICKNAMES, `scripts/pool/link.sh`, `DECISIONS.md`, `active-dirs.txt`, `session-nicknames.txt`, `docs/session-manager-cases.md`).\n\nLet me check whether the prior export at `~/dev/ai-harness-public/` had this leftover content, to understand how it was handled before."
+      },
+      {
+        "role": "assistant",
+        "text": "Prior export had 274 hits \u2014 so the \"zero hits\" requirement wasn't met before either. But the user explicitly wants `rg -i familyfund|dstrader` to return nothing now. The miss: A-E scoped to skills/tests/3 public docs, but `remote_control/*.py` (DEFAULT_NICKNAMES, docstrings), pool scripts (link.sh, README), config files (active-dirs.txt, session-nicknames.txt), DECISIONS.md (25 hits), and docs/session-manager-cases.md weren't covered.\n\nLet me check whether `FF` / `DST` appear as standalone tokens elsewhere (FFmpeg-style false positives) before deciding the right fix."
+      },
+      {
+        "role": "assistant",
+        "text": "Surfacing this scope discovery \u2014 it's a real decision and I don't want to guess."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Hybrid: subs + empty configs"
+  }
+}

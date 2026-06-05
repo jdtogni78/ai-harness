@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-fc33596b-648c7493f405385a",
+  "sig": "answer:rollout-fc33596b:648c7493f405385a",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from fc33596b-b115-4456-9a63-51a098938798.jsonl turn #11",
+  "input": {
+    "action": {
+      "session_id": "rollout-fc33596b",
+      "repo": "dstrader",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/dstrader/.claude/worktrees/bridge-cse_01XD2LdU8U4asDjhpA81y4wB",
+      "question": "What format should this Australia investment strategy presentation take?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01LC2bxkjZP17KGe59M7Jfpm",
+        "description": "",
+        "questions": [
+          {
+            "question": "What format should this Australia investment strategy presentation take?",
+            "header": "Format",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Narrated video demo (like rebalancing)",
+                "description": "YAML-scripted browser demo with TTS narration, mp4 output \u2014 same toolchain as the recent rebalancing v6 demo"
+              },
+              {
+                "label": "Static slide deck",
+                "description": "HTML/Markdown slides (e.g. reveal.js) \u2014 readable on the website, no audio"
+              },
+              {
+                "label": "Written article + screenshots",
+                "description": "Long-form page on the website with embedded charts/screens, no video"
+              }
+            ]
+          },
+          {
+            "question": "Where on the website should this live?",
+            "header": "Website target",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "New standalone page alongside rebalancing demo",
+                "description": "Same section/index as the existing demos"
+              },
+              {
+                "label": "New 'Investment strategies' section",
+                "description": "Group Australia + future strategy demos under a new top-level section"
+              },
+              {
+                "label": "Tell me the path",
+                "description": "I'll specify the exact location and naming in chat"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I want to create a... another presentation slash demo about, uh, investment strategy. Um, so that is related to the Australia. I wanna make it a separate presentation and also add to my website. Um, the main, uh, points on the strategy... well, some of the points I wanna discuss, and I want you to prepare the the whole transcript will be followed."
+      },
+      {
+        "role": "assistant",
+        "text": "Before I start drafting, I need the actual strategy points from you \u2014 without those I'd just be inventing content. A couple of structural questions I can ask in parallel:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Narrated video demo (like rebalancing), New 'Investment strategies' section"
+  }
+}

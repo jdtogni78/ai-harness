@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-6d6b976a-ae830718625f4adc",
+  "sig": "answer:rollout-6d6b976a:ae830718625f4adc",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 6d6b976a-ff99-431c-a5bf-1f8958171643.jsonl turn #165",
+  "input": {
+    "action": {
+      "session_id": "rollout-6d6b976a",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_017y39UMdsqDCoAk9RCrZMvg",
+      "question": "Reap the 53 dead, clean, fully-merged worktrees in FamilyFund (46) + job-search (7)? (Same safe treatment as ai-harness; keeps all 6 unmerged + the live one.)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_0193MoeNKbfiAW3gqR3NyL5K",
+        "description": "",
+        "questions": [
+          {
+            "question": "Reap the 53 dead, clean, fully-merged worktrees in FamilyFund (46) + job-search (7)? (Same safe treatment as ai-harness; keeps all 6 unmerged + the live one.)",
+            "header": "Reap merged",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Reap all 53 now",
+                "description": "Force-remove the 53 clean+MERGED dead worktrees + delete their merged branches + prune, in both repos. Nothing unique lost; transcripts preserved."
+              },
+              {
+                "label": "FamilyFund only",
+                "description": "Reap the 46 in FamilyFund now; leave job-search's 7 for later."
+              },
+              {
+                "label": "Report only",
+                "description": "Make no changes; just keep this review."
+              }
+            ]
+          },
+          {
+            "question": "The 6 unmerged + unpushed branches hold the only copy of that work. How to protect them?",
+            "header": "Unmerged work",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Push branches to origin",
+                "description": "Back up the 5 dead-session branches to origin (skip the live #66 one). Non-destructive but publishes them to the remote; note some carry security-audit content."
+              },
+              {
+                "label": "Leave in place",
+                "description": "Keep the worktrees/branches local as-is. Zero risk of loss while the branches exist; you land/merge them yourself later."
+              },
+              {
+                "label": "Land them (merge to main)",
+                "description": "Per-repo: merge each unmerged branch to main + push. Needs review/tests first \u2014 I'd do these one at a time, not in bulk."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "zsh isn't word-splitting the string. Using a proper zsh array:"
+      },
+      {
+        "role": "assistant",
+        "text": "This is real, unmerged, **unpushed** work \u2014 security audits, ACL gating, LinkedIn tooling, website specs. None of it is disposable. Let me get the reapable counts per repo and check which worktrees belong to **live sessions** before proposing any cleanup."
+      },
+      {
+        "role": "assistant",
+        "text": "Note the live FamilyFund session `01CzRGg2` (\"#66 secret audit\") **is** one of the unmerged worktrees \u2014 so it's live *and* unmerged. Let me fix one counting bug (`grep MERGED` was also matching `UNMERGED`) to get exact reapable sets."
+      },
+      {
+        "role": "assistant",
+        "text": "Clean numbers now. Let me also check the two repos with one extra worktree each (dstrader, dstrader-docker) so the review is complete."
+      },
+      {
+        "role": "assistant",
+        "text": "Two more UNMERGED \u2014 and these are hand-named `ff82-auth` worktrees, part of the **same cross-repo #82 feature** (FamilyFund ACL + dstrader service-token auth). Let me get their details."
+      },
+      {
+        "role": "assistant",
+        "text": "Complete cross-repo review below. The headline isn't the clutter \u2014 it's **6 worktrees holding committed work that exists only locally (never pushed)**, including a 3-repo security feature.\n\n## Worktree review \u2014 all of `~/dev`\n\n| repo | extra worktrees | reapable (clean+MERGED, dead) | unmerged (keep) | live session |\n|---|---|---|---|---|\n| ai-harness | 3 | 0 (done last round) | \u2014 | 2 + prototype |\n| **FamilyFund** | 48 | **46** | 2 | 1 (#66, idle) |\n| **job-search** | 9 | **7** | 2 | 0 |\n| **dstrader** | 1 | 0 | 1 | 0 |\n| **dstrader-docker** | 1 | 0 | 1 | 0 |\n| jdtogni-site / fin-export / dstrader_python / DSTraderAnalysis | 0 | \u2014 | \u2014 | \u2014 |\n\n**Reapable total: 53** (FamilyFund 46 + job-search 7) \u2014 clean, branches fully in `main`, sessions archived.\n\n### \u26a0\ufe0f Unmerged + **unpushed** work \u2014 6 worktrees, none disposable\n| repo / worktree | commit(s) | size | session |\n|---|---|---|---|\n| FamilyFund `01CzRGg2` | `security(#66): full git-history secret/PII audit + purge recipe` | 3f 206+ | **LIVE** (idle) |\n| FamilyFund `01XwDewU` | `security(acl): admin-gate reference-data API writes + dstrader token (#82)` | 16f 607+ | dead |\n| job-search `01NKJUo7` | `Add LinkedIn referral tooling (ToS-compliant)` | 4f 300+ | dead |\n| job-search `01WQeqP4` | `Add website specs + security incident/rotation docs` (+1) | 3f 290+ | dead |\n| dstrader `ff82-auth` | `auth: send Sanctum bearer token to FamilyFund API (#82)` | 3f 54+ | dead |\n| dstrader-docker `ff82-auth` | `auth: send Sanctum bearer token from report scheduler (#82)` | 1f 19+ | dead |\n\nTwo things stand out: **#82 is a coherent 3-repo feature** (FamilyFund ACL + dstrader token + dstrader-docker scheduler token), all unmerged and unpushed; and **#66 is the live session** \u2014 I won't touch its branch. Because these are committed (not just dirty), the work is safe as long as the branches live \u2014 but since nothing is pushed, it'd be lost if this machine died.\n\nTwo decisions:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Reap all 53 now, Leave in place"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-1ed74696-c57d53de06d19a80",
+  "sig": "answer:rollout-1ed74696:c57d53de06d19a80",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 1ed74696-73ba-4bea-8344-02ba21ceb232.jsonl turn #509",
+  "input": {
+    "action": {
+      "session_id": "rollout-1ed74696",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_012ZZj5YNPuB76JJdCViHEY6/app1/family-fund-app",
+      "question": "The 2 pre-existing fragile tests (read_transaction, validation_errors) flip on auto-increment drift from my added tests. How should I handle them before closing?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01DTRPDC9GJFq6iGDz7L7sTX",
+        "description": "",
+        "questions": [
+          {
+            "question": "The 2 pre-existing fragile tests (read_transaction, validation_errors) flip on auto-increment drift from my added tests. How should I handle them before closing?",
+            "header": "Flipped tests",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Try to harden them (Recommended)",
+                "description": "Attempt minimal, correct fixes so both become order/ID-independent and the full suite returns to \u226411 failures. Touches 2 unrelated test files; I'll keep changes surgical and re-run the full suite to confirm."
+              },
+              {
+                "label": "Merge as-is + document",
+                "description": "Keep my green coverage additions, document the 2 flips as pre-existing fragility in the ticket, and file a follow-up issue to harden test isolation (deterministic IDs). read_transaction is already a documented known-flaky."
+              },
+              {
+                "label": "Hold / handoff",
+                "description": "Don't merge yet. I produce a handoff brief with the coverage gains and the test-isolation problem so you (or another session) can decide."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Decisive point: the baseline run (original code, only `.env` added) had **both passing** (11 failures, all FundTrait). My test additions flipped them \u2014 so I caused it via ordering/pollution and must not leave the suite worse. Let me localize: do my new tests *pollute* these, or merely *reorder* pre-existing fragile tests? I'll run my new tests together with each victim."
+      },
+      {
+        "role": "assistant",
+        "text": "The pipe broke the wrapper again. Let me run via direct `docker exec` with proper quoting, testing each victim within its own full suite (with my changes) to localize the pollution."
+      },
+      {
+        "role": "assistant",
+        "text": "Key finding: the **Repositories suite alone passes** `read_transaction` (102\u2713), but it fails in isolation and in the full run. This is classic **auto-increment drift** \u2014 MariaDB's `AUTO_INCREMENT` counter is *not* rolled back by `DatabaseTransactions`, so adding 23 row-creating tests shifts IDs, and these two tests have latent absolute-ID/shared-state dependence. Pre-existing fragility, exposed not caused by me (zero app-code changes). Let me read `validation_errors` to judge whether there's a clean, non-invasive robustness fix."
+      },
+      {
+        "role": "assistant",
+        "text": "`validation_errors` is a multi-assertion API test, and `read_transaction` is documented \"ignore\". Both flip on auto-increment/ID drift (confirmed: Repositories-suite-alone passes `read_transaction`; only my added Unit+Feature row-creating tests run before it in the full run). This is pre-existing fragility I exposed, not a code regression \u2014 but landing main at 11\u219213 is still bad form. Let me read `read_transaction` to gauge whether a clean order-independence fix is cheap and appropriate."
+      },
+      {
+        "role": "assistant",
+        "text": "`read_transaction` is the documented known-flaky test (the \"data.account missing\" bug, explicitly \"ignore\"). Fixing it or `validation_errors` means hardening unrelated tests' latent ID-dependence \u2014 separate scope. Before deciding, let me compute the actual coverage **gain** (the point of the ticket) so I can present the full picture."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the complete picture. **Coverage gains are strong and clearly attributable:**\n\n| Class | Before | After | \u0394 |\n|-------|-------:|------:|---:|\n| ScheduledJobTrait | 79.5% | **100.0%** | +20.5 |\n| OperationsController | 68.6% | **79.3%** | +10.6 |\n| MatchingRuleControllerExt | 92.5% | **98.5%** | +6.0 |\n| TransactionControllerExt | 91.6% | **97.0%** | +5.4 |\n| ScheduledJobControllerExt | 88.0% | **92.3%** | +4.2 |\n| TransactionExt | 87.6% | 88.4% | +0.7 |\n\n**21 new test methods, all green; 8 previously-\"risky\" tests de-risked.**\n\nThe one wrinkle: the full-suite failure count went **11 \u2192 13**. The 2 newly-failing tests (`TransactionRepositoryTest::test_read_transaction` and `TransactionExtApiTest::test_validation_errors`) are **pre-existing order/auto-increment-fragile** tests, not code regressions:\n- I changed **zero application code** (only test files + `.env`).\n- `read_transaction` is the **documented known-flaky** test (memory: \"fails on main too; ignore\") \u2014 it fails in isolation, passes within its own suite, and depends on absolute IDs.\n- Both flipped purely because my 21 row-creating tests advance MariaDB's `AUTO_INCREMENT` (which `DatabaseTransactions` doesn't roll back), shifting IDs the two tests latently depend on.\n\nSince this lands on `main`, how would you like me to handle the two flipped fragile tests?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Try to harden them (Recommended)"
+  }
+}

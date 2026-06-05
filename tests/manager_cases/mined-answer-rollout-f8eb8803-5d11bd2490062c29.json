@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f8eb8803-5d11bd2490062c29",
+  "sig": "answer:rollout-f8eb8803:5d11bd2490062c29",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f8eb8803-11f7-477b-98a5-3ae1653d1d8f.jsonl turn #39",
+  "input": {
+    "action": {
+      "session_id": "rollout-f8eb8803",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01RYTfST7aAo1xGyWGY7YxZ8",
+      "question": "Those two sessions show source url=github.com/jdtogni78/ai-harness.git but also have local bridge worktrees on this mini \u2014 do you know if they actually run in an Anthropic sandbox or locally on this Mac?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01WjvXdLZYeUj2tBpFQj6ANo",
+        "description": "",
+        "questions": [
+          {
+            "question": "Those two sessions show source url=github.com/jdtogni78/ai-harness.git but also have local bridge worktrees on this mini \u2014 do you know if they actually run in an Anthropic sandbox or locally on this Mac?",
+            "header": "Where do they run",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Anthropic cloud sandbox",
+                "description": "Launched from claude.ai web with a GitHub source \u2014 running remotely. The [AH] (host-less) prefix is correct then; the local bridge dirs are just artifacts (forks/SDK scratch)."
+              },
+              {
+                "label": "Locally on this mini",
+                "description": "Despite the GitHub source url, they're really running here as bridge sessions. Then is_host_local is over-strict \u2014 we'd want to treat a session as host-local if it has a local bridge dir, regardless of source url."
+              },
+              {
+                "label": "Not sure \u2014 investigate",
+                "description": "I'll check the supervisor logs / process list / pid registry to determine for each cse_ id whether a local mm-* server or claude process is currently serving it."
+              }
+            ]
+          },
+          {
+            "question": "Assuming at least some sessions with a source url ALSO have a real local bridge here, how should is_host_local treat them?",
+            "header": "Policy fix",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Local bridge wins \u2192 add .host",
+                "description": "Change is_host_local to: if sid is in the local worktree_index, treat as host-local even when config.sources has a url. Tradeoff: revives the two-host ping-pong risk the docstring warns about \u2014 would need existing_prefix_host to keep guarding against that."
+              },
+              {
+                "label": "Keep current rule, accept [AH]",
+                "description": "Leave the code alone. Cloud-sourced sessions stay host-less by design; the screenshot is showing the intended behavior."
+              },
+              {
+                "label": "Just diagnose, don't change code",
+                "description": "I just wanted to understand it. No code change."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "the sessions arent named with host, can you review why?"
+      },
+      {
+        "role": "assistant",
+        "text": "I'll check the title-prefix logic \u2014 I have a memory note that SDK/desktop sessions can come out as `[AH]` instead of `[AH.host]` when they aren't bound to a local worktree."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me check the current state of the live sessions and what the rename plan would produce."
+      },
+      {
+        "role": "assistant",
+        "text": "Two existing `[AH]` sessions are showing `=` (no rename) which means `plan_renames` isn't detecting them as host-local. Let me check what's in the worktree/live-session index."
+      },
+      {
+        "role": "assistant",
+        "text": "Found it. The two `[AH]`-only sessions are **cloud sessions** per the API \u2014 both have `config.sources[].url = https://github.com/jdtogni78/ai-harness.git` set. The current session (`01RYT\u2026`) has `sources=[]` so it's a pure local bridge.\n\nHere's the relevant logic in `remote_control/session_titles.py:284-292`:\n\n```python\ndef is_host_local(session, worktree_index):\n    for src in (session.get(\"config\") or {}).get(\"sources\") or []:\n        if src.get(\"url\"):\n            return False        # \u2190 any source URL = cloud session, never local\n    return session.get(\"id\") in worktree_index\n```\n\nThe module docstring explicitly documents this as the intended behavior (lines 38\u201344):\n\n> A LOCAL bridge session (derived via (2)) physically runs on this host, so its host/branch tokens are filled (`[AO.mini]`). Cloud / CLI sessions (derived via (1)) live on no one host, so those tokens are empty and the default renders host-less (`[AO]`). \u2026 Keeping the host token cloud-empty also stops two hosts' self-heal passes from fighting over a shared cloud session.\n\n**The twist in your case**: those two cse_ ids *do* have local bridge dirs at `~/dev/ai-harness/.claude/worktrees/bridge-cse_01A1k\u2026` and `bridge-cse_01V7i\u2026`. So locally they look like bridge sessions, but the API still reports a `config.sources[]` pointing at `github.com/jdtogni78/ai-harness.git` \u2014 i.e. they were launched as cloud/sandbox sessions against the public fork (consistent with [[project_ai_harness_public_portfolio]]: public is now primary on mini, jdtogni78 remote), and the local bridge dirs are either a sandbox-bridge artifact or a fork.\n\nSo the missing `.host` is by design for those two \u2014 not a regression. The dry-run confirms it:\n\n```\n= cse_01A1kArEtzcmq1JgrARBW4ib  '[AH] Session messaging for SKU creation'   (unchanged: cloud \u2192 [AH])\n= cse_01V7iUs33YK54dRjYpb8xwXk  '[AH] Remote control session with Claude Code'  (unchanged)\n~ cse_01RYTfST\u2026  'Sessions missing host names' -> '[AH.mini] \u2026'             (this one: pure bridge \u2192 [AH.mini])\n```\n\nTwo questions to decide what to do:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Locally on this mini, Local bridge wins \u2192 add .host"
+  }
+}

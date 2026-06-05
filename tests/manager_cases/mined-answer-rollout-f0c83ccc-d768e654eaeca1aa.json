@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f0c83ccc-d768e654eaeca1aa",
+  "sig": "answer:rollout-f0c83ccc:d768e654eaeca1aa",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f0c83ccc-da52-459d-b418-570a57d3c70b.jsonl turn #824",
+  "input": {
+    "action": {
+      "session_id": "rollout-f0c83ccc",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01DdfuQgr5H2gjkZZLEbsc9M",
+      "question": "Render target?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01NEjJg4mrPceqZVN75hkEWm",
+        "description": "",
+        "questions": [
+          {
+            "question": "Render target?",
+            "header": "Render target",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "(b) Dev stack :3001 (worker's recommendation)",
+                "description": "Render against dev stack directly. Canonical port, no lease, no code changes in PR. Recommended."
+              },
+              {
+                "label": "(a) Lease pool0 + port-rewrite to :3020",
+                "description": "Isolated env, but URL bar shows :3020 \u2014 off-brand vs prior demos."
+              }
+            ]
+          },
+          {
+            "question": "funds.demo.yaml \u2014 re-render funds.mp4 in this PR?",
+            "header": "Funds re-render",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, re-render funds.mp4",
+                "description": "YAML anchor edit forces this anyway; not re-rendering leaves YAML and mp4 out of sync. Small scope creep; correct call. Recommended."
+              },
+              {
+                "label": "No \u2014 file follow-up ticket",
+                "description": "Worker leaves YAML edit + stale funds.mp4; I file a ticket to re-render later."
+              },
+              {
+                "label": "Revert the YAML edit, defer everything",
+                "description": "Don't touch funds at all in this PR. Risk: the broken anchor means future renders of funds.demo.yaml would fail until the YAML is fixed."
+              }
+            ]
+          },
+          {
+            "question": "jdtogni-site dashboard screenshot \u2014 file follow-up to re-shoot, or skip?",
+            "header": "Screenshot reshoot",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "File a follow-up ticket",
+                "description": "Quick `gh issue create` so the stale image doesn't get forgotten. Not blocking this close."
+              },
+              {
+                "label": "Skip \u2014 the captions read fine without it",
+                "description": "Don't track. Risk: image stays stale indefinitely."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Worker C healthy \u2014 spawned ~30s ago, `running`, connected, no anomalies."
+      },
+      {
+        "role": "assistant",
+        "text": "Self-pacing, no Monitor needed (worker health is poll-based). Next tick in 20 min as fallback; Worker C's `[from cse_\u2026]` reply will wake me sooner once it has something to report."
+      },
+      {
+        "role": "assistant",
+        "text": "Idle until Worker C reports or the 20-min fallback fires."
+      },
+      {
+        "role": "user",
+        "text": "[from cse_01Hp5NXjcFKdFMJ7bCwfn43u \u2014 reply via send-to-session]\n\nQuick clarification before I render \u2014 and a couple of findings.\n\nDEV STACK is already on origin/main and serves /loan-shares/* + #section-loan-shares correctly (verified curl). The YAML hardcodes localhost:3001 and `narrate render` has no --base-url flag.\n\nRENDER TARGET \u2014 two options:\n(a) Lease pool0 + port-rewrite YAML :3001\u2192:3020 (URL bar in recording shows :3020 \u2014 off-brand vs prior demos).\n(b) Render against dev stack at :3001 directly \u2014 matches the YAML's intent + the README workflow + prior demos' canonical port. No code changes in this PR (purely demos/*.yaml + README + jdtogni-site captions), so the lease buys no isolation. I lean (b).\n\nEXTRA FINDINGS:\n- funds.demo.yaml (onyx-final) needed an anchor-only YAML edit at line 118 (#section-credit-lines \u2192 #section-loan-shares) because Phase 1 renamed the section id. Re-rendering funds \u2192 in scope per \"unless their reveal walks touch the renamed labels/URLs\"? Or leave funds.mp4 stale until next sweep?\n- jdtogni-site had a stale \"Credit lines\" card heading (line 62) AND the dashboard screenshot caption said \"loan shares\" (lines 93, 96). I flipped both \u2192 \"Share loans\"/\"share loans\" in worktree worker/ff-issue-6-share-loans-captions. Heads-up: the dashboard webp screenshot itself almost certainly still shows the pre-#5 nav label \u2014 re-shooting is a separate task; leaving the image as-is and flagging.\n\nOK to proceed with (b)? And ack/decide on funds re-render scope?"
+      },
+      {
+        "role": "assistant",
+        "text": "Worker C is mid-render and asking \u2014 good, the routing rule is working. Recording and surfacing."
+      },
+      {
+        "role": "assistant",
+        "text": "## Worker C \u2014 3 decisions needed before render\n\n**Decision 1 \u2014 render target port**:\n- (a) Lease pool0 + port-rewrite YAML `:3001`\u2192`:3020`. URL bar in recording shows `:3020` \u2014 off-brand vs prior demos.\n- (b) Render against dev stack at `:3001` directly. Matches YAML's intent, the README workflow, and prior demos' canonical port. No code changes in this PR, so the lease buys no isolation.\n\nWorker recommends (b). I agree \u2014 the narration + DOM-order reveal walks are reading the dev stack, not writing; dev stack is already on `origin/main` with the post-#4-P1 routes. `:3020` would look wrong in the recording.\n\n**Decision 2 \u2014 `funds.demo.yaml` scope**:\n- It needed a single-line anchor edit (`#section-credit-lines` \u2192 `#section-loan-shares` at line 118) because #4 P1 renamed the section id.\n- That edit by itself leaves the committed YAML and the on-disk `funds.mp4` out of sync \u2014 the reveal walk would fail on next render.\n- Options: (a) re-render `funds.mp4` now (in scope per \"unless their reveal walks touch the renamed labels/URLs\"); (b) leave `funds.mp4` stale + file a follow-up.\n\nWorker is asking. My read: re-render now \u2014 the YAML edit was unavoidable, leaving the mp4 out of sync is worse than a small scope creep. `funds` is \"onyx-final\" per `[[project_familyfund_demo_videos]]`; we'd just re-confirm onyx-final after the anchor migration.\n\n**Decision 3 \u2014 jdtogni-site dashboard screenshot**:\n- Worker already flipped 2 text captions (\"Credit lines\" \u2192 \"Share loans\"; \"loan shares\" \u2192 \"share loans\"). Good.\n- The dashboard `.webp` screenshot itself is stale (still shows pre-#5 nav label). Re-shooting is a separate task \u2014 worker is **leaving the image as-is and flagging**.\n\nThis is a fair deferral \u2014 the image is a separate artifact and re-shooting it requires Playwright + actually taking the shot. Worker is right not to expand scope here."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "(b) Dev stack :3001 (worker's recommendation), Yes, re-render funds.mp4, File a follow-up ticket"
+  }
+}

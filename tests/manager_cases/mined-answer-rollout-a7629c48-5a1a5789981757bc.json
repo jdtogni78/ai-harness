@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a7629c48-5a1a5789981757bc",
+  "sig": "answer:rollout-a7629c48:5a1a5789981757bc",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a7629c48-dc10-4fe0-83fd-9e6f251d6c6a.jsonl turn #31",
+  "input": {
+    "action": {
+      "session_id": "rollout-a7629c48",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_019Ca1TnMCYF66txVjvk5xLH",
+      "question": "Tests destructively reset the shared dev DB. How do you want to run coverage?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01T4283zqKBSt6Em18jm2aWB",
+        "description": "",
+        "questions": [
+          {
+            "question": "Tests destructively reset the shared dev DB. How do you want to run coverage?",
+            "header": "Coverage env",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Main familyfund container",
+                "description": "Run `phpunit --coverage-text` in the main dev container as CLAUDE.md prescribes. No new lease, but it does still reset the shared dev DB \u2014 risky if other sessions are using it."
+              },
+              {
+                "label": "New pool slot + isolated test DB",
+                "description": "Claim a free pool slot (e.g. pool1) and point its `.env` at a slot-private DB (e.g. `familyfund_test_pool1`) so RefreshDatabase doesn't touch the shared one. Adds setup time."
+              },
+              {
+                "label": "Check what bridge-cse-tests slot is doing",
+                "description": "Pool0 is already leased with label `bridge-cse-tests` \u2014 inspect that worktree first to see if a coverage run is already in flight before starting another."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "run a test coverage on a leased test env"
+      },
+      {
+        "role": "assistant",
+        "text": "Before I lease, a flag: the skill explicitly warns \"Do not run destructive tests or migrations against a leased slot\" because the shared DB is read/write across all slots and the dev stack. Let me check how FF tests handle the DB to see if this is actually a problem."
+      },
+      {
+        "role": "assistant",
+        "text": "This is a problem worth pausing on. Running coverage on a leased pool slot would be destructive:\n\n- **Pool slots share the dev DB.** All 6 slots + the `dev` stack point at the single shared `familyfund_dev` on `host.docker.internal:3306`.\n- **FF tests use `RefreshDatabase`** (41 occurrences across 20 test files) \u2014 running them wipes that shared DB. The lease-env skill explicitly says \"Do not run destructive tests or migrations against a leased slot.\"\n- **`phpunit.xml` has no separate test DB** \u2014 there's no `DB_DATABASE` override, so tests will hit whatever `.env` points at.\n- There's also already a `pool0` leased to a *different* worktree (`bridge-cse-tests`, on branch `_01BvT6Zg...`) \u2014 not this one \u2014 so we'd be claiming a second slot.\n\nHow do you want to handle this?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "test pools should have isolated db, no?"
+  }
+}

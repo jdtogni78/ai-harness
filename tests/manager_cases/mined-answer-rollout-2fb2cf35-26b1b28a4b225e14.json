@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2fb2cf35-26b1b28a4b225e14",
+  "sig": "answer:rollout-2fb2cf35:26b1b28a4b225e14",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2fb2cf35-1e06-4ccf-8f19-661200f9ebeb.jsonl turn #440",
+  "input": {
+    "action": {
+      "session_id": "rollout-2fb2cf35",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_0143BLSi72cXwwaoR5TWBJAa",
+      "question": "#31 worker is still warm and offering to pick up #38 (the env-leak fixture fix). Dispatch them, or release?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01NMTTe5fstakH3Yg21sYigV",
+        "description": "",
+        "questions": [
+          {
+            "question": "#31 worker is still warm and offering to pick up #38 (the env-leak fixture fix). Dispatch them, or release?",
+            "header": "Re-use worker?",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Re-use \u2014 dispatch #31 worker on #38",
+                "description": "Send kickoff to cse_01Utk4EmrPekhoV2NaQtHEQT (the warm worker). They've already diagnosed the fix surface. Cheaper than spawning a new oneoff and they have context."
+              },
+              {
+                "label": "Spin a fresh worker on #38",
+                "description": "Release the warm worker, spawn a new oneoff to claim #38. Cleaner separation between PRs."
+              },
+              {
+                "label": "Release the worker, leave #38 for later",
+                "description": "Let the warm worker go. #38 sits on the board as Todo. Don't dispatch right now."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "#11 landed (35534de), task #2 complete. **Fleet: 2 in flight** \u2014 #31, #2.\n\nTwo worker corrections worth noting on the manager-pattern side:\n- I quoted \"662 baseline\" to multiple workers; actual main was 707. Future briefs should not pin numeric baselines from memory without verifying live.\n- Same lesson with the test-file pointer \u2014 issue #11's body referenced a test file that doesn't exist; worker correctly used the nearest analog pattern.\n\nBoth are the \"verify-before-quoting\" rule \u2014 already covered by general memory-staleness guidance; flagging for awareness, not saving as new memory."
+      },
+      {
+        "role": "user",
+        "text": "[from cse_014fuMmPXbNtA9hwisLPU8Lx \u2014 reply via send-to-session]\n\n#2 work landed as PR https://github.com/jdtogni78/ai-harness/pull/37.\n\nSummary of in-PR scope:\n- Extracted active-dirs.example.txt as committed sample (was an installer.py string constant); seed_active_file reads it, with embedded fallback for packaged-install edge cases.\n- Stripped redundant REMOTE_CONTROL_CLAUDE_BIN/_DEV/_LOGDIR from com.user2.* plist triple (HOME-derived defaults now produce identical values).\n- Fixed one stale doc line in session-manager-cases.md (\"repo allowlist\" \u2192 host-local).\n- New tests: explicit-sample override, fallback-when-sample-missing, guard asserting committed sample has no active entries.\n- PR rationale documents the deliberate skip of the \"repo fallback\" item per your decision (i).\n\nFollow-up filed: installed-plist cleanup ticket https://github.com/jdtogni78/ai-harness/issues/36 (on board #2). Did not bundle per your decision (b).\n\nPre-existing failing tests: tests.test_new_session.ReplyToEnvTest::{test_no_reply_to_omits_env_var, test_no_sender_detected_does_not_set_env_var} \u2014 fail on unmodified main because the bridge process env leaks REMOTE_CONTROL_REPLY_TO into the test runner. Outside my lane (touches new_session.py + tests, which #31 is on). Worth flagging because they'll show up red in any worker's local `unittest discover` until fixed.\n\nProceeding to close-work to merge unless you want to hold for review."
+      },
+      {
+        "role": "assistant",
+        "text": "Green-lighting #37 and passing the test-failure flag to #31."
+      },
+      {
+        "role": "assistant",
+        "text": "Reverted #4 to in_progress \u2014 worker is *about* to merge, not yet confirmed. Will close when they ping with the merge sha.\n\n**Fleet status:** #2 green-lit (merging), #31 still on the dispatch loop with a new optional side-claim (the env-leak test fixture). Tasks #1 + #4 remain in flight."
+      },
+      {
+        "role": "user",
+        "text": "[from cse_01Utk4EmrPekhoV2NaQtHEQT \u2014 reply via send-to-session]\n\n#31 already delivered ~10 min ago: PR #35 merged at 462c535, issue closed, claim released, feature worktree torn down. Your heads-up arrived after the merge \u2014 train left.\n\nI did notice the same two ReplyToEnvTest failures during my own pre-merge test run and verified they reproduce on a clean main (no regression from #31). Root cause is exactly what you described: REMOTE_CONTROL_REPLY_TO from the parent bridge process leaks into os.environ, which the test reads when building the child env. With `env -i HOME=$HOME PATH=$PATH` the failures vanish.\n\nThe fix surface is `tests/test_new_session.py::ReplyToEnvTest` \u2014 a setUp/tearDown that scrubs REMOTE_CONTROL_REPLY_TO from os.environ (and probably the rest of the REMOTE_CONTROL_* family for hygiene). Not in new_session.py itself; my edit surface on that file was zero in #31 (I only touched supervisor.py, handoff.py, test_handoff.py). So even if the heads-up had landed pre-merge there'd have been no shared file to fold into.\n\nGo ahead and file the follow-up \u2014 I'll be in this session to pick it up if you want, or it can go to the next agent."
+      },
+      {
+        "role": "assistant",
+        "text": "#31 delivered (PR #35 / 462c535). Worker is still warm and offering to pick up the env-leak fix as a side-claim. Filing the ticket now so it exists on the board either way, then checking with you on the dispatch."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Re-use \u2014 dispatch #31 worker on #38"
+  }
+}

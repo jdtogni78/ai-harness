@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f1d64333-2eb0fdc4bd9d95a6",
+  "sig": "answer:rollout-f1d64333:2eb0fdc4bd9d95a6",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f1d64333-6f90-490c-bdf1-3735cc17b1be.jsonl turn #34",
+  "input": {
+    "action": {
+      "session_id": "rollout-f1d64333",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How do you want to restore cse_01V7iUs33YK54dRjYpb8xwXk?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01WNsmMvBmk1U3SM93fSgsWc",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want to restore cse_01V7iUs33YK54dRjYpb8xwXk?",
+            "header": "Restore mode",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Reconnect on mini",
+                "description": "It's disconnected \u2014 kickstart/check the supervisor on mini so this cse_ session gets a live worker again. Run from mini (or via SSH)."
+              },
+              {
+                "label": "Fork locally on note",
+                "description": "Use `remote_control fork cse_01V7iUs33YK54dRjYpb8xwXk --into-main` here on note to create a local sibling JSONL you can `claude -r` against."
+              },
+              {
+                "label": "Just open the web URL",
+                "description": "Open https://claude.ai/code/session_01V7iUs33YK54dRjYpb8xwXk in a browser \u2014 no server-side action."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "restore https://claude.ai/code/session_01V7iUs33YK54dRjYpb8xwXk"
+      },
+      {
+        "role": "assistant",
+        "text": "That session (`cse_01V7iUs33YK54dRjYpb8xwXk`, [AH.mini]) lives on **mini** (not this host) and is currently `idle`/`disconnected`. A few different things \"restore\" could mean \u2014 which do you want?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "bring the work here"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-edd3f5b5-304b3e561a431d8e",
+  "sig": "answer:rollout-edd3f5b5:304b3e561a431d8e",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from edd3f5b5-95ce-470e-a040-f3d251664701.jsonl turn #173",
+  "input": {
+    "action": {
+      "session_id": "rollout-edd3f5b5",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/private/tmp",
+      "question": "How should I proceed from here?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01RmftiPmwZDeJ7ig9Xkwsah",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I proceed from here?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Merge + register (shadow)",
+                "description": "Run close-work to commit + merge this branch to main, then register the PreToolUse hook globally in shadow mode, static-only first (PERM_GATE_ENFORCE=0, PERM_GATE_CONSULT_AI=0) \u2014 zero latency/cost, just logs to perm-gate-decisions.jsonl so you can review verdicts before trusting them."
+              },
+              {
+                "label": "Merge only, don't register",
+                "description": "Commit + merge to main so the code is landed and importable, but leave ~/.claude/settings.json untouched \u2014 you'll add the hook yourself when ready."
+              },
+              {
+                "label": "Hold for review",
+                "description": "Leave everything in this worktree, uncommitted, so you can read the code and the static allow/deny/ask lists before anything lands or registers."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now run the new tests, then the full suite to confirm no regressions."
+      },
+      {
+        "role": "assistant",
+        "text": "All 33 green. Now the full suite + a live smoke test of the hook entrypoint end-to-end."
+      },
+      {
+        "role": "assistant",
+        "text": "Hook entrypoint works end-to-end. The full-suite tail got swamped by `test_work_start`'s stdout \u2014 let me get the clean summary."
+      },
+      {
+        "role": "assistant",
+        "text": "**427 tests pass.** The gate is built and working end-to-end:\n- `git status` \u2192 `static-allow` (shadow: emits nothing, just logs)\n- `rm -rf /` \u2192 `static-deny`, `git push origin main` \u2192 `static-ask` (enforce: emits the structured decision)\n- All exit 0 (never blocks via exit code); decisions logged to JSONL.\n\nLet me write the design/runbook doc the module references, then I'll stop before touching your global settings."
+      },
+      {
+        "role": "assistant",
+        "text": "Key finding for registration: `python3 -m remote_control` resolves globally to the **main checkout** (`~/dev/ai-harness`), not this worktree. So a global hook would run main's code \u2014 meaning **the code must land in `main` before the hook is registered** (otherwise `perm-gate` is an unknown subcommand there). That sequences the rollout. Let me write the runbook doc."
+      },
+      {
+        "role": "assistant",
+        "text": "Core implementation is **done and green**. Summary of what landed in this worktree:\n\n| File | What |\n|---|---|\n| `remote_control/perm_gate.py` | tiered gate \u2014 static rules \u2192 AI tier (urllib `/v1/messages`, injectable), fail-safe to `ask`, shadow/enforce, recursion guard |\n| `remote_control/config.py` | `PermGateConfig` (shadow by default) |\n| `remote_control/cli.py` | `perm-gate` subcommand |\n| `tests/test_perm_gate.py` | 33 tests |\n| `docs/perm-gate.md` | design + runbook + the settings snippet |\n\n**427 tests pass**, and the hook works end-to-end (verified `allow`/`deny`/`ask` + JSONL logging + always-exit-0). It reuses the manager's `session-manager-cases.md` as the shared policy \u2014 closing #22's \"Permission prompts TBD\" branch.\n\nThe one remaining task \u2014 **registering the global hook** \u2014 has a hard dependency I found: `python3 -m remote_control` resolves to the **main checkout**, so the code must be in `main` before the hook can be registered, and registering touches your live global settings (every session). So that's a deliberate step I won't take without your call."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Merge + register (shadow)"
+  }
+}

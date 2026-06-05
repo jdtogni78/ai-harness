@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-680bcbf1-62aad201a954b794",
+  "sig": "answer:rollout-680bcbf1:62aad201a954b794",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 680bcbf1-c089-4f77-a2b1-64f16d96f1f8.jsonl turn #193",
+  "input": {
+    "action": {
+      "session_id": "rollout-680bcbf1",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01FLte4m6fFgSQcbv4W697vD",
+      "question": "Delivery requires commit \u2192 merge --no-ff into main \u2192 push. Confirm I run these to land the fix?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_014FKFqypLuTmGkf14nJpfDj",
+        "description": "",
+        "questions": [
+          {
+            "question": "Delivery requires commit \u2192 merge --no-ff into main \u2192 push. Confirm I run these to land the fix?",
+            "header": "Deliver",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, commit + merge + push",
+                "description": "Commit the 2 files on the bridge branch, merge --no-ff into main, push origin main. Standard no-PR delivery."
+              },
+              {
+                "label": "Commit to branch only",
+                "description": "Commit on the bridge branch but don't merge/push yet \u2014 leave landing to main for later."
+              }
+            ]
+          },
+          {
+            "question": "The live monitor runs from the main checkout's PYTHONPATH. After merge, should I update the main working tree + restart the launchd monitor so this fix goes live?",
+            "header": "Restart daemon",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, restart it live",
+                "description": "Pull main into /Users/claudio1/dev/ai-harness and kickstart com.claudio1.claude-usage-limit-monitor so the running daemon picks up the fix."
+              },
+              {
+                "label": "No, leave daemon as-is",
+                "description": "Land the code only; the running monitor keeps the old code until the next natural restart/login."
+              }
+            ]
+          },
+          {
+            "question": "How should ticket #3 be handled, given item 3 (verify against a real cap) can't be forced now?",
+            "header": "Ticket #3",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Close + file follow-up",
+                "description": "Close #3 (items 1+2 delivered), file a small follow-up issue to observe the first real live Codex resume."
+              },
+              {
+                "label": "Keep #3 open",
+                "description": "Leave #3 In Progress / open until a real cap is observed end-to-end; release the agent claim only."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Clean against real data (nothing currently capped, as expected). \n\nLet me show what changed so you can decide on committing and deploying."
+      },
+      {
+        "role": "assistant",
+        "text": "Done. Here's where #3 stands.\n\n## What I did this session\n1. **Started work on #3** \u2014 claimed on the Remote Control board (comment + assignee + Status \u2192 In Progress).\n2. **Renamed this thread** \u2192 `[AH] #3 Codex auto-resume: go live`.\n3. **Implemented item 2 per your steer** (\"maintain the resume when possible\").\n\n## The fix (item 2)\nThe root cause of \"weekly/monthly caps aren't resumable\" wasn't a futile resume \u2014 it was that the session got **dropped before its window could reset**. A paused Codex session stops writing to its rollout, so after `recent_secs` (6h) it fell out of the scan and `detect_codex` cleared it; a weekly reset is up to 7 days out, so the resume was lost.\n\nChange in `remote_control/usage_limit/monitor.py` (`detect_codex`):\n- A tracked-but-undiscovered session is now re-checked against the **full rollout history** (bounded by `gc_age_secs`). Still rate-limited \u2192 **keep it and refresh its reset target** so it resumes when the window refills; only clear on *positive* recovery (newest rollout healthy) or if it's gone.\n- GC no longer evicts a session whose `reset_epoch` is still in the future.\n\nThis keeps the existing 5h-rolling behavior intact and adds **no skip/notify path** \u2014 it just maintains the resume whenever one is still makeable.\n\n## Verification\n- Full suite **185 green** (183 + 2 new regression tests: keep-quiet-long-cap, gc-keeps-future-reset \u2014 both fail against the old code).\n- Smoke-tested `detect_codex` against your real `~/.codex` data \u2014 runs clean (nothing capped right now).\n\n## Notable finding\n**Item 1 (go live) was already done** before this ticket \u2014 the running monitor (pid 55378) reports `dry_run=False codex=on`, flipped 2026-05-22. So the only remaining work was item 2 + item 3.\n\n## Not yet done (needs your call \u2014 consequential)\nThe change is in the worktree, **uncommitted and not deployed**. The live daemon runs `remote_control` from `PYTHONPATH=/Users/claudio1/dev/ai-harness` (main), so for this to actually take effect \u2014 and to satisfy **item 3 (verify against a real cap)** \u2014 it needs: commit \u2192 merge to `main` \u2192 restart the launchd monitor.\n\nWant me to commit it, and then merge to `main` + restart the monitor to put it live? Or hold at the committed-in-worktree stage?"
+      },
+      {
+        "role": "user",
+        "text": "Close work."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll close out this thread using the close-work skill."
+      },
+      {
+        "role": "assistant",
+        "text": "Working through the close-work phases. Phase 1 \u2014 review the work."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the close-out review for this thread.\n\n## Phase 1 \u2014 What changed\n- **Worktree:** `bridge-cse_01FLte4m6fFgSQcbv4W697vD` on branch `worktree-bridge-cse_01FLte4m6fFgSQcbv4W697vD` (a supervisor-managed bridge worktree \u2014 won't be removed).\n- **Vs `origin/main`:** no commits yet \u2014 the work is **uncommitted** in the working tree:\n  - `remote_control/usage_limit/monitor.py` (the `detect_codex` fix)\n  - `tests/test_codex_detect.py` (+2 regression tests)\n- **Tracking ticket:** #3 on Remote Control (#2), claimed by this agent in start-work.\n\n## Phase 2 \u2014 Test gate \u2705\nai-harness is a Python repo (no Docker/php gate). Full suite **185 green**, re-run just now against the final state \u2014 fresh, no edits after it.\n\n## Phase 3 \u2014 TODO / scope sweep\n- No `TODO`/`FIXME` introduced in the diff.\n- Thread asks all handled: start-work \u2705, rename \u2705, \"maintain the resume when possible\" \u2705.\n- **Scope vs ticket #3:** item 1 (go live) was already done pre-session; **item 2 done this session**; **item 3 (verify end-to-end against a real Codex cap)** is *not* satisfiable on demand \u2014 it needs the code deployed + an actual usage-limit pause to occur.\n\n## Phase 4 \u2014 Verdict: **READY TO CLOSE** (items 1 & 2)\nThe only open thread is item 3, which is inherently \"wait for a real cap.\" Two decisions before I run any state-changing step:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Yes, commit + merge + push, No, leave daemon as-is, Close + file follow-up"
+  }
+}

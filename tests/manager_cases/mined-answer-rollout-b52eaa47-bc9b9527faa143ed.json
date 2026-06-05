@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b52eaa47-bc9b9527faa143ed",
+  "sig": "answer:rollout-b52eaa47:bc9b9527faa143ed",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b52eaa47-5382-433a-bd53-6b35deaff5c1.jsonl turn #107",
+  "input": {
+    "action": {
+      "session_id": "rollout-b52eaa47",
+      "repo": "ai-harness-private",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness-private",
+      "question": "How should the ai-harness-private references be handled in the public output?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01CzBNpm2LhrWE5zX13phyRA",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the ai-harness-private references be handled in the public output?",
+            "header": "Private name rule",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Add rule to sanitize_export.sh: ai-harness-private \u2192 ai-harness (Recommended)",
+                "description": "One-line additive perl rule + a forbidden-strings entry. Public docs become self-consistent on this sync and every future one. Small script change committed to private main as a prep commit before the replay."
+              },
+              {
+                "label": "Leave it; let it land as drift in the first replayed commit",
+                "description": "Don't change the script. The renamed strings just appear in the first replay's diff alongside the docs(manager) plan add. Noisy but no script edit."
+              },
+              {
+                "label": "Add the rule AND patch the script on the public side too",
+                "description": "Same as option 1, plus the public copy of sanitize_export.sh would also include it (but the script is excluded from the export, so there's nothing extra to do \u2014 effectively the same as option 1)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "I'll investigate the current state before acting \u2014 the publish flow and what's changed since the last sync."
+      },
+      {
+        "role": "assistant",
+        "text": "Got the picture. Let me check the public repo state more carefully and what new work needs syncing."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's what I'm seeing:\n\n**Private** (`~/dev/ai-harness`, on `main`): 6 new commits since the last publish snapshot 1af0a8e \u2014 `perm_gate_lab phase 1`, `manager-eval phases 1+2`, plus prep commits.\n\n**Public** (`~/dev/ai-harness-public`, on `main`): 1 commit (3e31445, the initial snapshot). Clean.\n\nThe publish model is **squashed-snapshot**, not real-history mirroring \u2014 each public commit is a fresh `sanitize_export.sh` build of private HEAD. To sync, the recipe is:\n\n1. Run `sanitize_export.sh` against private `main` into a temp dir\n2. `rsync` that tree into `~/dev/ai-harness-public/` (delete extras, preserve `.git`)\n3. Review diff, commit on public as a new snapshot commit, push\n\nI want to confirm a couple of things before touching the public repo."
+      },
+      {
+        "role": "assistant",
+        "text": "The two phrases you offered point to different mechanics than the current `sanitize_export.sh` (which is snapshot-only). Let me confirm before I build the wrong thing.\n\n- **\"Sanitized mirror + recreate-and-recommit\"** = mirror real private history into public, but each commit is sanitized (rewritten with the same rules). New private commits \u2192 new sanitized commits on public, appended on top of the existing 3e31445 snapshot. Public history grows; 3e31445 stays as the baseline squash.\n- **\"Sanitized and republish\"** = sanitize the full private history end-to-end with `git filter-repo`, then force-push it to public. The single-commit 3e31445 baseline gets *replaced* by a multi-commit sanitized history.\n\nThe hard part either way: the rules in `sanitize_export.sh` include things that aren't blanket substitutions (e.g. stripping GD-0007 from `DECISIONS.md`, swapping in starter `active-dirs.txt` / `session-nicknames.txt` templates, dropping `scripts/publish/`). Those need to be expressed as filter-repo `--blob-callback` / `--path` rules so they apply to *every* commit's tree, not just HEAD."
+      },
+      {
+        "role": "assistant",
+        "text": "Good. Plan: replay the 4 non-merge commits (`80e07da`, `9d7f126`, `da385c3`, `480ba1b`) chronologically onto public `main`, each as a sanitized commit. The 2 merge commits (`980d796`, `5e49977`) don't need to exist on the linearized public history.\n\nLet me check the existing public commit's author so the new commits match it, and gather the messages from the private side."
+      },
+      {
+        "role": "assistant",
+        "text": "Interesting find \u2014 the diff isn't all from the new work. The private repo was renamed to `ai-harness-private` *after* the initial publish, so `CLAUDE.md` and `docs/rename-to-ai-harness.md` now sanitize to `youruser/ai-harness-private` whereas the public commit 3e31445 has `youruser/ai-harness`. This drift will leak into the first replayed commit regardless of the 4 features.\n\nFor a public portfolio, references should point at the public repo name (`youruser/ai-harness`), not `youruser/ai-harness-private` (a placeholder that doesn't resolve for readers). Cleanest fix: add a one-line sanitization rule `ai-harness-private \u2192 ai-harness` to `sanitize_export.sh` so this is reproducible on every future sync."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Add rule to sanitize_export.sh: ai-harness-private \u2192 ai-harness (Recommended)"
+  }
+}

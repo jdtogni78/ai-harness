@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f5d07d48-d46ca7685fd2c5a6",
+  "sig": "answer:rollout-f5d07d48:d46ca7685fd2c5a6",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f5d07d48-19e6-4160-8275-d61be30eaf55.jsonl turn #40",
+  "input": {
+    "action": {
+      "session_id": "rollout-f5d07d48",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01Q7acCYHsEeq4nGDWsRWkLu",
+      "question": "How should goal progress treat borrowed shares?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_016LDCDCKpJYNah6bF92gEmG",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should goal progress treat borrowed shares?",
+            "header": "Borrowing",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Net value (OWN \u2212 BOR) (Recommended)",
+                "description": "Current value = (OWN shares \u2212 borrowed shares) \u00d7 share price. Matches what start_value already does via valueAsOf(). Borrowing reduces progress; repaying restores it."
+              },
+              {
+                "label": "Gross OWN, ignore borrowing",
+                "description": "Current value = OWN shares \u00d7 share price. Borrowed shares still count toward the goal \u2014 debt is treated as a separate concern that doesn't affect progress. Would also change start_value to gross for consistency."
+              },
+              {
+                "label": "Show both",
+                "description": "Service returns both gross and net values; UI/caller picks which to display. More flexible but more surface area to maintain and test."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "goals should consider borrowing, lets make sure there is a service method that calcs correctly"
+      },
+      {
+        "role": "assistant",
+        "text": "Here's what I found before I touch anything \u2014 there's a real bug here:\n\nIn `app/Http/Controllers/Traits/AccountTrait.php:133` (`createGoalsResponse`):\n- `start_value` uses `$account->valueAsOf($goal->start_dt)` \u2192 **net** of borrowing (OWN \u2212 BOR via `AccountExt::sharesAsOf`/`valueAsOf`)\n- current `value` uses `$account->balances['OWN']->market_value` \u2192 **gross OWN**, ignoring BOR\n\nSo progress % is inflated whenever the account has an outstanding credit-line balance, and start vs. current aren't on the same footing. There is no `GoalCalculationService` today; the calc lives inline in this trait.\n\nI'd propose:\n1. **Add `App\\Services\\GoalCalculationService`** with `progressFor(AccountExt $account, GoalExt $goal, string $asOf): array` returning `start_value`, `current_value`, `expected_value`, `target_value`, `period`, `completed_pct` \u2014 all using `valueAsOf()` (net of borrowing) for consistency.\n2. **Refactor `AccountTrait::createGoalsResponse`** to delegate to the service, fixing the gross/net mismatch.\n3. **Add a Feature test** that seeds an account with an active credit-line draw and asserts current_value drops by the borrowed market value (and progress % stays sane).\n\nOne design question before I implement:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Show both"
+  }
+}

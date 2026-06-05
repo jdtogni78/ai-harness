@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-1f5c5f17-bcccf65133f71fb6",
+  "sig": "answer:rollout-1f5c5f17:bcccf65133f71fb6",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 1f5c5f17-eeff-47cd-8d3e-8d31beb98c97.jsonl turn #64",
+  "input": {
+    "action": {
+      "session_id": "rollout-1f5c5f17",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01ETDaVDLFpSTGwSAFXbAQ1z",
+      "question": "How should we stop perm-gate from prompting on gh commands?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_019wkqsMP5KFv3hkH7jWepZb",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should we stop perm-gate from prompting on gh commands?",
+            "header": "Fix approach",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Strip HEREDOCs/quoted bodies before matching (Recommended)",
+                "description": "Fix the real bug: ASK_PATTERNS should only inspect the command head, not user-supplied body content. Fixes gh issue edit/create AND git commit -m \"...\" false positives. Small change in extract_subject / a new matching helper."
+              },
+              {
+                "label": "Broaden the gh allow-pattern",
+                "description": "Add create|edit|comment|close|reopen|item-add|item-create to the gh static-allow line. Narrower fix; doesn't help git commit -m bodies; still risks letting through a 'gh issue create' with a dangerous chained command."
+              },
+              {
+                "label": "Short-circuit: trust the user allow-list for gh",
+                "description": "If Bash(gh *) is in the user's allow-list and DENY doesn't fire, skip the ASK check for gh. Quickest fix; reduces the gate's value (a chained 'gh ... && rm -rf' wouldn't be caught by ASK)."
+              },
+              {
+                "label": "Just disable the gate for this session",
+                "description": "Set PERM_GATE_ENFORCE=0 in the hook (or comment out the hook). Fastest, but loses the rm-rf/-style protections globally."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "lets allow all gh commands, why are you asking again? is it our new sec/hook schema?"
+      },
+      {
+        "role": "assistant",
+        "text": "`gh *` is already in your allow list (line 13). The reason you're still being asked is the **PreToolUse perm-gate hook** (line 67) \u2014 it runs AFTER the allow-list check and applies its own static rules. Let me check what it does with `gh`."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me check the decisions log to see what `gh` command was just gated."
+      },
+      {
+        "role": "assistant",
+        "text": "Found it. The decisions log shows two distinct problems:"
+      },
+      {
+        "role": "assistant",
+        "text": "Diagnosis \u2014 your settings *do* already allow `Bash(gh *)`. The prompts come from the global **perm-gate PreToolUse hook** (`~/.claude/settings.json:67`), and there are actually two distinct things going on:\n\n**1. The narrow `gh` allow-pattern (perm_gate.py:119)**\n```python\nr\"^(gh\\s+(pr|issue|project)\\s+(view|list|status))\\b\",\n```\nOnly `gh pr|issue|project view|list|status` is auto-allowed. Anything else (`create`, `edit`, `item-add`, `auth`, `api`, \u2026) gets no static verdict \u2192 with `PERM_GATE_ENFORCE_AI=0` the gate returns no decision and *should* fall through to your `Bash(gh *)` allow-list (so e.g. `gh project item-add` is logged as ASK but the hook emits None \u2014 not actually prompting you).\n\n**2. The real culprit: ASK patterns match the issue body text, not just the command**\nThe recent log shows `gh issue edit 18 ...` and `gh issue create ...` being bound to **static-ask**. Subjects are matched as one big string, so a `--body \"$(cat <<'EOF' \u2026\"` payload that happens to contain `.env`, `deploy`, `merge`, `push`, `sudo`, etc. trips ASK_PATTERNS. Your secret-rotation tickets are full of those words \u2192 every `gh issue edit/create` prompts. Same bug would hit `git commit -m \"fix .env loading\"`.\n\nSo this isn't really \"the new hook schema asking about gh\" \u2014 it's **ASK patterns leaking into user-supplied prose**.\n\nWhat do you want to do?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Strip HEREDOCs/quoted bodies before matching (Recommended)"
+  }
+}

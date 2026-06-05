@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-6b3700ad-38e09c6cedc18a33",
+  "sig": "answer:rollout-6b3700ad:38e09c6cedc18a33",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 6b3700ad-35eb-4014-9f53-d291bd24083f.jsonl turn #79",
+  "input": {
+    "action": {
+      "session_id": "rollout-6b3700ad",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01JLFuPiptLxsQZ4FKQAaCzx",
+      "question": "How should the gap alert be wired in?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01WuiBTvtHaXDCTECZekReMM",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the gap alert be wired in?",
+            "header": "Placement",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Standalone watchdog (Recommended)",
+                "description": "Add a real data-truth check that queries GET /api/asset_prices/gaps and alerts if missing_count > threshold, run on its own cron (fold into / fix health_check.sh). Catches BOTH 'didn't run' and 'ran but no data' \u2014 the exact failure that went unnoticed for months."
+              },
+              {
+                "label": "Inside asset_report.sh",
+                "description": "Check the gaps API right after the backfill step in asset_report.sh and alert if still behind. Simpler, but only fires when the daily run actually executes \u2014 won't catch a run that never fired."
+              },
+              {
+                "label": "Both",
+                "description": "Watchdog cron for the 'didn't fire' case + an inline post-backfill check in asset_report.sh for 'ran but didn't catch up'. Most coverage, most surface area."
+              }
+            ]
+          },
+          {
+            "question": "Which email mechanism should the alert use?",
+            "header": "Email",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "send_deploy_email.py (Recommended)",
+                "description": "Reuse the existing Gmail-SMTP helper. It reads the same encrypted mail.properties the asset report already decrypts, so creds are proven and no new config. HTML-capable."
+              },
+              {
+                "label": "mail CLI",
+                "description": "Match health_check.sh's existing approach (the `mail` command to jdtogni@gmail.com). Minimal, but depends on a configured MTA on the box and is plaintext-only."
+              },
+              {
+                "label": "FamilyFund Laravel Mail",
+                "description": "Add an alert endpoint/command on the FF side and have the watchdog trigger it, reusing ScheduledJobFailureMail-style mail. Keeps email logic in PHP but adds an API surface and crosses repos."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "I now have the full ticket. Let me nail down a few implementation-critical details: the git/submodule relationship of these scripts, how email is wired on the box (the `mail` CLI vs the Python SMTP helper), the `gaps` API response shape, and the cron setup."
+      },
+      {
+        "role": "assistant",
+        "text": "Two important new finds: the scripts repo IS `dstrader-aws` (cloned locally as `dstrader-docker`), and FamilyFund already has a `ScheduledJobEmailAlertTrait.php`. Let me read that trait and the `gaps` endpoint to understand existing alert infrastructure."
+      },
+      {
+        "role": "assistant",
+        "text": "FamilyFund already has scheduled-job failure alerting. Let me see the `gaps` endpoint response shape and where the alert trait is actually wired in."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me read the gaps endpoint response shape and how the alert trait is triggered in ScheduledJobTrait."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me check the existing reusable email helper on the box before proposing an approach."
+      },
+      {
+        "role": "assistant",
+        "text": "I've now got the full picture. Here's what I found.\n\n## The ticket\n**\"[Enhancement] Alert when the daily asset run / price backfill doesn't fire\"** (board item `PVTI_lAHOBOqy7s4BYmISzgtni4o`, Todo, draft). Repo: `dstrader-aws` \u2014 which is exactly this `dstrader-docker` checkout (`origin \u2192 jdtogni78/dstrader-aws.git`). It's one of a 4-item gap cluster (one-time backfill, root-cause bug, widen self-heal window, **this alerting one**).\n\nCore problem: the price pipeline was silently dead for 1\u20133 months. The scripts should self-report when prices don't land.\n\n## What already exists\n\n**dstrader side (shell):**\n- `daily_run.sh` (cron `33 12 * * 1-5`) \u2192 runs `dstrader.sh` + `asset_report.sh`. **No success/failure alert.**\n- `asset_report.sh:27` \u2192 runs `AssetReportRun gaps prod 30 NYSE` (detect+backfill, 30-day window) then posts positions/prices. **Result is only logged, never checked or alerted.** It also already calls `encr_files.sh decrypt` at the top, so `mail.properties` creds are live during the run.\n- `health_check.sh` (cron `30 12 * * 2-6`) \u2192 greps yesterday's logs and emails via the `mail` CLI. Two weaknesses: it runs *before* the 12:33 daily run, and its success logic is a loose log-pattern grep, **not a data-truth check** (never verifies prices actually landed).\n\n**FamilyFund side (PHP) \u2014 \"the asset report already sends emails\":**\n- `GET /api/asset_prices/gaps?days=30&exchange=NYSE` \u2192 returns `{missing_count, missing_dates}`. This is the data-truth oracle.\n- `ScheduledJobEmailAlertTrait::sendScheduledJobFailureAlert()` already emails on fund-report job failure (incl. stale-data exceptions). But it only fires **when a report is due** \u2014 so a mid-quarter multi-month gap goes unseen until report time. That's the hole this ticket fills.\n\n**Email plumbing available:** `send_deploy_email.py` (Gmail SMTP, reads the same encrypted `mail.properties` the asset report already decrypts) and the `mail` CLI (what health_check uses).\n\n## The key design insight\nThe *root cause* is \"daily run didn't fire at all\" \u2014 in which case `asset_report.sh` never executes, so any check embedded inside it also wouldn't fire. The most robust catch is an **external watchdog** that queries `GET /api/asset_prices/gaps` on its own cron and alerts if `missing_count` exceeds a threshold. That catches *both* \"didn't run\" and \"ran but data didn't land,\" because in both cases prices are missing. `health_check.sh` is already the standalone-watchdog cron slot \u2014 it's the natural home.\n\nBefore I write code in the dstrader-aws repo, two scoping decisions:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "inside asset report OR its underlying java/php code procedures, reuse the asset report email per se"
+  }
+}

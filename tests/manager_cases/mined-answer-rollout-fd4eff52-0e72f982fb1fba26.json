@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-fd4eff52-0e72f982fb1fba26",
+  "sig": "answer:rollout-fd4eff52:0e72f982fb1fba26",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from fd4eff52-ddf0-4e0a-a392-3336538e5cb0.jsonl turn #82",
+  "input": {
+    "action": {
+      "session_id": "rollout-fd4eff52",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01XHX6Yo8hnLomXfQHmt3gFD",
+      "question": "Which session is m5 (the sender I should reply to)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01DF7p64AGAy2ceVHDAmmncJ",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which session is m5 (the sender I should reply to)?",
+            "header": "m5 session",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "[AH] AI-harness origin",
+                "description": "cse_01WHL7Sq7Mqxzgz8ErLTknsz \u2014 repo=ai-harness, worker=running, other-host"
+              },
+              {
+                "label": "New session",
+                "description": "cse_01P81AWcS2yNNmhRxuS6X83j \u2014 repo=<unknown>, worker=idle, other-host"
+              },
+              {
+                "label": "I'll paste a cse_* id",
+                "description": "Neither of the above; I'll provide the id"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Ack \u2014 got your status, great catch on the fresh-install gap. Phase B landed on main as 830b9a6:\n\n- `~/.ai-harness/active-dirs.txt` is the new canonical path; `config.py` defaults `ACTIVE_FILE` to it (and so do both `SupervisorConfig.from_env` and `ManagerConfig.from_env`).\n- `installer.py` now has `seed_active_file()` which creates the file with a comment-only template (dir 700, file 600) before bootstrapping any agent \u2014 so a clean checkout's first supervisor boot finds a valid empty allowlist rather than fail-closed.\n- `tests/test_installer.py` got two new tests locking in the seed behavior (perms + content + idempotency). 622/622 pass.\n- Repo file `active-dirs.txt` git-rm'd. `.gitignore` got a defensive `/active-dirs.txt` rule.\n- `com.user2.claude-remote-control.plist` drops the explicit REMOTE_CONTROL_ACTIVE_FILE block (relies on default now). `com.user.claude-remote-control.plist` already relied on the default.\n- Docs updated: `docs/OPERATIONS.md`, `docs/ARCHITECTURE.md`, `skills/remote-control-dirs/SKILL.md`.\n\nOn next `git pull` your supervisor's behavior shouldn't change \u2014 your installed plist explicitly sets REMOTE_CONTROL_ACTIVE_FILE so the new default doesn't even apply to you. The file removal in working-tree is also a no-op for your runtime (since you don't read from there).\n\nIf you want, you can drop your explicit REMOTE_CONTROL_ACTIVE_FILE from the installed plist now that the default points at the same path \u2014 but it's harmless to leave it.\n\nAlso: per the new `skills/send-to-session/SKILL.md` rule I committed earlier (eca2ad9), any coordination response from one agent to another MUST go via this skill, not just an in-session reply. Your previous status update was visible to me only because I happened to fetch your transcript via the API \u2014 natural replies don't propagate. Worth re-reading when you have a moment.\n\nThanks for the catch on the fresh-install seed."
+      },
+      {
+        "role": "assistant",
+        "text": "Acknowledged \u2014 and noted on the send-to-session rule. Let me read that skill first before replying via the wrong channel again."
+      },
+      {
+        "role": "assistant",
+        "text": "Local origin/main is still at `eca2ad9`; need to fetch to see Phase B (`830b9a6`)."
+      },
+      {
+        "role": "assistant",
+        "text": "Pulling Phase B and verifying nothing in my supervisor regressed, then I'll set up the proper send-to-session reply."
+      },
+      {
+        "role": "assistant",
+        "text": "Pull clean (now at `830b9a6`), supervisor unaffected (env var still explicit; m5's note that a re-pull is a no-op for me is correct). Now I owe m5 a reply via `send-to-session` per the new protocol. I need the sender's `cse_*` id \u2014 let me list candidates."
+      },
+      {
+        "role": "assistant",
+        "text": "Two \"other host\" sessions \u2014 either could be m5. Per the no-guessing rule, asking before composing."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "[AH] AI-harness origin"
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-fc33596b-523424644344d79a",
+  "sig": "answer:rollout-fc33596b:523424644344d79a",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from fc33596b-b115-4456-9a63-51a098938798.jsonl turn #149",
+  "input": {
+    "action": {
+      "session_id": "rollout-fc33596b",
+      "repo": "dstrader",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/dstrader/.claude/worktrees/bridge-cse_01XD2LdU8U4asDjhpA81y4wB",
+      "question": "Should the DEMO worker file a tracking ticket first, or run from a raw prompt?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_019xzTzbVJB9Hpht3R1yQfzn",
+        "description": "",
+        "questions": [
+          {
+            "question": "Should the DEMO worker file a tracking ticket first, or run from a raw prompt?",
+            "header": "Ticket?",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "File ticket on Trading & Fund #1 first (Recommended)",
+                "description": "Worker runs /start-work to claim, then /close-work to merge \u2014 standard flow, board reflects what's running, your no-PRs-push-to-main pattern still applies"
+              },
+              {
+                "label": "Raw prompt (no ticket)",
+                "description": "Worker just does the work and reports back; no board entry. Faster, but the work isn't tracked"
+              }
+            ]
+          },
+          {
+            "question": "Should the DEMO worker also do a test-render with macOS `say` voice before reporting back, so you can preview audio timing alongside the transcript?",
+            "header": "Test render",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "No \u2014 just transcript + HTML, report back for review",
+                "description": "Smaller scope, faster turnaround. You review the text first; render is a follow-up wave"
+              },
+              {
+                "label": "Yes \u2014 include a `say`-voice test render in the report",
+                "description": "Worker also runs `narrate render` with the `say` engine and surfaces the mp4 so you can hear the cadence before approving onyx final"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "[Request interrupted by user]"
+      },
+      {
+        "role": "user",
+        "text": "Act as a manager and trigger separate sessions, uh, call the managers"
+      },
+      {
+        "role": "user",
+        "text": "[Request interrupted by user]"
+      },
+      {
+        "role": "user",
+        "text": "skill"
+      },
+      {
+        "role": "assistant",
+        "text": "Switching to manager mode. The /manage skill says: plan first, get boss OK, then dispatch.\n\nLet me set up the manager state (my own cse_id) and check the project board mapping before proposing the worker split."
+      },
+      {
+        "role": "assistant",
+        "text": "Both repos are real GitHub repos. `dstrader` lives on Trading & Fund board (#1); `jdtogni-site` has no project board.\n\n**Proposed plan:** Single worker for the first wave (the only one with content gates), in `~/dev/dstrader`:\n\n| Worker | Repo | Scope |\n|---|---|---|\n| **DEMO** | `~/dev/dstrader` | Draft `demos/investment-strategy.demo.yaml` (10-scene transcript per the plan you signed off) + build `demos/investment-strategy-explainer.html` scaffold matching the rebalancing-explainer style. Report transcript back to me before any rendering. |\n\n**Why one worker first, not two:** the site-wiring work (adding the section to `dstrader.html`) is trivial and blocked on the rendered mp4 anyway \u2014 there's no real parallelism to win by spawning it now. We dispatch the SITE worker as Wave 2 once the transcript is approved + the demo is rendered. Saves running an idle worker.\n\nTwo confirmations before I dispatch:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "File ticket on Trading & Fund #1 first (Recommended), Yes \u2014 include a `say`-voice test render in the report"
+  }
+}

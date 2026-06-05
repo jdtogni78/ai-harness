@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f48fbc87-78e70fcd56eee925",
+  "sig": "answer:rollout-f48fbc87:78e70fcd56eee925",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f48fbc87-69f2-435d-aeae-1cad21446e59.jsonl turn #576",
+  "input": {
+    "action": {
+      "session_id": "rollout-f48fbc87",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01H9L9XjemcbagSpDhnBZxye",
+      "question": "Approve this plan and have me start executing (Phases A\u2013F; G/H are yours)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01HPYQRMfPAMc8UsxuefAUyU",
+        "description": "",
+        "questions": [
+          {
+            "question": "Approve this plan and have me start executing (Phases A\u2013F; G/H are yours)?",
+            "header": "Go / adjust",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Approve \u2014 start now",
+                "description": "I begin with Phase A (secrets repo) + B (HEAD cleanups) + C (build clean repo) + D (verify), and check back before the swap (F) and the public flip (H)."
+              },
+              {
+                "label": "Save plan, don't execute yet",
+                "description": "I commit this as docs/security/PUBLISH-READINESS.md and update issue #67, but take no destructive action until you say go."
+              },
+              {
+                "label": "Adjust first",
+                "description": "You want to change scope/sequence before I start."
+              }
+            ]
+          },
+          {
+            "question": "What happens to the interim repo (current live FamilyFund) after the swap?",
+            "header": "Interim repo",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Delete it (recommended)",
+                "description": "After issues transfer to the new repo, delete the interim \u2014 the original FamilyFund-archive already preserves full history. Avoids archive sprawl. Needs your delete_repo scope or a UI click."
+              },
+              {
+                "label": "Keep as 2nd archive",
+                "description": "Rename it to a second private archive instead of deleting. No sprawl concern for you; keeps an extra copy (still contains the IB IDs, but private)."
+              }
+            ]
+          },
+          {
+            "question": "Confirm the IB account-ID replacement mapping?",
+            "header": "IB ID scrub",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Use synthetic same-shape",
+                "description": "U5843610\u2192U0000010, U14940669\u2192U0000011, U13695851\u2192U0000012 (matches dstrader's approach; keeps tests/format valid)."
+              },
+              {
+                "label": "I'll specify values",
+                "description": "You want to choose the replacement IDs/format yourself."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Here's the grounding: your current setup already commits the **encrypted** secrets to the main repo \u2014 `.sops.yaml` + `app1/.env.sops`, `.env.dev.sops`, `.env.stage.sops` \u2014 with the age **private** key off-repo at `~/.config/sops/age/keys.txt`, transported per host. That's actually a well-designed pattern. So let me answer directly.\n\n## The principle first (the #66 lesson)\n\"Private\" is **not** a security boundary for secrets \u2014 a private repo can be flipped public, access can broaden, and history is forever. So the rule isn't \"private vs public repo,\" it's **encrypt at rest, manage the one root key separately.** You already do this. Good.\n\n## Do you need a *secondary* repo? Two separate questions:\n\n**1. To share secrets across hosts \u2014 mostly no.** Your `.sops` files already ride along with the repo to every machine. The *only* thing that can't be encrypted-in-place is the **age private key**, and that's the real \"shareable across hosts\" problem. Solve it once: put `keys.txt` in a **password manager** (1Password/Bitwarden secure note) and pull it to each host \u2014 never in any repo. (This is also what the macbook needs to decrypt anything.)\n\n**2. Once the main repo is PUBLIC, should the encrypted secrets stay in it?** This is the actual decision:\n\n- **(a) Leave SOPS files in the public repo.** Legitimately fine \u2014 ciphertext is useless without the age key, and lots of projects do this. Downsides: you permanently publish the *structure* (which keys exist: `APP_KEY`, `DB_PASSWORD`, `AWS_*`, `PUSHER_*`), and the ciphertext is then archived/cached publicly forever \u2014 so a future key compromise retroactively exposes it. After living through #66, that may not sit well.\n- **(b) Move secrets to a separate private store before publishing.** More conservative, cleaner separation \u2014 public repo keeps only code + `.env.example`. **Given your demonstrated risk appetite, I'd go with (b).**\n\n## If (b), the store options\n| Option | Fit for you |\n|---|---|\n| **Secondary private repo** `familyfund-secrets` (still SOPS-encrypted) | Simplest \u2014 reuses your existing `secrets.sh`/SOPS tooling, versioned, clone on each host. Keep it encrypted anyway. |\n| **Secrets manager** (Doppler / Infisical free tier, or 1Password CLI `op run`) | Best separation + rotation + audit + runtime injection; a bit more setup. |\n| **Cloud** (AWS Secrets Manager / SSM \u2014 you already have dstrader-aws) | Good for prod/deploy; overkill for local dev. |\n| **Encrypted sync / NAS** (Syncthing+age, or melnick) | No GitHub dependency; you already have melnick. |\n\n## My recommendation for your scale (a few hosts, existing SOPS+age, dstrader-aws, melnick NAS)\n- **Keep SOPS+age** \u2014 it's the right primitive and *is* your cross-host mechanism.\n- **Before the public flip:** move the 3 `.sops` + `.sops.yaml` into a **private `familyfund-secrets` repo**, point `secrets.sh` at it, and drop them from the soon-public main repo. Lowest effort, reuses your tooling \u2014 this is essentially your existing ticket **#80**.\n- **Age key** \u2192 password manager, one copy per host. Never committed.\n- **The archive repo** (old dirty history) is unrelated to this \u2014 a private repo is fine and cheap, or a `git bundle` on melnick if you'd rather not keep a GitHub repo around.\n- **Avoid the one anti-pattern:** a repo (private or not) with *plaintext* secrets. That's exactly what #66 was.\n\nNet: a secondary repo is worth it **as the secrets store for the public-flip** (option b), not as a general \"keep data across hosts\" tool \u2014 your encrypted-in-repo + age-key-in-password-manager already covers cross-host sharing.\n\nWant me to set up the private `familyfund-secrets` repo now (move the `.sops` files, wire `secrets.sh`, remove them from the main repo) under #80 \u2014 or leave it documented for when you actually flip to public?"
+      },
+      {
+        "role": "user",
+        "text": "FF will go public, lets do whatever we need to get there"
+      },
+      {
+        "role": "assistant",
+        "text": "On it. \"Get to public\" is a small program, not one step \u2014 so let me ground the real blocker list by scanning the current clean `main` (I spotted a couple of things worth checking, like a `cookies.txt` at the repo root and those 60 MB QA screenshots that may show real account data). Then I'll lay out the plan and start executing."
+      },
+      {
+        "role": "assistant",
+        "text": "Found the real blockers. `cookies.txt` is a stray curl cookie jar (localhost dev session \u2014 junk, delete it). The big question is the **15 QA screenshots** (~60 MB each) \u2014 if they show real account names/balances, they're a PII blocker needing removal from history, not just HEAD. Let me actually look at one to judge."
+      },
+      {
+        "role": "assistant",
+        "text": "That long screenshot is a full fund-summary page packed with account tables \u2014 at minimum it's 60 MB of dev-data imagery with likely-real names/balances, and it has zero value to a public audience. Combined with `cookies.txt` (a stray curl session jar) and the dev fixtures, I now have the full blocker picture. Let me lay out the plan to get to public, then execute on your go.\n\n## Publish-readiness plan for FamilyFund\n\n**\u2705 Already done:** history purged of leaked secrets/family-PII (#66), `.gitignore` hardened, clean repo live, dirty history isolated in the private archive.\n\n**\ud83d\udd34 In-repo work I'll do** (then one final history rewrite + force-push so none of it ships in the public git log):\n1. **Secrets out of the soon-public repo (#80)** \u2014 see Q1 below.\n2. **Remove `docs/qa-shots-2026-05-20/`** (15 files, ~300 MB, real account data in screenshots) \u2014 preserve a copy in the private archive first.\n3. **Remove `cookies.txt`** (stray localhost session jar).\n4. **Remove `restore_dev_funds.sql` + its migration** (dev-only real-ish fixture; the synthetic `TestBaselineSeeder` already replaces it).\n5. **Infra hygiene** \u2014 delete the README \"Jumpbox\" section (`jdtogni.tplinkdns.com` + SSH recipe), drop hardcoded `1234`/`changeme` credential fallbacks. (Private `192.168.x` IPs + username are harmless per your \"identity OK\" call \u2014 I'll leave them.)\n6. **Add a gitleaks pre-commit hook** so this can't recur.\n\n**\ud83d\udfe1 Your actions only** (I can't, or shouldn't unilaterally):\n- **Rotate prod secrets** (#16) \u2014 on spirit; repo never held them, but anything once-exposed should rotate (dev already done).\n- **Bulk user password reset + invalidate sessions** (#87) \u2014 the family hashes were exposed while public earlier; this is the right remediation.\n- **The flip to public** (#67) \u2014 I can run `gh repo edit --visibility public` on your explicit go, or you click it.\n\n**\ud83d\udfe2 Post-public:** re-enable code scanning + SARIF (#68); 2FA (#65) is a feature, not a blocker.\n\nTwo decisions drive how I execute the batch:"
+      },
+      {
+        "role": "assistant",
+        "text": "Got it \u2014 round 2 uses the **new-clean-repo + swap** again (so the public repo carries zero pre-cleanup residual), secrets **move to a private repo**, and I'll fold in the new findings from your separate analysis (IB account IDs, LAN topology, `.idea/`). Here's the full plan.\n\n---\n\n# FamilyFund \u2192 Public: Readiness Plan (Round 2)\n\n## Goal\nFlip `jdtogni78/FamilyFund` to **public** with: no secrets, no real PII or financial identifiers, no internal infra, and a history with **nothing retrievable** (no pull-ref/unreachable residual).\n\n## Approach (your call)\nRepeat the **build-fresh-repo \u2192 verify \u2192 swap \u2192 flip** pattern rather than force-pushing the live repo, so the public repo starts with a pristine object store (no lingering pre-cleanup blobs by SHA). Keep identity (`jdtogni78`, your name) \u2014 *not* de-identifying.\n\n## Decisions locked in\n- **Secrets** \u2192 private `familyfund-secrets` repo (SOPS+age); age private key distributed via password manager, never committed.\n- **Removal depth** \u2192 HEAD **and** history (via `git-filter-repo` on the fresh build).\n- **Identity** \u2192 kept.\n\n## Inventory: what gets removed / scrubbed\n\n| # | Item | Where | Action | Sev |\n|---|---|---|---|---|\n| 1 | Encrypted secrets `.sops.yaml`, `app1/.env.sops`, `.env.dev.sops`, `.env.stage.sops` | repo | **Move** to `familyfund-secrets`; **path-purge** from public history; repoint `secrets.sh` | \u2014 |\n| 2 | `docs/qa-shots-2026-05-20/` (15 files, ~300 MB, real account data in screenshots) | repo | **path-purge**; preserve a copy in the archive first | HIGH (PII) |\n| 3 | `cookies.txt` (stray localhost session jar) | root | **path-purge** | LOW |\n| 4 | `restore_dev_funds.sql` + `..._restore_dev_funds_fixture.php` | migrations | **path-purge** (synthetic `TestBaselineSeeder` replaces it) | LOW |\n| 5 | `.idea/` (8 files, incl. `dataSources.xml` \u2192 prod JDBC `192.168.0.100:3307/familyfund_prod`) | repo | **untrack + .gitignore + path-purge** | LOW-MED |\n| 6 | **IB account IDs** `U5843610`, `U14940669`, `U13695851` | `CashDepositTrait.php`, `CashDepositTraitTest.php`, `sample_cashdep.csv`, `README.md`, `tests/http_samples/test.http` (+ history) | **`--replace-text`** \u2192 synthetic same-shape (history+HEAD) | **MED** |\n| 7 | DDNS `jdtogni.tplinkdns.com` + README \"Jumpbox\" SSH recipe | README | **HEAD edit** + **`--replace-text`** (history) | MED |\n| 8 | LAN map: IPs `192.168.0.100/.120/.111`, `192.168.68.16`, MAC `90:09:D0:6A:29:D4`, `ssh jdtogni@\u2026`, NFS paths | README, CLAUDE.md, AGENTS.md | **HEAD edit**; optional `--replace-text` from history (RFC1918 = low) | LOW |\n| 9 | Hardcoded cred fallbacks `1234` / `changeme` | bin/ + compose | **HEAD edit** (drop defaults) | LOW |\n| 10 | Owner email in ~2 **commit messages** | history | **`--replace-message`** (filter-repo doesn't touch messages via `--replace-text`) | LOW |\n| 11 | Add **gitleaks pre-commit hook** | repo | new file | \u2014 (prevention) |\n\nIB-ID replacement mapping (same-shape synthetic, dstrader-style):\n`U5843610\u2192U0000010`, `U14940669\u2192U0000011`, `U13695851\u2192U0000012` (the obviously-fake `U0000001/2` stay).\n\n## Phases\n\n- **A \u2014 Secrets repo (#80):** create private `familyfund-secrets`; move the 4 SOPS files; update `secrets.sh`/`rotate-dev-secrets.sh` to read from `$FF_SECRETS_DIR` (default sibling clone); document age-key-via-password-manager in `SETUP.md`.\n- **B \u2014 HEAD cleanups:** items 5\u20139, 11 as edits on the current live repo's `main` (a working clone).\n- **C \u2014 Build fresh clean repo:** `git-filter-repo` on the current live history = path-purges (1\u20135) + `--replace-text` (6\u20138) + `--replace-message` (10), then apply the B edits as a final commit.\n- **D \u2014 Verify (gates, must all pass):**\n  - Audit over `--all`: 0 secrets/dumps/datadir/APP_KEY/PII; **0 IB IDs**; DDNS gone; `.idea/` gone; qa-shots gone.\n  - App still works: `testpool` suite green + `vite build` (so cleanups didn't break tests/build \u2014 e.g., the `sample_cashdep.csv`/`CashDepositTraitTest` IB-ID change must keep the test passing).\n  - `secrets.sh decrypt` works from `familyfund-secrets` on a host with the age key.\n- **E \u2014 New repo setup:** push clean history to a fresh private repo; enable Dependabot; **transfer the 20 open issues**; verify board.\n- **F \u2014 Swap:** rename current live `FamilyFund` \u2192 aside, rename new \u2192 `FamilyFund`; re-sync canonical + **macbook** (re-clone); clone `familyfund-secrets` on each host + drop in the age key.\n- **G \u2014 Owner actions** (you): rotate prod secrets (#16); bulk user password reset + session invalidation (#87); decide the interim repo's fate (delete \u2014 needs `delete_repo` \u2014 vs keep as 2nd private archive); optionally ask GitHub Support to GC the archives.\n- **H \u2014 Flip to public (#67):** `gh repo edit --visibility public` on your explicit go (or you click it).\n- **I \u2014 Post-public:** re-enable code scanning + SARIF (#68).\n\n## Verification gates (hard stops)\nNo swap until D passes; no public flip (H) until: audit clean, tests green, secrets confirmed working off-repo, and your G items done (rotation + resets).\n\n## Backups / rollback\n- Existing verified backup `~/familyfund-repo-backups/2026-05-25-1328/`.\n- I'll snapshot the current live repo before round 2.\n- Swap-not-force-push means the live repo is never mutated until the rename; rollback = keep the current one.\n\n## End state\nTwo repos: **`FamilyFund`** (clean, public) + **`FamilyFund-archive`** (private, full original record). Interim repo deleted (recommended) to avoid sprawl. Secrets in **`familyfund-secrets`** (private). Age key in your password manager.\n\n---\n\nThree things I need from you before executing:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Save plan, don't execute yet, Delete it (recommended), Use synthetic same-shape"
+  }
+}

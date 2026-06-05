@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f61ec1db-f2bb14da15be9b2b",
+  "sig": "answer:rollout-f61ec1db:f2bb14da15be9b2b",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f61ec1db-5c24-42d7-858f-86b8908611eb.jsonl turn #89",
+  "input": {
+    "action": {
+      "session_id": "rollout-f61ec1db",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_013XneiVcL77kUujQ1Xun4gU",
+      "question": "Where should the narrate package live in the repo?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01RRJBb43WcRNzyoHfwqTvDb",
+        "description": "",
+        "questions": [
+          {
+            "question": "Where should the narrate package live in the repo?",
+            "header": "Package home",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "New top-level narrate/ pkg (Recommended)",
+                "description": "Cleanest: heavy Playwright/Chromium deps stay isolated from remote_control; own venv; CLI = `python3 -m narrate ...`. Easier to extract or open-source separately later."
+              },
+              {
+                "label": "Inside remote_control/",
+                "description": "Reuses the existing `python3 -m remote_control` entrypoint and one venv. Consistent with new_session/titles/etc., but bloats remote_control with a 150MB Chromium dep."
+              },
+              {
+                "label": "Scripts dir (scripts/narrate/)",
+                "description": "Treat it as a tool, not a package. Lightest footprint, but no clean `python -m` entrypoint and skill wrapper gets uglier."
+              }
+            ]
+          },
+          {
+            "question": "Where should demo script YAML files live?",
+            "header": "Script location",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "demos/ in the target repo (Recommended)",
+                "description": "For an FF demo, the yaml lives in the FamilyFund repo at `demos/ff-login.demo.yaml`. Demo lives with the app it documents, versioned alongside UI changes that may break selectors."
+              },
+              {
+                "label": "Central narrate/scripts/ in ai-harness",
+                "description": "All demo yamls in one place under the narrate package. Easy to list/manage centrally, but they drift from the app they describe."
+              },
+              {
+                "label": "Wherever the user runs the CLI",
+                "description": "No convention \u2014 CLI just takes a path. Most flexible, no enforced structure."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "POC done end-to-end. The frame at 18s shows the red glowing cursor sitting on the \"Bloomberg\" / \"History\" area of the Wikipedia article \u2014 the overlay is rendering in the recorded video.\n\n**Output**: `demos/poc-narrated/out/demo.mp4` \u2014 25s, 1280\u00d7720, H.264+AAC, 3.0 MB\n\n**Pipeline that ran** (in `make_demo.py`):\n1. **TTS** \u2014 `say` synthesizes each line \u2192 AIFF \u2192 WAV; `ffprobe` measures duration (6 segments, 25.03s total)\n2. **Browser** \u2014 headless Chromium via Playwright, fake-cursor overlay injected via `add_init_script`, mouse `glide` via `page.mouse.move(..., steps=30)`, smooth scroll via 40\u00d7 `wheel`, action timing padded to match each segment's narration length\n3. **Audio** \u2014 ffmpeg concat-demuxer stitches segments into `narration.wav`\n4. **Mux** \u2014 ffmpeg muxes `*.webm` + `narration.wav` \u2192 `demo.mp4`\n\n**To change the demo**: edit the `SCRIPT` list at the top of `make_demo.py` \u2014 each step is `{\"say\": \"narration text\", \"do\": \"intro|goto|move|scroll|move_first_visible_h2|wait\", ...}` \u2014 and re-run `.venv/bin/python make_demo.py`. Narration and action time stay in sync automatically because the runner pads to each segment's measured duration.\n\n**Easy upgrades from here, in rough order of value**:\n- Swap `say` \u2192 ElevenLabs / OpenAI TTS (one function, `synth()` \u2014 much nicer voice)\n- Point `goto` at the FamilyFund app instead of Wikipedia, add a real walkthrough script\n- Add captions (ffmpeg `drawtext` filter from the segment list, or switch to Remotion for proper compositing)\n- Add click animations + element highlights (one extra overlay div, toggled in `glide`)\n- Add a YAML/JSON script file so demo scripts live separately from code\n\nWant me to point it at the FamilyFund app next, or first swap in ElevenLabs for a nicer voice?"
+      },
+      {
+        "role": "user",
+        "text": "give me the full dir / or a finder link"
+      },
+      {
+        "role": "assistant",
+        "text": "Opened in Finder. Full paths:\n\n- **POC dir**: `/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_013XneiVcL77kUujQ1Xun4gU/demos/poc-narrated/`\n- **Final video**: `/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_013XneiVcL77kUujQ1Xun4gU/demos/poc-narrated/out/demo.mp4`\n\nOpen the video directly:\n```\nopen /Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_013XneiVcL77kUujQ1Xun4gU/demos/poc-narrated/out/demo.mp4\n```"
+      },
+      {
+        "role": "user",
+        "text": "Nice! How can we make this into cli + skill, and later start with FF project"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me peek at how existing skills are structured so my proposal fits the repo conventions."
+      },
+      {
+        "role": "assistant",
+        "text": "Existing pattern is clear: skills wrap `python3 -m <pkg> <subcommand>` and live in `skills/<name>/SKILL.md` (symlinked globally via `skills/link.sh`). My proposed shape:\n\n**Package**: new `narrate/` at repo root (not inside `remote_control/`) \u2014 Playwright + Chromium are heavy and visual, while `remote_control` is dep-light session plumbing. Keeps concerns clean and lets `narrate` get its own venv.\n\n**CLI**:\n```\npython3 -m narrate render <script.yaml>     # build mp4\npython3 -m narrate init   <name>             # scaffold a starter yaml\npython3 -m narrate preview <script.yaml>     # headed, no recording \u2014 iterate selectors\npython3 -m narrate voices                    # list `say -v ?`\n```\n\n**Script** (YAML \u2014 easy for you to edit without touching code):\n```yaml\ntitle: FF login walkthrough\nviewport: {width: 1280, height: 720}\nvoice: Alex\noutput: out/ff-demo.mp4\nsteps:\n  - say: \"Welcome to Family Fund.\"\n    do: intro\n  - say: \"Log in with your test account.\"\n    do: goto\n    url: http://localhost:8000/login\n  - say: \"Click the submit button.\"\n    do: move\n    to: \"button[type=submit]\"\n```\n\n**Skill**: `skills/narrate-demo/SKILL.md` \u2014 triggers on \"make a demo video\", \"record a narrated walkthrough\", \"demo this feature\". Wraps the CLI; on first use it scaffolds a `<name>.demo.yaml` next to the user.\n\n**TTS** stays pluggable from day 1: `say` adapter (default, free), with `openai` and `elevenlabs` adapters stubbed so swapping is a one-line config change later.\n\n**Order of work**:\n1. Promote POC \u2192 `narrate/` package, split into `cli.py` / `runner.py` / `tts.py` / `script.py`\n2. YAML loader + the 4 CLI subcommands\n3. `skills/narrate-demo/SKILL.md` + `skills/link.sh`\n4. Smoke-test by re-rendering the Wikipedia demo from a YAML file\n5. *Then* FF: lease a preview env, write `ff-login.demo.yaml`, render\n\nTwo quick choices before I build:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "New top-level narrate/ pkg (Recommended), demos/ in the target repo (Recommended)"
+  }
+}

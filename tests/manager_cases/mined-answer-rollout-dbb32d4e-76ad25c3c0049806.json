@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-dbb32d4e-76ad25c3c0049806",
+  "sig": "answer:rollout-dbb32d4e:76ad25c3c0049806",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from dbb32d4e-657b-469c-8efb-e8e4a938f6dd.jsonl turn #42",
+  "input": {
+    "action": {
+      "session_id": "rollout-dbb32d4e",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01XLneXzgKwiR5WLqkERnk84",
+      "question": "Which users should the bulk password reset cover on dev?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_018eLacV4RYd2SJ8A7n8Agoe",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which users should the bulk password reset cover on dev?",
+            "header": "Reset scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Pragmatic: family users only (14)",
+                "description": "Rotate user1..user8 + user164..user169 (the 14 pre-rotation users whose hashes were in the leaked dumps). Leave admin (id 163) + claude@test.local + 3 qa-*@test.local seeded test users alone \u2014 they post-date the rotation, have intentionally public passwords, and are used by dev-login / CLAUDE.md workflows."
+              },
+              {
+                "label": "Strict: every non-admin user (18)",
+                "description": "Rotate all 18 non-admin users, including claude@test.local and qa-*. Documented dev-login + test passwords stop working until QaTestUsersSeeder + prod_to_dev.sql are re-run."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "#18 bulk user password reset + invalidate sessions/Sanctum tokens (family hashes were exposed earlier)\nlets run on mini, make notes about that on the ticket"
+      },
+      {
+        "role": "assistant",
+        "text": "We're already on mini (macmini.local). Let me check pre-conditions and plan the operation."
+      },
+      {
+        "role": "assistant",
+        "text": "All pool slots free \u2014 safe to truncate sessions. Let me inspect current dev DB state."
+      },
+      {
+        "role": "assistant",
+        "text": "Pre-flight check done. Before I run, one scope question \u2014 the ticket says \"all except admin\", but the seeded test users (`claude@test.local` + 3 `qa-*@test.local`) were created post-rotation with intentionally public passwords (documented in CLAUDE.md / used by dev-login & QA scripts). Rotating them would break documented dev workflows without unbreaking anything (their hashes weren't in the leak)."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "all, but give the cmds for my admin users"
+  }
+}

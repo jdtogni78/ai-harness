@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4fc4bdee-c40cab5e7163abef",
+  "sig": "answer:rollout-4fc4bdee:c40cab5e7163abef",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4fc4bdee-a4d3-48ae-8c4d-12d54399691d.jsonl turn #33",
+  "input": {
+    "action": {
+      "session_id": "rollout-4fc4bdee",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "How should the activation list work?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01V9ct3tHJnRnwrjEP4ZrCYk",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the activation list work?",
+            "header": "List mode",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Allowlist (opt-in)",
+                "description": "Only dirs listed in the file get servers. New dirs under ~/dev are dormant until you add them. Safest \u2014 keeps the count minimal."
+              },
+              {
+                "label": "Denylist (opt-out)",
+                "description": "Every subdir gets a server unless listed. New dirs spawn automatically; you blacklist the ones you don't want."
+              },
+              {
+                "label": "Per-dir marker file",
+                "description": "Each dir opts in by containing a `.claude-remote-control` marker file. No central list \u2014 lives with the repo."
+              }
+            ]
+          },
+          {
+            "question": "Which dirs should be active right now?",
+            "header": "Initial active set",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "mm-dev (root)",
+                "description": "The ~/dev root itself \u2014 useful for cross-project work"
+              },
+              {
+                "label": "FamilyFund",
+                "description": "FamilyFund repo"
+              },
+              {
+                "label": "dstrader",
+                "description": "dstrader repo"
+              },
+              {
+                "label": "claude-remote-control",
+                "description": "The supervisor repo itself"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I have too many servers being spawn, lets gave an activation list and a skill to manage that"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me look at the current LaunchAgent setup to understand what's spawning."
+      },
+      {
+        "role": "assistant",
+        "text": "Got it. Currently the supervisor in `remote-control-supervisor.sh:39-56` auto-spawns a server for `~/dev` root + every immediate subdir. You have 7 subdirs + the root, so 8 servers running.\n\nThe cleanest design is to add an activation file the supervisor reads each tick, plus a skill to edit it.\n\nTwo quick design choices:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Allowlist (opt-in), mm-dev (root), FamilyFund, dstrader, claude-remote-control"
+  }
+}

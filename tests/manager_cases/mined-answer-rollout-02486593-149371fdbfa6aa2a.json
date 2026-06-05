@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-02486593-149371fdbfa6aa2a",
+  "sig": "answer:rollout-02486593:149371fdbfa6aa2a",
+  "captured_at": "2026-06-04T01:28:52+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 02486593-7b38-4144-bc7c-bb11ebc29314.jsonl turn #23",
+  "input": {
+    "action": {
+      "session_id": "rollout-02486593",
+      "repo": "job-search",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/job-search/.claude/worktrees/bridge-cse_01Duxu1Fx6WR22eqyPiuS7NH",
+      "question": "Which ticket should I claim and start work on?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_014vZq7ftHdDzapCjnM46AT5",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which ticket should I claim and start work on?",
+            "header": "Ticket",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Job Search draft",
+                "description": "Pick one of the Job Search board (#3) drafts: LinkedIn referral tooling, Website specs, Adzuna signup, Resume/LinkedIn rewrite, Network outreach, Marketplace signups, Outbound to target companies, or Regenerate published site. These are drafts (no issue #) \u2014 I'd convert to an issue first. Matches this worktree's repo."
+              },
+              {
+                "label": "FamilyFund / Trading",
+                "description": "A numbered ticket on Trading & Fund (#1): e.g. #13 pen-test API tests, #16 secret rotation, #26-28 UI standardization, #29 pre-publish hygiene, #30 price-gap backfill, #49-54 API security. Wrong repo for this worktree though."
+              },
+              {
+                "label": "Remote Control",
+                "description": "ai-harness board (#2): #5 resume mechanism, #6 Codex approval rules, #7 dead env_* GC report. Wrong repo for this worktree."
+              },
+              {
+                "label": "Just show details",
+                "description": "Don't claim yet \u2014 show me more detail on specific tickets so I can decide."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Start work."
+      },
+      {
+        "role": "assistant",
+        "text": "I'm on `macmini` in the **job-search** worktree (`bridge-cse_01Duxu1Fx6WR22eqyPiuS7NH`), fresh/alive. Here's what's available to pick up. I won't auto-pick \u2014 you choose.\n\nSince this worktree is the **job-search** repo, the Job Search board (#3) is the natural fit, but everything there is still a **draft note** (no issue number yet). The numbered tickets live on the other two boards."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Job Search draft"
+  }
+}

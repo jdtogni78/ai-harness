@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-8b75a161-a877573791a96c87",
+  "sig": "answer:rollout-8b75a161:a877573791a96c87",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 8b75a161-a3b1-42db-9585-41997c506d71.jsonl turn #57",
+  "input": {
+    "action": {
+      "session_id": "rollout-8b75a161",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01MUnyW3zt4i3Exa3a1mw2rh",
+      "question": "Handoff-respawned sessions currently force `acceptEdits` (handoff.py:456). For your live test, what should the respawned sessions use?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01P1jeV3hg3BcgNba2H4SVNh",
+        "description": "",
+        "questions": [
+          {
+            "question": "Handoff-respawned sessions currently force `acceptEdits` (handoff.py:456). For your live test, what should the respawned sessions use?",
+            "header": "Spawn perm mode",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "`default` via new env knob (Recommended)",
+                "description": "Add RESUME_ON_RESTART_PERM_MODE env var, default `default` (gates risky tools, still functional). Override back to acceptEdits any time. Most durable answer."
+              },
+              {
+                "label": "`plan` via new env knob",
+                "description": "Read-only until you approve. Safest, but the respawned session can't act on its brief at all until you switch it out of plan mode \u2014 may defeat the point of an auto-handoff."
+              },
+              {
+                "label": "`default`, hard-coded patch",
+                "description": "One-line change to handoff.py:456: pass `default` instead of `acceptEdits`. Simpler but no override knob."
+              },
+              {
+                "label": "Leave acceptEdits, just kick now",
+                "description": "Skip the patch. Live test with current behavior; we file a follow-up ticket to make it configurable."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Typically, I wanna do a supervisor restart, and I'm hoping it will create new sessions and try to resume the work of everything that was live before."
+      },
+      {
+        "role": "assistant",
+        "text": "Good \u2014 and per the relaunch skill description, the supervisor *does* run `handoff.run_handoff_dispatch` on restart (relaunch is \"the stand-alone CLI form of the same handoff flow\"). So your expectation should hold, but let me verify the handoff code actually does what you think (relaunch every live cse_, not just specific ones) and check what's live right now before we kick it."
+      },
+      {
+        "role": "assistant",
+        "text": "Got it \u2014 confirmed how the flow actually works. Here's the short version before we kick anything (this affects all live sessions on this host, so let me make sure you know the blast radius):\n\n**What supervisor restart actually does** (`handoff.py:526`):\n1. SIGTERMs all `mm-*` servers \u2192 live `cse_*` sessions become orphaned transcripts on disk.\n2. Supervisor relaunches, runs `rehydrate.rehydrate_supervisor_orphans` \u2192 forks each orphan into a local sibling uuid.\n3. `run_handoff_dispatch` consumes the forks: spawns a fresh `oneoff-<host>-<8hex>` bridge in the original cwd, POSTs a brief (cwd + branch + last 5 user turns) as the new session's first user turn.\n4. Idempotency via `~/.ai-harness/handoffs/*.json` so a second restart skips already-handoff'd ones.\n\nSo: it's the **handoff** flow (fresh `cse_*` seeded with prior context), not a true \"resume\" of the same session id. Matches your `feedback_handoff_over_resume.md` policy.\n\n**Knob**: `RESUME_ON_RESTART=off` disables it; default is `handoff` (enabled). Not currently overridden in your shell env.\n\nLet me check what's currently live so you know the blast radius before we kick:"
+      },
+      {
+        "role": "assistant",
+        "text": "The launchctl grep came up empty, which is suspicious. Let me dig deeper before suggesting the kickstart command \u2014 the supervisor might be under a different label, or might not be loaded right now."
+      },
+      {
+        "role": "assistant",
+        "text": "Found the supervisor \u2014 PID 11508, launchd label `com.claudio1.claude-remote-control`. Live sessions include `mini-ai-harness`, `mini-dev`, `mini-job-search` (active-dirs supervised), plus ~30 oneoff workers (those are NOT touched by supervisor restart per the new_session design \u2014 they're detached, picker-visible/supervisor-invisible).\n\nOn your follow-up about permissions: you're right to flag this. Looking at `handoff.py:456`, the handoff-spawned sessions are hard-coded to `acceptEdits`:\n\n```python\ncmd = new_session.build_argv(cfg.claude_bin, name, spawn_mode, \"acceptEdits\")\n```\n\nThat means every handoff-respawned session comes up in auto-accept mode and starts executing on a brief it didn't see you type \u2014 exactly the place you'd want *less* permission, not more. The respawn is autonomous, the brief is heuristic, and the user isn't there to gate the first turn. `default` (asks on tool use) or `plan` (read-only until approved) would be the right defaults.\n\nLet me check the build_argv signature and what modes are valid:"
+      },
+      {
+        "role": "assistant",
+        "text": "Quick options for the permission fix before we kick:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "I want to use dangerous mode by the four"
+  }
+}

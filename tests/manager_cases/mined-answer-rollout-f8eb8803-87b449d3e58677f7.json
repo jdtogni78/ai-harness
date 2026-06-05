@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f8eb8803-87b449d3e58677f7",
+  "sig": "answer:rollout-f8eb8803:87b449d3e58677f7",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f8eb8803-11f7-477b-98a5-3ae1653d1d8f.jsonl turn #124",
+  "input": {
+    "action": {
+      "session_id": "rollout-f8eb8803",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01RYTfST7aAo1xGyWGY7YxZ8",
+      "question": "Want me to apply the rename now to those two sessions so they show as [AH.mini] right away, or wait?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01RAQX6f4LescH8g6hLEC25E",
+        "description": "",
+        "questions": [
+          {
+            "question": "Want me to apply the rename now to those two sessions so they show as [AH.mini] right away, or wait?",
+            "header": "Apply now",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Apply now from this worktree",
+                "description": "Run `PYTHONPATH=. python3 -m remote_control titles apply --only ai-harness` here. The two sessions retitle to [AH.mini] immediately."
+              },
+              {
+                "label": "Wait until merged",
+                "description": "Skip the one-off apply. After merge to main + supervisor restart, the next self-heal pass picks them up automatically."
+              }
+            ]
+          },
+          {
+            "question": "The usage-limit-monitor daemon imports remote_control from ~/dev/ai-harness/ (main checkout), so its self-heal pass keeps using the OLD is_host_local until this change lands on main. Want a commit on this worktree branch + the merge-to-main close-out, or keep it staged?",
+            "header": "Land the fix",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Commit on the worktree branch only",
+                "description": "I'll commit `feat(session-titles): local bridge wins over cloud source URL` on this bridge worktree. You can review and merge to main yourself later."
+              },
+              {
+                "label": "Commit + merge into main",
+                "description": "Commit on the worktree branch, switch the main checkout to main, fast-forward the change in, push. Daemon picks up new code on its next restart. This is the close-work flow."
+              },
+              {
+                "label": "Leave uncommitted for now",
+                "description": "Code change stays in the worktree only. Useful if you want to iterate on the wording or behavior first."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Index looks correct \u2014 `is_host_local` should return True. Let me trace `plan_renames` directly:"
+      },
+      {
+        "role": "assistant",
+        "text": "Something's odd \u2014 let me verify the edit landed."
+      },
+      {
+        "role": "assistant",
+        "text": "Found the issue \u2014 Python resolved `remote_control` from `~/dev/ai-harness/` (main checkout), not from this worktree. Let me run from inside the worktree:"
+      },
+      {
+        "role": "assistant",
+        "text": "Good \u2014 edit is correct. Now re-run the dry-run against the worktree source:"
+      },
+      {
+        "role": "assistant",
+        "text": "The dry-run now plans to retitle the two `[AH]` sessions to `[AH.mini]`. The fix works."
+      },
+      {
+        "role": "assistant",
+        "text": "Two things to decide before going further:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Apply now from this worktree, Commit + merge into main"
+  }
+}

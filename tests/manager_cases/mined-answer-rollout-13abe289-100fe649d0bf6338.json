@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-13abe289-100fe649d0bf6338",
+  "sig": "answer:rollout-13abe289:100fe649d0bf6338",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 13abe289-396f-43fc-9381-447e4ecf90ee.jsonl turn #285",
+  "input": {
+    "action": {
+      "session_id": "rollout-13abe289",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "Kill the rogue supervisor + its parent shell (PIDs 29852 + 29845)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01UbKn4iPPXJrRV7J5uhA84U",
+        "description": "",
+        "questions": [
+          {
+            "question": "Kill the rogue supervisor + its parent shell (PIDs 29852 + 29845)?",
+            "header": "Action",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 kill both (Recommended)",
+                "description": "`kill 29852 29845`. Stops the flap. Children of 29852 (any orphan `claude remote-control` processes) get reparented to launchd; the legitimate supervisor 93495 will adopt the ones whose names it expects."
+              },
+              {
+                "label": "Kill only 29852, leave the shell",
+                "description": "Kill just the rogue supervisor. The shell will then exit on its own. Safer if you want to inspect 29845's shell snapshot first."
+              },
+              {
+                "label": "Don't kill \u2014 I'll handle it",
+                "description": "Stop here. You manage the cleanup."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Supervisor restarted (pid 92006). Let me wait ~90 seconds for 3 ticks and watch."
+      },
+      {
+        "role": "assistant",
+        "text": "**Smoking gun found!** Look at this:\n\n```\n21:43:27 tick: wanted=[all 6] running=[all 6] deact=[]   \u2190 my new log says NOTHING to kill\n21:43:27 deactivate: mm-job-search not in allowlist     \u2190 but a kill fires anyway!\n```\n\nThe deactivate log fires AFTER my line says `deact=[]`. So the kill must be coming from a *different* code path. Let me find it."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me add a marker to the deactivate emitter so we can see if it's coming from a different invocation."
+      },
+      {
+        "role": "assistant",
+        "text": "\ud83c\udf89 **The flap is gone.** Look at the log \u2014 since my second restart at 21:49:53, every tick is clean: `wanted=[all 6] running=[all 6] deact=[]`. No \"deactivate\" messages have fired in 8 minutes. Let me confirm:"
+      },
+      {
+        "role": "assistant",
+        "text": "\ud83c\udfaf **FOUND THE ROGUE!** Look at pid 29852:\n\n```\n29852  09:44:29  Python -m remote_control supervisor --help\n```\n\n**That's a second supervisor that's been running for 9 hours and 44 minutes** \u2014 it was spawned by some earlier \"exploring CLI options\" shell call, but the supervisor's main doesn't actually parse `--help`, so it ignored the flag and launched a normal supervisor run. It's been fighting the launchd-managed one ever since, killing each other's children \u2192 that's our phantom factory.\n\nLet me confirm and kill it."
+      },
+      {
+        "role": "assistant",
+        "text": "This is the culprit. PID 29852 is a rogue supervisor that's been running 9h44m \u2014 spawned by a long-dead shell (29845) that ran `python -m remote_control supervisor --help`. Bug in `supervisor.main()`: it ignores `argv` entirely, so `--help` silently launches a full supervisor instead of printing help. It's been fighting the launchd-managed supervisor ever since, kill-cycling each other's children \u2192 that's where every phantom registration came from.\n\nKilling it (and its parent shell) will:\n- Stop the kill/respawn flap immediately\n- Let the launchd-managed supervisor (93495) hold its children stably\n- Let existing phantoms age out of the cloud picker"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Yes \u2014 kill both (Recommended)"
+  }
+}

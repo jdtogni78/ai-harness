@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-c4018c72-e0ef4ad885c71349",
+  "sig": "answer:rollout-c4018c72:e0ef4ad885c71349",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from c4018c72-8b1c-40e4-bd4c-92248ada87d4.jsonl turn #97",
+  "input": {
+    "action": {
+      "session_id": "rollout-c4018c72",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "Which dir should I add to active-dirs.txt to spawn a new remote-control server?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01C9P2SYSKjszMAtQ6zbwdRo",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which dir should I add to active-dirs.txt to spawn a new remote-control server?",
+            "header": "Target dir",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "portfolio",
+                "description": "~/dev/portfolio \u2014 new picker row mm-portfolio"
+              },
+              {
+                "label": "jdtogni-site",
+                "description": "~/dev/jdtogni-site \u2014 new picker row mm-jdtogni-site"
+              },
+              {
+                "label": "fin-export",
+                "description": "~/dev/fin-export \u2014 new picker row mm-fin-export"
+              },
+              {
+                "label": "dstrader_python",
+                "description": "~/dev/dstrader_python \u2014 new picker row mm-dstrader_python"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "B"
+      },
+      {
+        "role": "assistant",
+        "text": "Got it. Two things to nail down before I launch one:\n\n1. **Which CWD?** The server anchors to a directory. Options:\n   - This worktree (`.../bridge-cse_01V7iUs33YK54dRjYpb8xwXk`) \u2014 gives you a second handle on the same dir\n   - A different repo (`~/dev/dstrader`, `~/dev/job-search`, etc.) \u2014 gives you a fresh picker row for that repo without touching `active-dirs.txt`\n   - A scratch dir\n\n2. **Reap risk** \u2014 worth being explicit since I want you choosing it knowingly: per your memory note (`feedback_supervisor_restart_on_nickname_change.md`), the supervisor SIGTERMs servers whose names/dirs don't match the active-dirs derivation. A one-off `--name ad-hoc-foo` server won't survive the supervisor's next reconcile tick (~30s). For it to be durable, it needs to either (a) match what the supervisor would have launched anyway (same `--name`, same `--spawn` mode, same CWD \u2014 at which point why not just use **A**?), or (b) live on a host where the supervisor isn't running.\n\nGiven (2), the honest pitch for **B** is: \"I want a session right now, for the next few minutes, and I don't care if it gets reaped.\" Is that what you want, or did the reap risk change your mind?\n\nIf you still want B, tell me the CWD and name and I'll launch it; if A is looking better given the reap behavior, I'll hand off to the `remote-control-dirs` skill instead."
+      },
+      {
+        "role": "user",
+        "text": "i want to request via skill an extra session"
+      },
+      {
+        "role": "assistant",
+        "text": "Good call \u2014 that's path A, supervisor-managed via the allowlist. Invoking the skill now."
+      },
+      {
+        "role": "assistant",
+        "text": "Checking current state so we know what's not already running."
+      },
+      {
+        "role": "assistant",
+        "text": "Right \u2014 the skill assumed you'd name it. Let me ask now. Candidates under `~/dev` that aren't allowlisted yet:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "just use current active_dirs"
+  }
+}

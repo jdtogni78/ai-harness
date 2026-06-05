@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-fbd6b665-d3263a122782f4f2",
+  "sig": "answer:rollout-fbd6b665:d3263a122782f4f2",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from fbd6b665-4afb-45fb-a556-89b203245b22.jsonl turn #294",
+  "input": {
+    "action": {
+      "session_id": "rollout-fbd6b665",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "How far should I dig on cloud-session creation before giving up?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01K2ar4XZvYgLPkxBTmUk8sa",
+        "description": "",
+        "questions": [
+          {
+            "question": "How far should I dig on cloud-session creation before giving up?",
+            "header": "Dig depth",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Quick probe: POST /sessions and PATCH/POST transcript routes",
+                "description": "30 min: curl-probe POST /v1/code/sessions and a few likely transcript-import paths against the existing OAuth token, on the disposable cse_01K5Kv\u2026. Report findings. If something works, build on it; if not, fall back."
+              },
+              {
+                "label": "Search the app.asar for code-session API client",
+                "description": "1\u20132 hours: extract app.asar, grep for the desktop app's session-creation calls; mirror whatever endpoint shape the app uses. Higher signal than blind curl, but slow."
+              },
+              {
+                "label": "Stop digging \u2014 accept local-only /resume picker",
+                "description": "Ship supervisor-restart.sh with `open -a Claude.app ~/dev/ai-harness` + printed resume commands. Forks live in the app's local picker. File a follow-up issue to research cloud-promotion separately."
+              },
+              {
+                "label": "Ask Anthropic / check docs first",
+                "description": "Pause the build; user (you) checks whether there's an official way to import a transcript into a fresh cse_ before I sink time into probes. I do nothing until you report back."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Title set to `[AH.mini] Automate Claude session preservation on launchd reset`. The reason the auto-template skipped `.mini` is because this is an SDK desktop session \u2014 `env_kind=bridge` but no local `bridge-cse_*/` worktree, so `is_host_local()` returns false. Worth a follow-up fix in `_run_set` (could fall back to hostname match for bridge sessions with no worktree), but I'll move on.\n\nNow for the resume \u2014 I need to clarify how. Bare `claude -r <id>` is interactive (would block in this terminal) and headless `claude -p` would just answer one prompt and exit. Three plausible interpretations:"
+      },
+      {
+        "role": "assistant",
+        "text": "Pivoting \u2014 the user wants a scripted solution. Let me survey what's already there for resume + supervisor restart."
+      },
+      {
+        "role": "assistant",
+        "text": "Survey done. Here's the integrated script-solution shape, with what each piece touches:\n\n```\nscripts/supervisor-restart.sh    \u2190 NEW user-facing entry point\n  1. snapshot mm-* server cse_ids on THIS host (parse logs/mm-*.log)\n  2. launchctl kickstart -k gui/$(id -u)/com.claudio1.claude-remote-control\n  3. poll logs until all wanted servers spawn a fresh cse_ (new id != snapshot)\n  4. python3 -m remote_control fork-all --host <nick> --ids <orphans>\n  5. (optional --archive) archive each source after its fork succeeds\n  6. (optional --open) `open -na Terminal --args claude -r <uuid>` per fork\n\nremote_control/session_fork_all.py    \u2190 NEW bulk subcommand (task #3)\n  Reused by step 4 above AND callable standalone.\n\nremote_control/usage_limit/monitor.py + sessions archive subcommand  \u2190 task #9\n  archive_session(cfg, token, sid, log) \u2192 POST/PATCH probe.\n  python3 -m remote_control sessions archive cse_\u2026  (utility)\n\nskills/remote-control-dirs/SKILL.md  \u2190 EDIT\n  \"Reload now\" section: replace bare `launchctl kickstart -k \u2026`\n  with `scripts/supervisor-restart.sh` and document the snapshot/fork/archive flow.\n  Add a \"Don't\" item: don't bare-kickstart \u2014 you'll orphan disconnected cse_s.\n```\n\nWhat the `claude://` probe found: **no session-open route in the app** (only `claude://claude.ai/mcp-auth-callback/sdk` and `claude://cowork/shared-artifact?uuid=\u2026`). So step 6 of \"open in the desktop app\" isn't really possible today \u2014 fallback is `open -na Terminal` per fork, or you alt-tab to the app and pick the session from `/resume` since the jsonl is already on disk. I'd default the script to **NOT** auto-open (just print the resume commands) and offer `--open-terminal` for those who want the terminal flow.\n\nTwo confirmations before I build:"
+      },
+      {
+        "role": "assistant",
+        "text": "Quick reality check on \"trigger sessions that show in Claude Code desktop\":\n\n- **The forks are already on disk** at `~/.claude/projects/-Users-claudio1-dev-ai-harness/<uuid>.jsonl`. Opening Claude.app at that cwd and using **/resume** will list them in the picker. So they ARE \"in the app\" \u2014 just not cloud-registered as `cse_` ids in the cross-host session list.\n- To make them appear as **`cse_`** sessions in the unified session list (the one we've been looking at), each would need to be re-launched under `claude remote-control` (which mints a fresh `cse_`). It's plausible that `claude --remote-control --resume <uuid>` would register-and-resume in one step, but I haven't verified \u2014 would need to test on one of the 5.\n- There's no `claude://` URL route to \"open session X\" in the desktop app (I checked the bundle).\n\nSo the practical \"trigger from script\" choice is:"
+      },
+      {
+        "role": "assistant",
+        "text": "**Probe result: doesn't work.** `claude --remote-control --resume <local-uuid>` errors with *\"No deferred tool marker found in the resumed session\"* \u2014 that flag combo is for resuming a remote-control session that paused on a deferred tool, not for promoting a local uuid into a fresh `cse_`. Adding `-p \"READY\"` got the prompt to run (printed READY and exited) but **no new `cse_` appeared** in the session list. The forks stay local-only.\n\nAlso noticed: the `[AH.mini]` title I set on `cse_0164WQ\u2026` was reverted to `[AH]` (the SDK must be writing back the auto-template). The host-suffix problem for SDK desktop sessions is structural, not just one-shot \u2014 saved as feedback.\n\nSo the design has to accept that the **forks can't appear as `cse_` in the unified list**. Realistic trigger options for the script:"
+      },
+      {
+        "role": "assistant",
+        "text": "Honest answer: \"create a session and push content to it\" would need APIs I don't know exist. Two pieces missing:\n\n1. **Create-session endpoint** \u2014 we only know `GET /sessions`, `GET /sessions/{id}`, `POST /sessions/{id}/resume`, and `PUT title` (used by `set_title`). No confirmed `POST /sessions` to mint a fresh `cse_`, and no confirmed \"append turns\" endpoint.\n2. **Bulk-inject transcript** \u2014 even if (1) exists, pushing 400\u2013660 lines of historical user/assistant/tool turns into a freshly-created session is almost certainly not a public operation; the session expects to grow turn-by-turn through the SDK.\n\nWhat IS true about the forks today:\n- They're in `~/.claude/projects/-Users-claudio1-dev-ai-harness/` already\n- The desktop app's **local** /resume picker reads from that dir \u2192 forks already show up there\n- Going from \"local uuid\" \u2192 \"`cse_` in the unified session list\" is the missing step, and I haven't found a path\n\nOptions to move forward, in order of effort:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Quick probe: POST /sessions and PATCH/POST transcript routes"
+  }
+}

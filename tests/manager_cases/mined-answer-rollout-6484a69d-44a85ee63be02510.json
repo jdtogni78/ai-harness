@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-6484a69d-44a85ee63be02510",
+  "sig": "answer:rollout-6484a69d:44a85ee63be02510",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 6484a69d-c459-4acd-8027-217fdf40dcda.jsonl turn #211",
+  "input": {
+    "action": {
+      "session_id": "rollout-6484a69d",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "Where are you not seeing the [NICK] prefixes?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01DZ8BgYMVYxT3WQGjAGFmta",
+        "description": "",
+        "questions": [
+          {
+            "question": "Where are you not seeing the [NICK] prefixes?",
+            "header": "Surface",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Desktop/mobile app",
+                "description": "Claude app \u2192 Code section. Fix: reopen the app or refresh the list \u2014 it cached the pre-rename titles. Titles are confirmed live on the server."
+              },
+              {
+                "label": "claude.ai/code (web)",
+                "description": "Browser. Fix: hard-refresh (\u2318R / Ctrl-R). The server already has the new titles."
+              },
+              {
+                "label": "Terminal CLI picker",
+                "description": "The `claude` resume list in the terminal. These come from local JSONL, NOT the API \u2014 they won't ever reflect the rename. I can look at retitling those separately."
+              },
+              {
+                "label": "The /rename-sessions skill",
+                "description": "You meant the skill, not the titles \u2014 it's not showing as a slash command."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now the MEMORY.md index pointer:"
+      },
+      {
+        "role": "assistant",
+        "text": "Memory added and indexed; the stale \"not yet merged\" line in the related memory is fixed too. On \"or add a skill\" \u2014 the `rename-sessions` skill already exists and documents this exact command (incl. `--only`), so a duplicate isn't worth it. Let me check whether it's actually linked into `~/.claude/skills` (per the vendored-skills convention it needs `link.sh` + a fresh session to become invocable as `/rename-sessions`)."
+      },
+      {
+        "role": "assistant",
+        "text": "Done. Here's where both options landed:\n\n**Memory \u2014 added** (`project_retitle_sessions.md`):\n> Retitle ai-harness sessions \u2192 `python3 -m remote_control titles apply --only ai-harness` (drop `--only` for all repos); idempotent, dry-run with `list`.\n\nIndexed in `MEMORY.md`, linked to `[[project-code-sessions-no-groups]]` + `[[project-skills-vendored]]`, and I corrected the related memory's now-stale \"not yet merged\" note (it's merged + live).\n\n**Skill \u2014 already exists, no new one needed.** `skills/rename-sessions/SKILL.md` covers this exact command (including `--only <repo>`), and it's **already symlinked** into `~/.claude/skills/rename-sessions`. So `/rename-sessions` is invocable \u2014 just not in *this* session (the skill list is fixed at session start; it'll show up in a fresh session). Adding a second ai-harness-specific skill would only duplicate it.\n\nSo: the recall is captured for me (memory) and the `/`-shortcut already exists for you (skill). Nothing more to add unless you want a different name/alias for the skill."
+      },
+      {
+        "role": "user",
+        "text": "I dont see in claude?!?!"
+      },
+      {
+        "role": "assistant",
+        "text": "Let me verify what's actually live on the server right now (fresh fetch), because that determines whether this is a \"didn't save\" problem or a \"Claude app is showing stale/cached titles\" problem."
+      },
+      {
+        "role": "assistant",
+        "text": "Good news: the rename **100% worked server-side** \u2014 I just re-fetched live and every title has its prefix:\n\n```\ncse_01K123\u2026  '[AH] Land titles tool: commit, merge, push'   \u2190 this session\ncse_01KAWg\u2026  '[FF] Start work session'\ncse_01T5q3\u2026  '[JOB] Resume'\ncse_019ZC9\u2026  '[FF] Security: merge codex-security-scan-infra-plan to main (#14)'\n\u2026  (100 sessions returned, all prefixed)\n```\n\nSo this isn't a \"didn't save\" problem \u2014 it's a **\"which Claude surface are you looking at + cache\"** problem. Two things to know:\n\n1. **These are cloud `/v1/code/sessions`.** They show in the **Claude desktop/mobile app \u2192 Code** and **claude.ai/code (web)**. Those clients cache the session list \u2014 if it was open before the rename, you need to **refresh/reload** (reopen the app, or pull-to-refresh / \u2318R the web page) to re-fetch.\n\n2. **The terminal `claude` resume picker does NOT use these titles** \u2014 it reads local `~/.claude/projects/**/*.jsonl` files. So if you're looking at the CLI's session list, it will *never* show the `[AH]`/`[FF]` prefixes no matter what the API says \u2014 different data source entirely.\n\nTo give you the exact fix, where are you looking?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "[User dismissed \u2014 do not proceed, wait for next instruction]"
+  }
+}

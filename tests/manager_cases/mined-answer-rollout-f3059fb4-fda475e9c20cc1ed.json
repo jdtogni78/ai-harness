@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f3059fb4-fda475e9c20cc1ed",
+  "sig": "answer:rollout-f3059fb4:fda475e9c20cc1ed",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f3059fb4-008f-4c6a-a761-134bba88d3da.jsonl turn #12",
+  "input": {
+    "action": {
+      "session_id": "rollout-f3059fb4",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "Where should the job research folder live?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Rv89HKjhnivQnWysh1QyLg",
+        "description": "",
+        "questions": [
+          {
+            "question": "Where should the job research folder live?",
+            "header": "Location",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "~/Documents/job-research",
+                "description": "Outside dev since it's not code"
+              },
+              {
+                "label": "~/job-research",
+                "description": "Top-level in home directory"
+              },
+              {
+                "label": "~/dev/job-research",
+                "description": "Alongside your other projects"
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "create a folder for a job research project. not teally a coding thing"
+      },
+      {
+        "role": "assistant",
+        "text": "Quick question on location and name before I create it."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "~/dev/job-research"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-5ec97fde-9a5648f82ee80f60",
+  "sig": "answer:rollout-5ec97fde:9a5648f82ee80f60",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 5ec97fde-b87e-40b8-b573-f63d69c87bcb.jsonl turn #103",
+  "input": {
+    "action": {
+      "session_id": "rollout-5ec97fde",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_015pjLUhijHoWRw3PSWK7xUF",
+      "question": "What should I do with the new `docs/inter-session-comms.md`?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01MFK99UL3EtcEV1BoERn45A",
+        "description": "",
+        "questions": [
+          {
+            "question": "What should I do with the new `docs/inter-session-comms.md`?",
+            "header": "Doc disposition",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Commit + merge to main (Recommended)",
+                "description": "Commit on this bridge branch, then merge --no-ff into main from ~/dev/ai-harness and push. Public-repo commit message will avoid leaking host/pid/cse_ids."
+              },
+              {
+                "label": "Commit on the branch only, no merge",
+                "description": "Save the work on the bridge branch so it isn't lost, but don't merge to main yet. You'd merge it manually later."
+              },
+              {
+                "label": "Leave it untracked",
+                "description": "Keep the file on disk in the worktree, nothing committed. The bridge worktree persists, so the file survives until the supervisor recycles."
+              },
+              {
+                "label": "Discard the file",
+                "description": "Delete docs/inter-session-comms.md. The chat answers remain; the file goes away."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "what about the inter session comm commads/urls/libs"
+      },
+      {
+        "role": "assistant",
+        "text": "## Inter-session comms \u2014 endpoints, libs, commands\n\n**One endpoint does the work.** Every \"talk to another session\" path POSTs a wrapped user-turn event to:\n\n```\nPOST https://api.anthropic.com/v1/code/sessions/<cse_id>/events\n```\n\nThat's it. The usage-limit auto-resume, the session manager's answer-submission attempts, and the ad-hoc `send-to-session` skill all go through this same path. There is no socket, no MCP server, no broker \u2014 just one HTTPS endpoint with a wrapped event body.\n\n**Library.** Plain `urllib.request` (stdlib). No `anthropic` SDK, no `requests` \u2014 the package is stdlib-only so it boots from launchd's bare environment without a venv.\n\n**Headers** (`remote_control/usage_limit/monitor.py:63`):\n\n```python\n{\n  \"Authorization\": f\"Bearer {token}\",\n  \"anthropic-version\": \"2023-06-01\",\n  \"anthropic-beta\": \"oauth-2025-04-20\",\n  \"content-type\": \"application/json\",\n}\n```\n\n**Auth.** OAuth bearer read fresh each cycle from the macOS Keychain (`security find-generic-password -s Claude\\ Code-credentials -w`), then `json[\"claudeAiOauth\"][\"accessToken\"]`. Never logged. The always-on `claude` servers keep it refreshed. No env var, no `.env` file \u2014 the desktop app already put it in Keychain.\n\n**Wrapped event body** (`remote_control/usage_limit/detect.py:79`, `resume_event_body`):\n\n```json\n{\n  \"events\": [{\n    \"event_type\": \"user\",\n    \"source\": \"client\",\n    \"payload\": {\n      \"type\": \"user\",\n      \"message\": {\n        \"role\": \"user\",\n        \"content\": [{\"type\": \"text\", \"text\": \"<your message>\"}]\n      }\n    }\n  }]\n}\n```\n\n**Other endpoints in the same client** (all under `https://api.anthropic.com/v1/code`):\n\n| Verb | Path | Used for |\n|---|---|---|\n| `GET` | `/sessions?limit=100` | list \u2014 manager classify, monitor scan |\n| `GET` | `/sessions/<cse_id>` | re-fetch a single session (verify-after-resume) |\n| `POST` | `/sessions/<cse_id>/events` | **inter-session user turn** |\n| `POST` | `/sessions/<cse_id>/archive` | archive after fork-and-replace |\n\n**Commands**\n\n```bash\n# dry-run: just print the wrapped JSON that would go to /events\npython3 -m remote_control sessions submit cse_01ABC --message \"continue\" --dry-run\n\n# live: drop a turn into another live session\npython3 -m remote_control sessions submit cse_01ABC --message \"continue\"\n\n# multi-line via stdin\npython3 -m remote_control sessions submit cse_01ABC --stdin <<'EOF'\nUpdate the README to mention the new flag, then run the unit tests.\nEOF\n\n# explicit sender (overrides auto-detect from CLAUDE_CODE_SESSION_ACCESS_TOKEN)\npython3 -m remote_control sessions submit cse_01ABC --message \"ack\" --reply-to cse_01XYZ\n\n# the usage-limit monitor uses the exact same path internally\npython3 -m remote_control usage-monitor --once   # one detect+resume cycle\n```\n\n**The `[from cse_\u2026]` reply header** (skills/send-to-session/SKILL.md). The submit CLI prepends one line to the outgoing message:\n\n```\n[from cse_01ABC \u2014 reply via send-to-session]\n```\n\nThe receiving agent reads its sender id from `CLAUDE_CODE_SESSION_ACCESS_TOKEN` (a JWT the desktop app injects into every spawned process) and replies *back* via the same `sessions submit` skill into the sender's `cse_id`. Without this round-trip, the natural model reply only lands in the receiver's transcript and the originator never sees it \u2014 because each session is its own subscription.\n\n**Idle-check before sending.** Submitting into a `running` or `requires_action` worker interleaves with whatever it's doing. The skill insists on listing first and checking `worker_status` before drop:\n\n```bash\npython3 -m remote_control sessions list --repo ai-harness\n# look for `state : worker=idle` on the target row, then submit\n```\n\n**What's deliberately *not* solved yet** (the manager's open blocker, documented in `docs/session-manager-cases.md`): how you submit a *choice* to an `AskUserQuestion` is unresolved \u2014 two body shapes return `200` but don't actually resolve the structured option. So the manager runs its investigator and posts a regular user-turn event with the chosen text, gated behind dry-run while the right shape gets nailed down."
+      },
+      {
+        "role": "user",
+        "text": "write a consise doc with this content as a md"
+      },
+      {
+        "role": "assistant",
+        "text": "Wrote `docs/inter-session-comms.md` \u2014 single endpoint, headers, auth, wrapped body, the four endpoints the client uses, commands, the `[from cse_\u2026]` reply convention, idle-check, and the open `AskUserQuestion` blocker. ~110 lines."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll walk through `/close-work` step by step. Starting with Phase 1."
+      },
+      {
+        "role": "assistant",
+        "text": "## Phase 1 \u2014 Review\n\n- **Where:** worktree `.claude/worktrees/bridge-cse_015pjLUhijHoWRw3PSWK7xUF`, branch `worktree-bridge-cse_015pjLUhijHoWRw3PSWK7xUF`. This is a **bridge worktree** managed by the remote-control supervisor \u2014 Phase 5 step 7 applies (never `git worktree remove`).\n- **Commits ahead of `origin/main`:** **zero**. `HEAD` is at `abbe959` (same as `origin/main`).\n- **Working tree:** one untracked file \u2014 `docs/inter-session-comms.md` (~110 lines, the concise doc I just wrote).\n- **Original goal of the thread:** answer \"how do we do session creation and communication\" for friends; shorten with command samples; show the meaningful parts of `ARCHITECTURE.md`; document inter-session comms; then \"write a concise doc with this content as a md\".\n- **Tracking ticket:** none. No claim was filed by `start-work` \u2014 this was an ad-hoc Q&A turn that produced one doc file as a byproduct. The board doesn't need an entry retroactively, but I can file one if you want delivery to close against it.\n\n## Phase 2 \u2014 Test gate\n\nN/A. Docs-only change; no code touched.\n\n## Phase 3 \u2014 TODO sweep\n\n- **Chat history:** every ask was addressed in-thread (architecture summary, shorter version with commands, inline ARCHITECTURE.md excerpts, inter-session comms detail, the concise doc). No \"I'll come back to that\" moments.\n- **Last TodoWrite list:** none active this session.\n- **In-code TODOs:** none introduced \u2014 the new file has no `TODO`/`FIXME`/`XXX`.\n- **Half-done scope:** none.\n\n## Phase 4 \u2014 Verdict\n\n**READY TO CLOSE** \u2014 once we decide what to do with the one untracked file.\n\nThe only state-changing decision left is `docs/inter-session-comms.md`. Three options:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Commit + merge to main (Recommended)"
+  }
+}

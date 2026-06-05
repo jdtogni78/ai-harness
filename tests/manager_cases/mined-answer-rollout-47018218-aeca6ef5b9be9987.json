@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-47018218-aeca6ef5b9be9987",
+  "sig": "answer:rollout-47018218:aeca6ef5b9be9987",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 47018218-929e-4789-ae09-eb77a9639b16.jsonl turn #33",
+  "input": {
+    "action": {
+      "session_id": "rollout-47018218",
+      "repo": "claude-remote-control",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/claude-remote-control/.claude/worktrees/bridge-cse_013RTVHvptQ58yzmRN5JbhgW",
+      "question": "Which global skills should move into the claude-remote-control repo (then symlinked back to ~/.claude/skills/)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Ddi7g7fBz3akchzCyfxgbv",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which global skills should move into the claude-remote-control repo (then symlinked back to ~/.claude/skills/)?",
+            "header": "Scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Repo-related 4 only",
+                "description": "Move remote-control-dirs, session-triage, resume-work, close-thread here. Leave lease-env & test-env global (they're FamilyFund-specific)."
+              },
+              {
+                "label": "Split by repo",
+                "description": "Move the 4 here, AND move lease-env & test-env into the FamilyFund repo. Symlink all 6 back to global."
+              },
+              {
+                "label": "All 6 into this repo",
+                "description": "Move every current global skill into claude-remote-control, even the FamilyFund ones."
+              }
+            ]
+          },
+          {
+            "question": "Where in the repo should the skills live?",
+            "header": "Location",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": ".claude/skills/",
+                "description": "Conventional path. Also auto-loads them as project skills when working in this repo (plus global via symlink)."
+              },
+              {
+                "label": "Top-level skills/",
+                "description": "A dedicated skills/ dir at repo root. Cleaner separation; only global via symlink, not auto-loaded as project skills."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "I want to refactor the skills that are global into here , and link them global"
+      },
+      {
+        "role": "assistant",
+        "text": "I'll help you move global skills into this repo and symlink them back to the global location. Let me first investigate the current state of both locations."
+      },
+      {
+        "role": "assistant",
+        "text": "I now understand the layout. There are 6 real (non-symlink) skill dirs in `~/.claude/skills/`, and a couple of dependencies worth noting:\n\n- `session-triage/scripts/session_scan.sh` is already a symlink to `~/.claude/session_scan.sh` (a standalone script, **not** in any repo).\n- `resume-work/scripts/resume_brief.sh` is a real script.\n- `.gitignore` ignores `.claude/worktrees/` and `.claude/settings.local.json` but **not** `.claude/skills/`, so tracking skills there works.\n\nA couple of scope questions matter before I move files and create symlinks (hard to undo cleanly), especially since two of the skills look FamilyFund-specific rather than about this repo."
+      },
+      {
+        "role": "assistant",
+        "text": "There's a separate `/Users/claudio1/dev/FamilyFund/` repo. That matters because two of the global skills (`lease-env`, `test-env`) are FamilyFund-specific, while the other four relate to this repo / general Claude session tooling. Let me confirm scope and placement before moving anything."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "All 6 into this repo, Top-level skills/"
+  }
+}

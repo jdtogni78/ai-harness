@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-57077ad4-ee36b695192d2bb6",
+  "sig": "answer:rollout-57077ad4:ee36b695192d2bb6",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 57077ad4-f6fa-40ab-8b23-f7ff36165e82.jsonl turn #116",
+  "input": {
+    "action": {
+      "session_id": "rollout-57077ad4",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01DsLNkLoSBoGQAkayWZobci",
+      "question": "Which tests should move to the nightly group (everything else runs every time)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_019knGx88NkLCkNXuKm6YsqG",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which tests should move to the nightly group (everything else runs every time)?",
+            "header": "Threshold",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Just the 4 outliers (\u226550s)",
+                "description": "AclMatrixTest, PDFTest, SmokeTest, OperationsControllerTest. Default run drops from ~17min to ~7min. Cleanest cut \u2014 these sit above a 3\u00d7 gap and are broad sweeps well-suited to nightly. Keeps all security/isolation tests in the every-time run."
+              },
+              {
+                "label": "Moderate (\u226515s, 7 classes)",
+                "description": "Adds PerformanceHighlightsTest, FundReportTest, AccountAPIControllerExtTest. Default run ~6min."
+              },
+              {
+                "label": "Aggressive (\u226510s, 12 classes)",
+                "description": "Adds CrossTenantIsolation, FundSetupWorkflow, AuthorizationTest, AccountReportEmailSend, ScheduledJob. Default run ~5min. Note: pushes some security/isolation tests to nightly."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "I'll wait for the background run to complete and then continue with the analysis."
+      },
+      {
+        "role": "assistant",
+        "text": "The run finished (exit 0). Let me grab the summary and parse the JUnit XML for timings:"
+      },
+      {
+        "role": "assistant",
+        "text": "Suite is green (the exit=1 is just PHPUnit flagging 48 \"risky\" output-buffer warnings, not failures). Let me pull the JUnit XML out and analyze timings:"
+      },
+      {
+        "role": "assistant",
+        "text": "Now let me parse the JUnit XML to rank test classes by total wall-clock time:"
+      },
+      {
+        "role": "assistant",
+        "text": "Clear picture now. The distribution is extremely top-heavy. Let me compute what the default run would cost at a few candidate thresholds:"
+      },
+      {
+        "role": "assistant",
+        "text": "I have clean data now. The suite is **~17 min sequential**, and it's wildly top-heavy:\n\n| Class | Time | Note |\n|---|---|---|\n| `AclMatrixTest` | **423s** (41% of the whole suite!) | 1 test that walks every GET route \u00d7 every role |\n| `PDFTest` | 82s | 36 wkhtmltopdf renders |\n| `SmokeTest` | 63s | 47 full-HTTP smokes |\n| `OperationsControllerTest` | 54s | 35 cases |\n| *(then a 3\u00d7 cliff down to)* `PerformanceHighlightsTest` 18s, `FundReportTest` 17s, \u2026 | | |\n\nThere's a natural cliff: 4 classes \u226550s, then everything else is \u226418s. The threshold I pick determines how much fast-feedback coverage moves to nightly (notably some security tests live in the 12\u201318s tier), so I want your call:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Just the 4 outliers (\u226550s)"
+  }
+}

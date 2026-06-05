@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f0c83ccc-d2af52aac4ec10cd",
+  "sig": "answer:rollout-f0c83ccc:d2af52aac4ec10cd",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f0c83ccc-da52-459d-b418-570a57d3c70b.jsonl turn #900",
+  "input": {
+    "action": {
+      "session_id": "rollout-f0c83ccc",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01DdfuQgr5H2gjkZZLEbsc9M",
+      "question": "Archive the 3 closed workers now (A, B, D)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_016ZtkXwGSez3mXUMAuosK2k",
+        "description": "",
+        "questions": [
+          {
+            "question": "Archive the 3 closed workers now (A, B, D)?",
+            "header": "Archive cleanup",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, archive all 3",
+                "description": "I dry-run first, then `sessions archive cse_01Ehv4f28o\u2026 cse_01KF1mj5z\u2026 cse_011HRta\u2026`. Picker drops 3 stale rows. Reversible \u2014 they re-appear under `sessions list --all`. Recommended."
+              },
+              {
+                "label": "Archive only B + D \u2014 leave A",
+                "description": "A is the oldest (#5 label flip) and has the worst-looking dup'd title \u2014 some might argue it's the strongest case for archiving. Picking this just means you want to keep A for some reason."
+              },
+              {
+                "label": "Skip \u2014 leave them all",
+                "description": "Picker stays cluttered. Risk: more stale rows accumulate as Worker C closes."
+              }
+            ]
+          },
+          {
+            "question": "Update the manage skill to auto-archive after `close` (and optionally `forget`)?",
+            "header": "Auto-archive",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Auto-archive on close only",
+                "description": "After `workers.sh close`, run `sessions archive` for the worker. Forget'd workers stay live (boss may want to revisit them). Cleanest default. Recommended."
+              },
+              {
+                "label": "Auto-archive on close AND forget",
+                "description": "Both teardown paths archive. Forget'd workers also disappear from picker. Stronger cleanup, but you'd lose the visual cue that you intentionally walked away from one."
+              },
+              {
+                "label": "Don't auto-archive \u2014 keep it manual",
+                "description": "Archive only when you explicitly ask. Leaves the cleanup discretionary."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "## Worker C status \u2014 both renders done; 2 decisions needed\n\n**FF worktree** `/tmp/ff-issue-6-loan-shares-demo` (branch `worker/issue-6-loan-shares-demo`):\n- `git mv credit-lines.demo.yaml \u2192 loan-shares.demo.yaml` + URL swaps (5) + reveal anchors (2) + 1 narration phrase (\"Loan Share opened\" \u2192 \"Share Loan opened\") + output path\n- `account.demo.yaml` \u2014 line 99 comment + line 106 reveal anchor\n- `funds.demo.yaml` \u2014 line 118 reveal anchor\n- `README.md` \u2014 table row label\n\n**jdtogni-site worktree** `/tmp/jdtogni-site-ff-issue-6` (branch `worker/ff-issue-6-share-loans-captions`):\n- familyfund.html line 62 card heading + lines 93/96 dashboard caption\n\n**Renders against dev stack :3001**:\n- `out/loan-shares.mp4` \u2014 4:07 / 9.22 MB / 17 scenes \u2713\n- `out/funds.mp4` \u2014 2:38 / 6.68 MB / 16 scenes \u2713\n\n**Frame verification** (Playwright headless = no URL bar visible, so verified by page content + curl):\n- loan-shares.mp4 nav/breadcrumbs/section headers all read \"Share Loans\" + correct breadcrumbs (\"Acct7 / Share Loan #2\", \"Share Loan #2 \u2014 admin actions\", etc.)\n- funds.mp4 reveal lands on the \"Share Loan Exposure\" rollup card via `#section-loan-shares`\n- /loan-shares/* routes return 200 (not 301) on origin/main \u2014 confirms #4 P1 routes resolve directly\n- No reveal misalignment, no narration timing surprises\n\n**Stale `out/credit-lines.mp4`**: doesn't exist on disk (gitignored). Nothing to delete.\n\n## Out-of-scope findings worker flagged (not touched, surfaced for backlog)\n\n**Stale UI strings #5 missed**, now visible in the rendered demos:\n- \"Open new loan share\" button \u2014 visible on /loan-shares list top-right + on the create form's card header\n- \"Cancelling closes this loan share\" copy in the Danger zone (/loan-shares/N/actions)\n- \"Cancel line\" button next to it (originally \"Cancel credit line\")\n\nWorker is offering to file as `#13 [ui] Final #5 sweep \u2014 'loan share'/'cancel line' stragglers in /loan-shares create + actions`. These are genuine #5 misses \u2014 #5's worker A did a thorough sweep but these slipped through (`grep \"Loan Share\" \u2192 empty` because these read \"loan share\" lowercase).\n\n**Loan #2 nickname stored as \"Credit line 2\"** \u2014 dev-seed data, not a code miss. User-supplied; could be re-seeded but not blocking.\n\n## Worker's open question\n\n`account.demo.yaml` got an anchor edit (line 106) + a comment (line 99) \u2014 same yaml/mp4 sync logic as funds. Your earlier reply said \"borrowing demo + funds\" \u2014 should account also re-render (~2\u00a2, ~2:30 runtime) before close, or let it lag until the next demo sweep?"
+      },
+      {
+        "role": "assistant",
+        "text": "Filing #13 and sending Worker C the decisions."
+      },
+      {
+        "role": "assistant",
+        "text": "Worker C instructed: re-render `account.mp4` (~2:30), then commit everything (FF + jdtogni-site, two repos), `/close-work` end-to-end. **#13** filed and on board #1 (the three #5 lowercase stragglers). The \"Credit line 2\" nickname call: skip.\n\nI flagged one open question for Worker C \u2014 whether the mp4s actually ship with the PR (since `out/` is gitignored). If they don't, the worker will surface that and we'll decide. Otherwise the next inbound is the `/close-work complete:` report.\n\nIdle until that arrives or the 20-min fallback fires."
+      },
+      {
+        "role": "user",
+        "text": "Are we able to archive any workers?"
+      },
+      {
+        "role": "assistant",
+        "text": "Good question. Let me check what state the closed workers are actually in, and whether there's an archive primitive."
+      },
+      {
+        "role": "assistant",
+        "text": "Yes \u2014 `python3 -m remote_control sessions archive CSE_ID [CSE_ID...]` is the primitive. POSTs to `/sessions/{id}/archive`. Idempotent, has `--dry-run`.\n\n## Current state of our closed workers\n\nAll three closed workers (A, B, D) are still **active+idle** in the cloud \u2014 the one-shot server exits when its single session ends, but the cloud session record stays active until explicitly archived. So they linger in `sessions list` and the picker, taking up visual space.\n\n| Worker | ID | Title | Why archive |\n|---|---|---|---|\n| A (#5) | `cse_01Ehv4f28o\u2026GcpGF` | `[FF.mini] [FF.mini][mgr-ff5-label] auto-spawned` | done hours ago; dup'd title (only fix is archive \u2014 watcher won't visit it again) |\n| B (#4 P1) | `cse_01KF1mj5z\u2026fn43u` | `[FF.mini] #4 Rename credit-line URLs \u2192 loan-shares` | merged, lifecycle complete |\n| D (ai-harness #69) | `cse_011HRta\u2026K8zqW` | `[AH.mini][mgr-ah69] auto-spawned` | merged, lifecycle complete |\n\nWorker C is still running \u2014 do **not** archive that one.\n\n## Two things worth doing\n\n1. **One-shot cleanup**: archive A, B, D now to clear the picker.\n2. **Skill update**: add an \"archive after marking closed\" step to the manage skill's **close** play so this is automatic for future workers (and the **forget** play if the boss confirms \u2014 sometimes a forgotten worker should still be archived; sometimes not)."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Yes, archive all 3, Auto-archive on close only"
+  }
+}

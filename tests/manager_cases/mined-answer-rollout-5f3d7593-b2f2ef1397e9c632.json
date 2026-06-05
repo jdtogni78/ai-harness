@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-5f3d7593-b2f2ef1397e9c632",
+  "sig": "answer:rollout-5f3d7593:b2f2ef1397e9c632",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 5f3d7593-0f67-4b03-ba16-2e13b65eea65.jsonl turn #55",
+  "input": {
+    "action": {
+      "session_id": "rollout-5f3d7593",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01UosQJUfmip9nh8oJFxdqvQ",
+      "question": "How should an analysis carry the session-vs-manager split? Your feedback examples (e.g. #66: \"write notes, create a ticket, then close the thread\") mix session-facing and manager-facing steps in one situation.",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_016ZXLsSk4T3bKnXnfa4vvya",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should an analysis carry the session-vs-manager split? Your feedback examples (e.g. #66: \"write notes, create a ticket, then close the thread\") mix session-facing and manager-facing steps in one situation.",
+            "header": "Rec shape",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Two recs per analysis",
+                "description": "Each analysis produces up to a session-rec (sent to the session) AND a manager-rec (executed by claude -p); either may be empty. Matches 'do X in-session, then I'll close it' sequences. More UI/data but most faithful."
+              },
+              {
+                "label": "One targeted rec",
+                "description": "Each analysis yields a single recommendation tagged TARGET=session|manager. Simpler; a mixed situation needs a re-analyze or picks the dominant action."
+              }
+            ]
+          },
+          {
+            "question": "How should a manager-targeted rec actually get executed by claude -p?",
+            "header": "Exec gating",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Human-authorized, gated off",
+                "description": "Operator clicks 'run as manager' in the UI to spawn the claude -p; behind a new flag (e.g. MANAGER_EXECUTE_ENABLED, default off) mirroring submit_enabled's shadow\u2192review\u2192flip. Until enabled it shows the exact command/prompt it would run."
+              },
+              {
+                "label": "Auto-run in the loop",
+                "description": "The monitor loop spawns the executor claude -p automatically once a manager-rec matures past grace (full autonomous shepherd). Higher blast radius."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "I'll explore the existing manager code to understand how recommendations currently work before planning changes."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me read the key code sections myself to ground the design."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me read the UI send path and rendering, plus the config and guidelines doc."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me read the guidelines doc, the config, and the analyze_session/loop sections."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me read the analyze_session flow and the loop/report section, plus the feedback file."
+      },
+      {
+        "role": "assistant",
+        "text": "I now have a thorough picture. Two things stand out before I build:\n\n1. **The trigger** for this is the feedback note in `agent-manager-feedback.json`: *\"the close the thread rec is for the manager to execute. We should create guidances to create recs for manager vs session.\"*\n2. Today a recommendation is a single untargeted line; \"\u2192 authorize rec\" posts it into the live session. There's **no** manager-side `claude -p` execution path at all yet, and `submit_enabled` is the existing \"off-by-default until trusted\" gate.\n\nTwo design forks genuinely change the data model / prompt / UI, and your answer shapes everything downstream:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "sequential, formatted, titles sections - MANAGER: ..... \\n SESSION: ..., Auto-run in the loop"
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-71be1d6c-a74649b9b3934e88",
+  "sig": "answer:rollout-71be1d6c:a74649b9b3934e88",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 71be1d6c-c32e-4927-9f32-0c1554fdda86.jsonl turn #197",
+  "input": {
+    "action": {
+      "session_id": "rollout-71be1d6c",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness",
+      "question": "Which repo should I edit for the refactor? `/Users/claudio1/dev/ai-harness` is the public 5-commit snapshot; `/Users/claudio1/dev/ai-harness-private` is the canonical primary the supervisor *should* be running off of.",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01THEwJiKKyr1q4Mco8Fo2R5",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which repo should I edit for the refactor? `/Users/claudio1/dev/ai-harness` is the public 5-commit snapshot; `/Users/claudio1/dev/ai-harness-private` is the canonical primary the supervisor *should* be running off of.",
+            "header": "Edit target",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Private, in a worktree (Recommended)",
+                "description": "Branch from ai-harness-private/main into a worktree (per feedback_main_dir_on_main), do the refactor, merge to private/main, then per-commit DELTA sync to public. Canonical."
+              },
+              {
+                "label": "Both in-place, no worktree",
+                "description": "Edit ai-harness-private/main directly AND mirror to ai-harness/main. Faster but violates the main-on-main rule."
+              },
+              {
+                "label": "Public only, here",
+                "description": "Edit just /dev/ai-harness (this checkout). Fastest path to unstuck supervisor, but leaves the private repo drifted."
+              }
+            ]
+          },
+          {
+            "question": "Should `~/.config/ai-harness/active-dirs.txt` (host-specific) be the same content on `mini` and `note`, or do you want me to set this up per-host?",
+            "header": "Host scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Same on both hosts (Recommended)",
+                "description": "Keep the existing @mini/@note scoping inside one shared file. Just copy private's active-dirs.txt verbatim onto each host."
+              },
+              {
+                "label": "Per-host different files",
+                "description": "Each host gets its own active-dirs.txt with only its entries (no @scope syntax). Simpler files, but loses the shared-history-via-git benefit you had before."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "restart my remote controls, what went wrong, fork/resume the 4 sessions that got stuck"
+      },
+      {
+        "role": "assistant",
+        "text": "Found the root cause. Let me lay it out before touching anything destructive:\n\n**What went wrong**\n\n- `/Users/claudio1/dev/ai-harness` (the dir the launchd supervisor is hard\u2011pinned to via `PYTHONPATH`) is currently the **public/sanitized checkout** \u2014 5 commits, `active-dirs.txt` has zero entries. Dir mtime is May 26 17:43, which matches the kill spree.\n- The intended primary `/Users/claudio1/dev/ai-harness-private` still has the real allowlist (`dev`, `FamilyFund`, `ai-harness`, `dstrader`, `dstrader-docker`, `job-search`, all `@mini`/`@note`).\n- Per the memory `project_ai_harness_public_portfolio.md` you had \"switch to public as PRIMARY still pending\" \u2014 looks like the swap happened (or partially happened) and the empty `active-dirs.txt` came with it.\n- At 17:43:35\u201317:44:20 the running supervisor (pid 61338, code from yesterday \u2014 still on the old `macmini`/`mm-` nickname) saw the empty allowlist and SIGTERM/SIGKILL'd every server: `mm-FamilyFund`, `mm-ai-harness` x2, `mm-dev`, `mm-dstrader`, `mm-dstrader-docker`, `mm-job-search`. Several didn't TERM and got KILL'd. That's where your stuck sessions came from.\n- At 19:48:31 the supervisor was restarted (now correctly deriving `host=mini`) \u2014 but it's still reading the **empty** `ai-harness/active-dirs.txt`, so nothing has been respawned.\n- Bonus problem: the `Claude Code-credentials` OAuth token in the keychain **expired 12 min ago**. Any API call (`sessions list`, `fork`, `fork-all`) returns 401 until you re-auth. The other `Claude Code-credentials-<hash>` entries don't carry an `expiresAt` and aren't usable by the monitor.\n\nBefore I do anything, two decisions I want from you:"
+      },
+      {
+        "role": "assistant",
+        "text": "Holding off \u2014 won't touch the directory swap, the active-dirs file, the plist, or the keychain until you tell me how to proceed.\n\nSummary of state for when you're ready:\n- Supervisor pid 75706 alive, host=mini, reading the **empty** `/Users/claudio1/dev/ai-harness/active-dirs.txt` \u2014 that's why nothing's respawning.\n- Old supervisor pid 61338 (yesterday's code, `mm-` nickname) is what did the 17:43\u201317:44 kill spree across `FamilyFund`, `ai-harness`, `dev`, `dstrader`, `dstrader-docker`, `job-search`.\n- `Claude Code-credentials` OAuth token expired ~12 min ago \u2192 all cloud session API calls 401. I can't enumerate or fork the 4 stuck `cse_` sessions until that's refreshed.\n- `ai-harness-private/active-dirs.txt` still has the intended allowlist; ready to copy or swap when you decide."
+      },
+      {
+        "role": "user",
+        "text": "lets have either a shared dir with setup, or a setup folder (im assuming there are samples) on ~/.* and make sure instructions are revalibadet"
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the plan I'd run. Want to confirm scope before touching anything.\n\n**Design** (mirrors the `~/.familyfund-pool` precedent \u2014 config-dir + repo-side sample):\n\n```\n~/.config/ai-harness/\n  active-dirs.txt          # host-specific (NOT in git)\n  session-nicknames.txt    # later, optional\n```\n\nIn the repo:\n```\nactive-dirs.example.txt    # committed sample (seeded from current private content)\n# active-dirs.txt removed from git\n```\n\n**Code change** (`remote_control/config.py`): default `active_file` becomes\n```\nREMOTE_CONTROL_ACTIVE_FILE  \u2192  ~/.config/ai-harness/active-dirs.txt  \u2192  <repo>/active-dirs.txt (legacy fallback, warns)\n```\nNo plist edit needed \u2014 the new default just works.\n\n**Installer** (`remote_control/installer.py`): on first run, `mkdir -p ~/.config/ai-harness` and copy `active-dirs.example.txt` if no real file exists. Idempotent.\n\n**Docs to revalidate**:\n- `README.md` (install section)\n- `CLAUDE.md`\n- `docs/OPERATIONS.md` (activation-list section + tunables table)\n- `remote_control/installer.py` (header doc + AGENTS list comments)\n- `*.plist` (inline `<!-- -->` comments \u2014 no env var needed)\n- `skills/remote-control-dirs/SKILL.md` (hard-codes `/Users/user/dev/ai-harness/active-dirs.txt` in 3 places)\n\n**Then** to unstick today's situation:\n1. Drop the seeded `~/.config/ai-harness/active-dirs.txt` (copy from private)\n2. `launchctl kickstart -k gui/503/com.claudio1.claude-remote-control` \u2014 supervisor picks it up\n3. Re-auth (OAuth token still expired) so I can list + fork the 4 stuck `cse_` sessions"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "the private is an archival, we shouldnt change. lets do all on public, Per-host different files"
+  }
+}

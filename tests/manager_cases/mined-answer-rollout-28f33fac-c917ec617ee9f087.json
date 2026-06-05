@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-28f33fac-c917ec617ee9f087",
+  "sig": "answer:rollout-28f33fac:c917ec617ee9f087",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 28f33fac-f13c-4acf-b313-3e9a9d59aa82.jsonl turn #71",
+  "input": {
+    "action": {
+      "session_id": "rollout-28f33fac",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01Ts72PCdSjYSrsf2CHHhcre",
+      "question": "What password should db-testpool root rotate to?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_018chiwu4Rwh2MuZd2hWwobU",
+        "description": "",
+        "questions": [
+          {
+            "question": "What password should db-testpool root rotate to?",
+            "header": "New password",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Same as dev root (per runbook)",
+                "description": "Reuse the dev root value 6cfb42e4\u2026 that pool.sh / app1/.env already use. Runbook \u00a7C says 'to the new value' (= the dev rotation's value). One shared dev-infra password; no new secret to track. testpool.sh is already on-disk untracked like pool.sh."
+              },
+              {
+                "label": "Fresh independent random value",
+                "description": "Generate a new random password unique to db-testpool, isolating it from dev. Stronger blast-radius separation if testpool.sh leaks, but one more secret to store in the off-repo backup."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "The dev rotation used random hex passwords, backed up off-repo. Let me check the runbook and the off-repo backup to follow the established procedure and see if a testpool password was pre-generated."
+      },
+      {
+        "role": "assistant",
+        "text": "There's a runbook section specifically for the testpool DB rotation. Let me read it precisely, plus the off-repo secret file format."
+      },
+      {
+        "role": "assistant",
+        "text": "I now have the full picture. Let me complete the review by inspecting the DB users on `db-testpool`, confirming nothing else is connected, and peeking inside the baseline tgz contents."
+      },
+      {
+        "role": "assistant",
+        "text": "Findings worth flagging: both `root@'%'` and `root@localhost` exist, and there's a **leftover `familyfund-test0` container still running** (port 3010) even though the lease table says test0 is free \u2014 no active DB connections from it right now, though. Let me peek inside the baseline tgz to finish the review."
+      },
+      {
+        "role": "assistant",
+        "text": "Review of the test DBs + baseline tgz is complete. Before I lay out the rotation plan and ask one decision question, let me pull up the GitHub issue #16 you linked so I can address it in the same turn."
+      },
+      {
+        "role": "assistant",
+        "text": "Everything's reviewed. Here's what I found, and one decision I need from you before mutating anything.\n\n## Review: test DBs + baseline tgz\n\n**`db-testpool` (MariaDB 11.8.6, host `:3315`, datadir `~/.familyfund-pool/testdb` \u2014 survives worktree churn)**\n- DBs present: `familyfund_test0/1/2` \u2705\n- Auth: current password **`123456`** works (the reverted value)\n- Root grants: **both** `root@'%'` and `root@localhost` exist \u2192 ALTER must hit both\n- No active connections to any `familyfund_*` DB right now\n\n**Lease state \u2014 precondition met:** all 3 slots `free` in `testpool.tsv`. \u2705\n\u26a0\ufe0f But a **leftover `familyfund-test0` app container is still running** (port 3010) from a released lease. It's not connected to the DB now, but it holds the *old* password in its compose env \u2014 after rotation it'd be stale. I'd stop it as part of the rotation.\n\n**Baseline tgz** (`database/test/test-baseline.sql.gz`, the \"tgz\"):\n- Byte-identical across all ~35 worktrees (committed artifact, md5 `a3313f37\u2026`), 275 KB gzipped / 2.4 MB raw\n- Valid gzip; MariaDB dump of `familyfund_test2`; **63 tables**; domain tables carry data, ephemeral/log tables are structure-only (as designed)\n- **Untouched by this rotation** \u2014 password lives only in the live grant + `testpool.sh`, never in the dump\n\n**Tooling:** `testpool.sh` is *not* in the repo (lives at `~/.familyfund-pool/testpool.sh`, untracked). Only **one** literal to change: `DB_PASS=123456` at line 73 (every other ref uses `$DB_PASS`, including the `MARIADB_ROOT_PASSWORD` env for fresh-datadir recreation).\n\n## This is issue #16\nThe link you sent is the tracking ticket \u2014 *\"Secret rotation: finish deferred items\"* \u2014 and **\"Rotate testpool DB\"** is its first open checkbox. I'll tick that box on #16 when done. (The \"from issue 2\" message came through as noise \u2014 ignoring it; shout if it meant something.)\n\n## Rotation plan (per runbook \u00a7C)\n1. Stop the stale `familyfund-test0` container\n2. `ALTER USER` root@`%` + root@`localhost` on `db-testpool`: `123456` \u2192 new value; `FLUSH PRIVILEGES`\n3. Edit `testpool.sh` line 73 `DB_PASS=` \u2192 new value\n4. Verify: new pw authenticates, old pw rejected, `testpool.sh list` works, smoke a `claim`\u2192`run`\u2192`release`\n5. Record the new secret in the off-repo backup; tick the box on #16\n\nOne genuine choice \u2014 the new password value:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Same as dev root (per runbook)"
+  }
+}

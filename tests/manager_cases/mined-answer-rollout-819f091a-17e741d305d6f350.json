@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-819f091a-17e741d305d6f350",
+  "sig": "answer:rollout-819f091a:17e741d305d6f350",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 819f091a-876f-4b24-8092-037367c18ec3.jsonl turn #39",
+  "input": {
+    "action": {
+      "session_id": "rollout-819f091a",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01N2U2Qar5tyGZztspVZYNR2",
+      "question": "Where should this project live?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_014W6zXX79VQE5MYY3bmVGcr",
+        "description": "",
+        "questions": [
+          {
+            "question": "Where should this project live?",
+            "header": "Project home",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "New module in ai-harness (Recommended)",
+                "description": "New top-level dir (e.g. perm_gate_lab/) next to remote_control/ and manager/. Reuses your skills, supervisor, settings, and the existing PreToolUse hook can write straight into its log. Lowest friction."
+              },
+              {
+                "label": "Brand-new standalone repo",
+                "description": "Fresh repo on its own. Cleanest separation, but you re-do CI, settings.json wiring, project board, and the hook has to cross a repo boundary to log decisions."
+              },
+              {
+                "label": "Submodule of perm_gate",
+                "description": "Lives under the existing perm_gate code in ai-harness. Tight coupling \u2014 fine if you see the lab as part of perm_gate forever, awkward if it grows independent."
+              }
+            ]
+          },
+          {
+            "question": "How should the review UI be served?",
+            "header": "UI host",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "New tab inside manager-ui on :8765 (Recommended)",
+                "description": "Reuse the launchd-managed FastAPI app you already have. One process, one auth story, sessions and perm-gate decisions side-by-side."
+              },
+              {
+                "label": "Separate FastAPI app on its own port",
+                "description": "New launchd service, e.g. :8766. Cleaner separation of concerns; double the ops surface (two services to keep alive, two URLs to remember)."
+              },
+              {
+                "label": "CLI + static HTML report",
+                "description": "No long-running server. Generate static pages from the log on demand. Simpler, but no live review, no labelling UI."
+              }
+            ]
+          },
+          {
+            "question": "What goes into the captured corpus?",
+            "header": "Capture sources",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "Your PreToolUse hook (static + AI tier)",
+                "description": "Every tool-call the hook sees, with its tier, rule fired, AI rationale if any, final verdict. This is the bedrock."
+              },
+              {
+                "label": "Anthropic Auto Mode decisions (if exposed)",
+                "description": "If Auto Mode surfaces its classifier verdict via transcript or API, capture it alongside yours. Lets you compare your judge vs Anthropic's on the same situation. May not be observable today."
+              },
+              {
+                "label": "Human overrides / corrections",
+                "description": "When the user accepts/denies a prompt the system asked about, log that as ground-truth feedback. Critical for the scoring side later."
+              },
+              {
+                "label": "Synthetic adversarial cases",
+                "description": "Curated red-team prompts (rm -rf /, exfil via curl, prompt-injection patterns). Lets you regression-test even when real traffic is quiet."
+              }
+            ]
+          },
+          {
+            "question": "How do new guidelines get a 'score'?",
+            "header": "Scoring basis",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Human-labeled ground truth (Recommended)",
+                "description": "You (or a reviewer) tag captured cases with the ideal verdict + risk rating. New guideline runs are scored by agreement with labels (precision/recall on deny, false-allow rate on red, etc.). Most rigorous."
+              },
+              {
+                "label": "Champion-vs-challenger only",
+                "description": "No human labels. New guideline is scored by where it disagrees with a designated 'champion' run. Cheap to bootstrap, but you can drift \u2014 both can be wrong together."
+              },
+              {
+                "label": "LLM-as-judge",
+                "description": "A separate Claude call grades each (case, verdict) pair. Fast and scalable, but the judge has its own biases and you've added a second model to trust."
+              },
+              {
+                "label": "Hybrid: labels where you have them, LLM-judge elsewhere",
+                "description": "Start with champion+LLM-judge, layer human labels on top as you accumulate them. Most pragmatic; more moving parts."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Can you search the web for it because a friend told me Claude could already have it?"
+      },
+      {
+        "role": "assistant",
+        "text": "Your friend is right \u2014 Anthropic shipped **Claude Code Auto Mode** on March 24, 2026. It's almost exactly the design pattern of your local `PERM_GATE`:\n\n- An AI classifier (Sonnet 4.6) reviews every tool call before execution\n- Routes to one of three outcomes: **auto-approve / prompt / block**\n- Looks at action type, parameters, reversibility, and blast radius\n- Specifically watches for mass deletions, secret exfiltration, and prompt-injection-style malicious patterns\n- Positioned as the middle ground between manual approval and `--dangerously-skip-permissions`\n- Anthropic is explicit it's **not a security boundary** \u2014 it's a mistake-prevention layer\n\n**Availability**: launched on Team plans first, admin opt-in required; Enterprise + API \"coming soon.\"\n\nSo the relationship to your work:\n\n- Your ai-harness#23 perm gate predates it (yours is a `PreToolUse` hook, currently static-only with `PERM_GATE_ENFORCE_AI=1` not yet flipped).\n- Anthropic's version is in-app, hosted, and uses Sonnet 4.6 as the classifier.\n- The two can coexist \u2014 `PreToolUse` hooks fire regardless of Auto Mode \u2014 so you could keep your static red-list (`rm -rf /`, etc.) as a hard floor under whatever Auto Mode decides.\n\nWorth checking if your plan tier has Auto Mode available before you invest more in `ENFORCE_AI` \u2014 might be cheaper to delegate the AI tier to Anthropic and keep your hook for the static/red rules and the deny-list tuning tracked in #25.\n\nSources:\n- [Claude Code auto mode: a safer way to skip permissions (Anthropic)](https://www.anthropic.com/engineering/claude-code-auto-mode)\n- [What Is Claude Code Auto Mode? How the Permission Classifier Works (MindStudio)](https://www.mindstudio.ai/blog/what-is-claude-code-auto-mode-permission-classifier)\n- [Inside Claude Code Auto Mode (InfoQ)](https://www.infoq.com/news/2026/05/anthropic-claude-code-auto-mode/)\n- [Anthropic trims action approval loop (Help Net Security)](https://www.helpnetsecurity.com/2026/03/25/anthropic-claude-code-auto-mode-feature/)\n- [Claude Code Auto Approve Guide 2026 (SmartScope)](https://smartscope.blog/en/generative-ai/claude/claude-code-auto-permission-guide/)"
+      },
+      {
+        "role": "user",
+        "text": "I am on Maxco... Maxplan."
+      },
+      {
+        "role": "assistant",
+        "text": "Good news \u2014 Max plan **has** Auto Mode as of mid-April 2026.\n\nSpecifics for your setup:\n- **Available directly** \u2014 no admin enablement needed (that's a Team/Enterprise hoop)\n- **Model requirement on Max**: **Opus 4.7** (you're already on it \u2014 see your environment header)\n- Toggle it in Claude Code itself; not a CLI flag\n\nA couple of caveats worth knowing before you flip it on:\n- There were intermittent \"Auto mode is unavailable for your plan\" bugs reported on Max as recently as the issues above \u2014 if you see that, it's a known bug, not a license problem.\n- Anthropic still says it's a **mistake-prevention** layer, not a security boundary. Your `PreToolUse` perm-gate hook keeps running underneath it, so your static red-list (`rm -rf /`, push-to-main, etc.) stays as the hard floor.\n\nWant me to check whether enabling it would conflict with your current `PERM_GATE_ENFORCE=1` hook \u2014 i.e. whether the two layers fight or stack cleanly?\n\nSources:\n- [Claude Code Auto Mode: Now on Max, Team, and Enterprise (claudefa.st)](https://claudefa.st/blog/guide/development/auto-mode)\n- [Feature request: Make auto mode available on Max plan (closed) \u2014 anthropics/claude-code#41219](https://github.com/anthropics/claude-code/issues/41219)\n- [Max plan: \"auto mode is not available for your plan\" \u2014 anthropics/claude-code#46616](https://github.com/anthropics/claude-code/issues/46616)\n- [Use Claude Code with your Pro or Max plan (Anthropic Help Center)](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-or-max-plan)"
+      },
+      {
+        "role": "user",
+        "text": "I want to have a UI that... this is a brand new project, so we'll have to plan it. I wanna have a UI where I can look through the different permission requests and the recommended... recommendations, whether the static was used or the AI was used. And I want to be able to use those as later test cases to create a test infrastructure to to improve over time the the judging system and be able to test new AI guidelines against the recommendations... against the situations and check if they get a better score on the recommended output. So I wanna make sure that the system is able to give a security rating or risk rating in general and an analysis and output. So we should create a test infrastructure for that. So plan it."
+      },
+      {
+        "role": "assistant",
+        "text": "Before I plan this, a few choices will shape the whole design \u2014 let me ask up front rather than assume."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "New module in ai-harness (Recommended), New tab inside manager-ui on :8765 (Recommended), Anthropic Auto Mode decisions (if exposed), Human overrides / corrections, Your PreToolUse hook (static + AI tier), Synthetic adversarial cases, LLM-as-judge"
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a7629c48-dc8a70fa705f51f4",
+  "sig": "answer:rollout-a7629c48:dc8a70fa705f51f4",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a7629c48-dc10-4fe0-83fd-9e6f251d6c6a.jsonl turn #44",
+  "input": {
+    "action": {
+      "session_id": "rollout-a7629c48",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_019Ca1TnMCYF66txVjvk5xLH",
+      "question": "How do you want to make the leased slot safe for a RefreshDatabase test run?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01SJDJZuTxuptntSejVVHFRv",
+        "description": "",
+        "questions": [
+          {
+            "question": "How do you want to make the leased slot safe for a RefreshDatabase test run?",
+            "header": "Isolation",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Per-run isolated DB on the slot",
+                "description": "Claim pool1 (or next free), then for THIS test run only: create `familyfund_test_pool1`, set `DB_DATABASE` in `phpunit.xml`/env for the exec, run coverage, drop the DB. No change to pool.sh; shared dev DB untouched."
+              },
+              {
+                "label": "Patch pool.sh to provision per-slot test DBs",
+                "description": "Permanent infra change: every claim creates `familyfund_test_<slot>` and the override exports `DB_DATABASE_TESTING`. Bigger lift, benefits future runs."
+              },
+              {
+                "label": "Skip the lease, run in main `familyfund` container",
+                "description": "What CLAUDE.md prescribes today: `docker exec familyfund ./vendor/bin/phpunit --coverage-text`. Still uses the shared dev DB though \u2014 same hazard, just no extra slot consumed."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "run a test coverage on a leased test env"
+      },
+      {
+        "role": "assistant",
+        "text": "Before I lease, a flag: the skill explicitly warns \"Do not run destructive tests or migrations against a leased slot\" because the shared DB is read/write across all slots and the dev stack. Let me check how FF tests handle the DB to see if this is actually a problem."
+      },
+      {
+        "role": "assistant",
+        "text": "This is a problem worth pausing on. Running coverage on a leased pool slot would be destructive:\n\n- **Pool slots share the dev DB.** All 6 slots + the `dev` stack point at the single shared `familyfund_dev` on `host.docker.internal:3306`.\n- **FF tests use `RefreshDatabase`** (41 occurrences across 20 test files) \u2014 running them wipes that shared DB. The lease-env skill explicitly says \"Do not run destructive tests or migrations against a leased slot.\"\n- **`phpunit.xml` has no separate test DB** \u2014 there's no `DB_DATABASE` override, so tests will hit whatever `.env` points at.\n- There's also already a `pool0` leased to a *different* worktree (`bridge-cse-tests`, on branch `_01BvT6Zg...`) \u2014 not this one \u2014 so we'd be claiming a second slot.\n\nHow do you want to handle this?"
+      },
+      {
+        "role": "assistant",
+        "text": "Good question \u2014 let me verify rather than rely on the skill's wording."
+      },
+      {
+        "role": "assistant",
+        "text": "Confirmed by reading `~/.familyfund-pool/pool.sh:140`: the per-slot compose override hardcodes `DB_DATABASE=familyfund_dev` against `host.docker.internal:3306`. So no \u2014 **pool slots currently share one DB by design** (the skill's \"Solution\" comment explicitly says \"all pointed at the SHARED familyfund_dev DB (no per-slot restore)\"). The pool was built for *preview*, not for tests.\n\nSo \"run coverage on a leased env\" needs one of:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "review the docs/code for a test pool lease"
+  }
+}

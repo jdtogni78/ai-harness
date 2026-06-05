@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-c79bbd40-33b66ab78830507e",
+  "sig": "answer:rollout-c79bbd40:33b66ab78830507e",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from c79bbd40-e0cd-4f3b-a71e-b271fbd0b2b6.jsonl turn #100",
+  "input": {
+    "action": {
+      "session_id": "rollout-c79bbd40",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/app1/family-fund-app",
+      "question": "How should a per-row payment registration map to shares/amount?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01SimNH6zfzRyffECkutY8M4",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should a per-row payment registration map to shares/amount?",
+            "header": "Per-row amount",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Full row only",
+                "description": "Registering a payment marks the whole scheduled row paid for its exact shares_due. Simplest; partials handled later."
+              },
+              {
+                "label": "Editable amount",
+                "description": "Prefill shares_due but let the admin enter a different amount (under/over), reusing the partial/cascade logic from RepayService."
+              }
+            ]
+          },
+          {
+            "question": "Scope for this round of work?",
+            "header": "Build scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "All five parts",
+                "description": "Backdating + late-flag + per-row payment UI + top-level nav/global listings + tests, in one go."
+              },
+              {
+                "label": "Core first",
+                "description": "Parts 1-3 (backdating, late-flag, per-row payments) first; nav/global listings as a follow-up."
+              },
+              {
+                "label": "Just backdating",
+                "description": "Only part 1 (backdated origination form wiring) now; defer the rest."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "The backdating of a credit line only impacts the fund allocated/unnalocated shares. lets say I backdate 6 months, and we create all the expected receivables, we will still have to choose/set whether each receivable is marked as executed or not, that is a separate issue. An external system is expected to trigger receivables. We need an UI that allows us to register manual payments"
+      },
+      {
+        "role": "assistant",
+        "text": "Got it \u2014 that narrows the scope cleanly. Let me restate the design as I now understand it, then check the two pieces that actually matter for it.\n\n**Refined scope**\n- Backdating a credit line **only** moves shares between allocated/unallocated. No cash, no receivable-as-asset modeling in FF. (So the historical-NAV catch is gone \u2014 share price is invariant to allocation-only moves.)\n- Backdating 6 months \u2192 the schedule generator emits all the **expected payment rows** that fall in that window, but they are **not** auto-marked executed. Execution is an **external system's** responsibility.\n- Each payment row carries an executed / not-executed status \u2014 set/reconciled separately, not at draw time.\n- We need a **manual payment registration UI** so an admin can record a payment that actually happened against a scheduled row.\n\nLet me ground this in the existing payment-schedule and repayment code before proposing the plan."
+      },
+      {
+        "role": "assistant",
+        "text": "This is the key finding: **the backend already does almost everything you described.** The gap is purely UI/wiring. Let me lay out exactly where things stand.\n\n## What already works (no new logic needed)\n\n- **Backdated origination** \u2014 `DrawService::open()` takes `$originationDate` (`DrawService.php:53-61`). It stamps the BOR transaction's `timestamp` to that date (`:99`) and calls `AmortizationScheduleBuilder::build($line, $principal, $originationDate)` (`:106`).\n- **Expected receivables auto-generated, NOT executed** \u2014 the schedule builder writes `credit_line_payments` rows; the migration defaults `status` to `'scheduled'` (`2026_05_13_000002...:16`). So backdating 6 months at monthly frequency produces ~6 rows with **past `due_date`s, all `scheduled`** \u2014 exactly your \"create the expected receivables, leave execution open.\" Nothing auto-pays them.\n- **Manual payment backend** \u2014 `RepayService::repay($line, $shares, $date)` creates a REP transaction at an explicit date and walks the scheduled rows in due-date order, flipping them to `paid`/`partial` and stamping `paid_transaction_id` (`RepayService.php:50-115`). Route `POST credit-lines/{line}/repay` already exists (`web.php:231`).\n\n## The gap (what's actually missing)\n\n1. **No `origination_date` input** \u2014 the create form + `CreateAccountCreditLineRequest` don't collect it; `store()` passes `null`. ~3 small edits.\n2. **Manual payment UI shape** \u2014 a repay route exists, but `RepayService` applies a *lump sum in due-date order*. Your framing (\"each receivable marked executed or not\", \"register manual payments\") sounds like you want **per-scheduled-row registration** \u2014 pick a specific due row, mark it paid with the actual date the external system settled it. That's a different UX than lump-sum.\n\n## The warning you asked for (now scoped correctly)\n\nSince FF only touches allocated/unallocated shares, there's no NAV rewrite. The remaining real caveat to surface to the admin:\n\n> \u26a0\ufe0f Backdating to {date} generates **{N} payment rows already past due**, all left `scheduled`. FamilyFund will **not** trigger or execute them \u2014 an external system records actual settlement. Until each is reconciled, this line shows {N} unpaid past-due installments and may be flagged late. You must register any payments that already happened manually.\n\nTwo decisions drive the implementation:"
+      },
+      {
+        "role": "assistant",
+        "text": "Good \u2014 per-row registration + immediate late-flagging. Let me pull the remaining pieces I need to plan accurately."
+      },
+      {
+        "role": "assistant",
+        "text": "The user just added a requirement (top-level nav). Let me check the nav layout and existing late-detection so the plan is precise."
+      },
+      {
+        "role": "assistant",
+        "text": "I now have the full picture. Here's the consolidated plan covering everything you've specified across this conversation.\n\n## Scope recap (your decisions)\n- Backdated origination = allocated/unallocated shares only (no cash/receivable in FF).\n- Backdating generates the expected `credit_line_payments` rows, **not executed**; external system settles them.\n- Per-row manual payment registration UI.\n- Past-due generated rows flagged **late immediately** on save.\n- New top-level navigation for credit lines / repayments.\n\n## Key facts from the code\n- `DrawService::open()` already accepts `$originationDate` and stamps the BOR txn + builds the schedule from it (`DrawService.php:53-106`). Backend backdating is **done**; only the form/request/controller pass `null` today (`AccountCreditLineControllerExt.php:94`).\n- `AmortizationScheduleBuilder` always writes rows as `scheduled` (`:58`) \u2014 **no late-detection job exists anywhere** (grep found none in `app/Console`). So \"flag late immediately\" needs new code.\n- `RepayService::repay()` applies a **lump sum oldest-first** \u2014 there's no \"pay this specific row\" path. Per-row registration needs new backend logic.\n- Credit-line pages are **per-account only** (`accounts/{account}/credit-lines`); no global index, no top-level nav entry. Nav lives in `resources/views/layouts/menu.blade.php`.\n\n## Implementation plan\n\n**1. Backdated origination (small)**\n- Add `origination_date` to `CreateAccountCreditLineRequest` (`nullable|date`, no `after` constraint).\n- Add a date input to `create.blade.php` (defaults to today, optional).\n- `store()`: pass `Carbon::parse($data['origination_date'])` instead of `null`; show the warning copy when the date is in the past.\n\n**2. Late-flag on save (new)**\n- New `LateDetector` support service: rows with `due_date < today` still `scheduled`/`partial` \u2192 `late`.\n- Call it at the end of `DrawService::open()` (covers backdated draws) and expose an `artisan credit-lines:detect-late` command for ongoing use.\n\n**3. Per-row manual payment registration (new \u2014 the biggest piece)**\n- New route + controller method `registerPayment(line, payment_row_id, date)`.\n- New service method (extend `RepayService` or a `PaymentRegistrar`) that creates a REP txn dated to the real settlement date and marks **that specific row** `paid` (handling partials), then recomputes outstanding.\n- UI: in `show.blade.php` schedule table, a \"Register payment\" action per open row \u2192 modal/form (shares prefilled to `shares_due`, settlement date input).\n\n**4. Top-level navigation + global listings (new)**\n- Global `GET /credit-lines` (all lines across accounts, admin-gated) and `GET /credit-lines/payments` (all open/late receivables) index pages.\n- Add a \"Credit Lines\" section to `layouts/menu.blade.php` with sub-links: All Credit Lines, Repayments/Receivables, Match Resolution (existing `credit_lines.resolve_index`).\n\n**5. Tests** \u2014 feature tests for backdated draw \u2192 late rows generated; per-row payment marks correct row; nav/global index admin-gating (mirrors existing `ensureAdmin` + ACL matrix).\n\nThis is ~5 areas, several new files, money-path logic. Before I start writing code I want to confirm two things that change the build:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Editable amount, All five parts"
+  }
+}

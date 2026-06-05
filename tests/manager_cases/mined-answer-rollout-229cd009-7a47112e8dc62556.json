@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-229cd009-7a47112e8dc62556",
+  "sig": "answer:rollout-229cd009:7a47112e8dc62556",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 229cd009-4a05-4bb3-892d-32507643dbde.jsonl turn #577",
+  "input": {
+    "action": {
+      "session_id": "rollout-229cd009",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01Mn3Sk1oMzrtVMkC33Kg5XL/app1/family-fund-app",
+      "question": "How should the API scope the PII resources (users, people, id_documents) for #49? (Funds/transactions/reports will use tenant scoping mirroring accounts regardless.)",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01FHBsmHmCXFWsRRfYatXGvv",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the API scope the PII resources (users, people, id_documents) for #49? (Funds/transactions/reports will use tenant scoping mirroring accounts regardless.)",
+            "header": "PII scoping",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Tenant-scoped (mirror accounts)",
+                "description": "system-admin=all; fund-admin/fin-mgr=PII linked via accounts to funds they fully manage + self; beneficiary=only own user/person/id-docs; unassigned=self only. Most consistent with the rest; fund admins see their beneficiaries' PII (matches current web access). Most query logic."
+              },
+              {
+                "label": "Self + system-admin only",
+                "description": "system-admin=all; everyone else=only their OWN user/person/id-docs. Fund admins get NO cross-user PII via the API. Stricter on PII, simpler queries. May reduce what fund-admin integrations can read vs today's web UI."
+              },
+              {
+                "label": "System-admin only (lock down)",
+                "description": "Lock all 3 PII endpoints to system-admin; 403 for everyone else. Safest/simplest, but removes any self-service or fund-admin API access to these resources."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "The reference pattern is clear: **index** uses `AuthorizationService::for($user)->scopeAccountsQuery(...)`, **show** uses `abort_unless($user?->canAccessAccount($account), 403)`. Now the key question \u2014 what scoping primitives does `AuthorizationService` already provide for the other resources?"
+      },
+      {
+        "role": "assistant",
+        "text": "`AuthorizationService` already provides the primitives I need: `scopeFundsQuery`/`scopeTransactionsQuery`/`scopeAccountsQuery` and `canViewFund`/`canViewTransaction`/`canViewAccount`. The reports and PII resources (users/people/id-docs) will need new scoping logic. Let me read the target controllers and the matrix test to understand current structure and the test harness."
+      },
+      {
+        "role": "assistant",
+        "text": "Both are identical generated boilerplate \u2014 `index` calls `repository->all()`, `show` calls `find()` with no authz. Fund/Transaction have ready scoping primitives. The harder calls are reports and PII (users/people/id-docs). Let me read the test harness and the User model's access helpers to ground the authorization model, plus the report controllers."
+      },
+      {
+        "role": "assistant",
+        "text": "I now fully understand the test harness (actors: beneficiary/fundAdmin/financialManager/systemAdmin/unassigned; own/sibling/cross-fund fixtures; pattern = allowed\u2192200, blocked\u2192403/404 with no identifier leak).\n\nThis is a large, security-critical task. Fund/Transaction/reports have a clear scoping model (by fund/account access), but **users/people/id-documents (PII) need a deliberate policy decision** \u2014 there's no obvious tenant key. Let me investigate those models' relationships to frame the options before I write anything."
+      },
+      {
+        "role": "assistant",
+        "text": "The data model is now clear:\n- **Reports**: `AccountReport\u2192account\u2192fund` and `FundReport\u2192fund` \u2014 unambiguous tenant scoping, mirrors existing primitives.\n- **PII**: `Person` has no tenant key; the only link to funds is indirect (`User\u2192accounts\u2192fund`, `User\u2192person`, `IdDocument\u2192person`). There's no existing `UserPolicy`/`PersonPolicy` and the web controllers are also only `fund.full`-gated \u2014 so the PII access model is a genuine **new decision**, not a mechanical mirror.\n\nLet me confirm the beneficiary's fund access (affects fund/fund-report visibility) before framing the decision."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the key finding that shapes the implementation:\n\n- **Funds, transactions, account-reports, fund-reports** \u2192 unambiguous tenant scoping. A beneficiary has *readonly* access to their own fund (confirmed in `getAccessibleFundIds`), so the existing primitives cleanly cover: system-admin = all, fund-admin/fin-mgr = their funds, beneficiary = own fund + own account's data, unassigned = none. I'll mirror `AccountAPIController` directly here.\n- **Users / people / id-documents (PII)** \u2192 no existing access model (no policy, web side is only `fund.full`-gated), and no direct tenant key \u2014 the only fund link is indirect (`User\u2192accounts\u2192fund`, `IdDocument\u2192person`). So how much PII the API exposes, and to whom, is a real security decision I shouldn't make unilaterally."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Tenant-scoped (mirror accounts)"
+  }
+}

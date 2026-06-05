@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-6aeb7203-64fc57a1a2ece29f",
+  "sig": "answer:rollout-6aeb7203:64fc57a1a2ece29f",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 6aeb7203-151e-4564-bc7e-d06ff321d11a.jsonl turn #49",
+  "input": {
+    "action": {
+      "session_id": "rollout-6aeb7203",
+      "repo": "ai-harness-private",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness-private",
+      "question": "How should I dispose of /Users/claudio1/dev/ai-harness-public?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01NKST8AfB2KXeWJG1dq6AsM",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I dispose of /Users/claudio1/dev/ai-harness-public?",
+            "header": "Disposal method",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Move to Trash (recoverable)",
+                "description": "Use `mv` into ~/.Trash so you can restore from Finder if needed."
+              },
+              {
+                "label": "Hard delete with rm -rf",
+                "description": "I'll re-issue the rm -rf and you can approve it."
+              },
+              {
+                "label": "Skip \u2014 leave it",
+                "description": "Don't delete after all."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "lets do a cleanup on ai-harness* dirs on dev"
+      },
+      {
+        "role": "assistant",
+        "text": "Survey of `/Users/claudio1/dev/ai-harness*`:\n\n| Dir | Type | Branch | State |\n|---|---|---|---|\n| `ai-harness` | primary clone (jdtogni78/ai-harness) | `main` clean | keep |\n| `ai-harness-host-defaults` | worktree of `ai-harness` | `feature/host-derived-defaults` | clean, **fully merged into origin/main** |\n| `ai-harness-public` | separate clone of same `jdtogni78/ai-harness` repo | `main` clean | duplicate of `ai-harness`? |\n| `ai-harness-private` | primary clone (jdtogni78/ai-harness-private) | `main` clean | 737M \u2014 hosts 28 `bridge-cse_*` worktrees from supervisor |\n| `ai-harness-session-preserve` | worktree of `ai-harness-private` | `feature/session-preserve-toolkit` | clean, **fully merged into origin/main** |\n\nTwo clearly safe wins: drop the two merged feature worktrees. The other two questions need your call."
+      },
+      {
+        "role": "assistant",
+        "text": "`rm -rf` was denied. Want me to move it to the macOS Trash instead (recoverable)?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Move to Trash (recoverable)"
+  }
+}

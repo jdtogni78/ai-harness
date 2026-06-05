@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-6d6b976a-46b9c6bc3871f3d0",
+  "sig": "answer:rollout-6d6b976a:46b9c6bc3871f3d0",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 6d6b976a-ff99-431c-a5bf-1f8958171643.jsonl turn #69",
+  "input": {
+    "action": {
+      "session_id": "rollout-6d6b976a",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_017y39UMdsqDCoAk9RCrZMvg",
+      "question": "How should I run Phase 2 (reaping the 37 dead, clean, merged bridge worktrees)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_018U53hBkwULW5AEjHjCBJY2",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should I run Phase 2 (reaping the 37 dead, clean, merged bridge worktrees)?",
+            "header": "Cleanup scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Reap all 37 now",
+                "description": "Force-remove all 37 orphaned worktrees + delete their merged branches + git worktree prune. Keeps the 2 live worktrees and the prototype (01Gefdk). Transcripts preserved."
+              },
+              {
+                "label": "Reap in batches of 10",
+                "description": "Do it incrementally \u2014 ~10 removals, pause so you can sanity-check, then continue. Slower but more reviewable."
+              },
+              {
+                "label": "Report only for now",
+                "description": "Stop here. Make no changes; you'll decide on removal later. The rescue is already saved."
+              }
+            ]
+          },
+          {
+            "question": "What about the prototype worktree (01Gefdk) and its rescued work?",
+            "header": "Prototype",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Keep, let live session land it",
+                "description": "Leave 01Gefdk in place; the live 'Manager cron job' session continues/lands the session-manager prototype. Recommended."
+              },
+              {
+                "label": "Commit prototype to its branch",
+                "description": "Commit the 5 changed files onto worktree-bridge-cse_01Gefdk so the work is versioned, then it can be picked up later."
+              },
+              {
+                "label": "Reap it too",
+                "description": "Discard the worktree as well (rescued copy in worktree-rescue/ remains as the only record)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Let me look at how the script derives the sessions path, and run it against the canonical repo path."
+      },
+      {
+        "role": "assistant",
+        "text": "Sessions are logged per-worktree (each worktree has its own project dir), not in the top-level dir \u2014 so the per-session table needs a different lookup. But the **worktree** picture is already crisp. Before going further, let me pin down the one worktree that matters (the dirty one) and get the authoritative git worktree list.\n\nNote: my memory flags `bridge-cse_01GefdkXcCug5MQ54tqaj9t9` as holding the **uncommitted session-manager/shepherd prototype** \u2014 and that's exactly the one dirty worktree. So its 5 files are likely valuable. Let me verify and rescue before anything else."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the picture is clear. Let me rescue the one dirty worktree's prototype work (non-destructive) and figure out which bridge worktrees map to still-live cloud sessions, so the cleanup targets only dead ones. Checking the `remote_control` CLI for a sessions listing:"
+      },
+      {
+        "role": "assistant",
+        "text": "Rescue done \u2014 the session-manager prototype is safely copied to `/Users/claudio1/.claude/worktree-rescue/20260525-123644/`. Now let me cross-reference which bridge worktrees map to **live** cloud sessions, so cleanup only targets dead ones."
+      },
+      {
+        "role": "assistant",
+        "text": "Now I have what I need. Let me check the project's own guidance on bridge-worktree cleanup so my recommendation aligns with the documented convention (not just my memory)."
+      },
+      {
+        "role": "assistant",
+        "text": "I now have the full picture. Phase 1 (report + non-destructive rescue) is done. Here's the report.\n\n## Worktree / session report \u2014 `ai-harness`\n\n**41 git worktrees**: 1 canonical (`main`) + **40 `bridge-cse_*`**, all bridge worktrees `locked` (self-lock per GD-0002).\n\n**Live cloud sessions (non-archived): only 2**\n| session | title |\n|---|---|\n| `cse_017y39U\u2026` | \"Worktree/session cleanup report\" \u2190 **this session** |\n| `cse_019Mu4Bp\u2026` | \"Manager cron job for session states\" |\n\n**40 bridge worktrees break down as:**\n| state | count | disposition |\n|---|---|---|\n| Live session attached | **2** | keep (`017y39U` current, `019Mu4Bp`) |\n| Uncommitted work | **1** | **keep** \u2014 `01Gefdk` (rescued \u2713) |\n| Clean + `MERGED`, dead/archived session | **37** | **reapable** \u2014 branches fully merged, nothing unique to lose |\n\n**Modified / uncommitted (rescued, non-destructive):**\n- `bridge-cse_01GefdkXcCug5MQ54tqaj9t9` \u2014 the **session-manager / shepherd prototype**:\n  - `M remote_control/cli.py`, `M remote_control/config.py`\n  - `?? docs/session-manager-cases.md`, `?? remote_control/manager.py`, `?? tests/test_manager.py`\n  - \u2192 copied to `~/.claude/worktree-rescue/20260525-123644/` (patch + status + untracked files).\n  - \u26a0\ufe0f This overlaps the **live** \"Manager cron job for session states\" session \u2014 it's almost certainly that work's predecessor. I'd **keep this worktree** and let the live session land it, rather than reap it.\n\nThe other 37 are pure orphans: clean, their branches contain nothing not already in `main`, and their owning sessions are archived. GD-0002 says these are meant to be reaped (the lock is a stale self-lock from sessions that died without cleanup). Transcripts under `~/.claude/projects/` stay regardless \u2014 I'd only remove the worktrees + their merged branches.\n\nBefore I run 37 force-removes + branch deletions, let me confirm scope:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Reap all 37 now, Keep, let live session land it"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-0e25d5f1-9ff1257d106c90a9",
+  "sig": "answer:rollout-0e25d5f1:9ff1257d106c90a9",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 0e25d5f1-b847-4e6f-8f9b-9ef926b3e1b8.jsonl turn #424",
+  "input": {
+    "action": {
+      "session_id": "rollout-0e25d5f1",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01KejVCMVj7e53bp68VWqimt",
+      "question": "What's next?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01Gs5BnQohvqFqXPMt6cjuRT",
+        "description": "",
+        "questions": [
+          {
+            "question": "What's next?",
+            "header": "Next step",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "S1 #3 \u2014 verify excess-cascade is closed",
+                "description": "#3 (10000-share overpay leaving other CLs untouched) is largely subsumed by #1 \u2014 with overpayment rejected, the scenario can't happen. Add a regression test that confirms it, then close #3. Quick \u2014 mostly verification."
+              },
+              {
+                "label": "S2 #4 \u2014 Cancellation BOR ledger update",
+                "description": "Cancelled CL keeps being counted by borrowedSharesAsOf() until next BOR/REP. Needs a CancelService change to emit a ledger event. Medium scope, requires reading CancelService + AccountBalance chain logic."
+              },
+              {
+                "label": "S2 #5 \u2014 Same-day BOR\u2192REP audit trail",
+                "description": "Same-day full cycle leaves zero historical BOR rows. Audit trail gap. Touches AccountBalance chaining logic + same-day collapse. Subtle."
+              },
+              {
+                "label": "Stop here, release test2",
+                "description": "Release the testpool lease, end the session. Pick up further bugs in a new chat."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "The wave-2 comment legitimizes backdating *within* the line's lifetime, but this test's specific scenario (repay before origination) is exactly what the QA doc says is a bug. Convert the test to expect rejection \u2014 the OutstandingCalculator's clamp logic still exists, just not reachable via this exact path anymore."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me check the QaBugs20260519 #14 failure \u2014 it's a `QueryException` likely pre-existing:"
+      },
+      {
+        "role": "assistant",
+        "text": "Bug 14's `QueryException` is unrelated (missing `type` column on `accounts`, pre-existing baseline mismatch). Let me re-run the targeted suite:"
+      },
+      {
+        "role": "assistant",
+        "text": "All 195 pass. Let me also quickly verify bug #1 regression still passes alongside #2:"
+      },
+      {
+        "role": "assistant",
+        "text": "All 4 bug-specific regression tests pass. Let me view the final diff and commit:"
+      },
+      {
+        "role": "assistant",
+        "text": "Two S1 bugs from `QA_BUGS_2026-05-20.md` now fixed and committed:\n\n**Commits on `worktree-bridge-cse_01KejVCMVj7e53bp68VWqimt`**\n- `4df7d83a` \u2014 bug #1: reject `shares > outstanding` in repay\n- `967d9526` \u2014 bug #2: clamp repay date to `[origination_date, today]`\n\n**Test coverage**\n- Service-layer guards + 4 new regression tests, all passing (`RepayServiceTest::test_repay_overpayment_is_rejected`, `OutstandingCalculatorSameDayTest::test_repay_before_origination_date_is_rejected`, `CreditLineMessyHistoryTest::test_repay_overpayment_is_rejected`, `QaBugs20260520Test::test_bug_2_repay_rejects_dates_outside_origination_to_today`).\n- 195/195 credit-line + scenario tests pass on the leased `test2` slot (excluding 1 pre-existing baseline failure in `QaBugs20260519Test::bug_14` \u2014 unrelated `accounts.type` column mismatch).\n\n**Notes / leftovers**\n- The `test2` slot is still leased (port 3012). Release with `~/.familyfund-pool/testpool.sh release test2` when you're done.\n- Nothing pushed yet \u2014 the worktree's branch has two new commits ahead of where it started this session."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "S1 #3 \u2014 verify excess-cascade is closed"
+  }
+}

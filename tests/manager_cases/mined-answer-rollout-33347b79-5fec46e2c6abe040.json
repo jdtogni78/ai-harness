@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-33347b79-5fec46e2c6abe040",
+  "sig": "answer:rollout-33347b79:5fec46e2c6abe040",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 33347b79-8e7c-4059-a1c8-573307667f0d.jsonl turn #372",
+  "input": {
+    "action": {
+      "session_id": "rollout-33347b79",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01HgNtwCdfLNLzyJVMYx11SX",
+      "question": "The monitor log shows recurring `list sessions 401 (token stale?)` + a socket timeout (pre-existing, not from my change). It can delay a self-heal and also affects the usage-limit resume feature. What do you want?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_0166A79fWLLsyRs7TENwvHiX",
+        "description": "",
+        "questions": [
+          {
+            "question": "The monitor log shows recurring `list sessions 401 (token stale?)` + a socket timeout (pre-existing, not from my change). It can delay a self-heal and also affects the usage-limit resume feature. What do you want?",
+            "header": "Token flakiness",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "File a #2 ticket",
+                "description": "Open a Remote Control board (#2) issue to investigate the monitor's OAuth token refresh / stale-401 handling. Deferred, not done now."
+              },
+              {
+                "label": "Drop it",
+                "description": "Don't track it. The self-heal already tolerates it (returns (0,0) and retries next cycle)."
+              },
+              {
+                "label": "Look now",
+                "description": "Investigate the token-refresh path now (reopens work \u2014 thread won't close yet)."
+              }
+            ]
+          },
+          {
+            "question": "The self-heal + label-docs work landed on ai-harness `main` with no Remote Control (#2) tracking ticket. File one retroactively for the audit trail?",
+            "header": "Board sync",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "File + close it",
+                "description": "Create a #2 issue describing the self-heal + label-docs work and immediately close it as delivered (audit record on the board)."
+              },
+              {
+                "label": "Drop it",
+                "description": "Skip the retroactive ticket \u2014 the commits + this summary are enough."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Done. Both ai-harness worktrees are cleaned up (only the supervisor-managed `bridge-cse_*` ones remain \u2014 not mine), and `main` is in sync with `origin/main` with both commits landed.\n\n## Summary\n\n**Session-prefix bug \u2014 fixed and verified live.**\n\n**Root cause:** `start-work` sets `[FF] #N \u2026` once at claim time, but the platform's automatic title-generation fires later in the session and overwrites it, stripping the prefix. Nothing re-asserted it \u2014 there was no self-healing pass anywhere.\n\n**What I did:**\n\n1. **One-time cleanup** \u2014 ran `titles apply`: **15 drifted sessions re-prefixed** (this one included), 0 failures.\n\n2. **Durable self-heal** (committed to `ai-harness` `main`, `a0325b6`, pushed):\n   - `session_titles.apply_prefixes()` \u2014 headless re-apply of `[NICK]` prefixes (the programmatic twin of `titles apply`).\n   - The always-running **usage-limit monitor** now runs it every `SESSION_TITLE_APPLY_SECS` (default **600s**; `0`=off) \u2014 best-effort (never breaks the loop), lazy import to dodge the `session_titles \u2194 monitor` circular dependency. It already holds the API token + `list_sessions` + a timed loop, so it was the right home (no coupling to the process supervisor).\n   - **Tests:** added `ApplyPrefixesTest` (prefix / skip-correct / skip-orphan / failure / empty) \u2014 **258 pass**.\n   - **Docs:** noted the self-heal in `start-work` step 5.\n\n3. **Restarted** the monitor launchd job so it's running the new code (pid 9270).\n\n4. **Proven end-to-end** against the live API: stripped this session's prefix \u2192 `apply_prefixes: (1, 0)` \u2192 healed back to `[FF] Ticket review and organization`.\n\nMemory updated with the mechanism + the restart command.\n\n**Earlier in this session** (recap): reviewed all 24 open tickets; closed stale #73, slimmed #16\u2192index, split out #87, de-duped #30/#31, pruned #29; created and applied the `security/ci/infra/acl/ui/ops/tooling/epic/blocked` label taxonomy; documented it in the `start-work`/`list-tickets` skills.\n\nOne pre-existing note (not introduced here): the monitor log shows occasional `list sessions 401 (token stale?)` / timeouts. The self-heal is resilient to it (returns `(0,0)` and retries next cycle), but a transient token hiccup could delay a heal by one interval. Flag if you want me to look at the token-refresh flakiness separately."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll work through the close-work phases. Note up front: this session's **code** changes all landed in the **ai-harness** repo (already merged + pushed), while the **FamilyFund** work was all GitHub board/issue edits (no code commits). Let me verify both states.\n\n## Phase 1 \u2014 Review"
+      },
+      {
+        "role": "assistant",
+        "text": "FamilyFund worktree is **clean** \u2014 0 commits ahead, no uncommitted changes. All FamilyFund work was board/issue edits. Now confirming the ai-harness code delivery:"
+      },
+      {
+        "role": "assistant",
+        "text": "Both ai-harness commits (`5725a2a` labels docs, `a0325b6` self-heal) are on `origin/main`, zero divergence, clean tree \u2014 **delivery is already complete**. \n\n## Phase 2 \u2014 Test gate\n\nai-harness suite ran **258 passing** after the last *code* edit; the only edit afterward was a markdown doc note (start-work SKILL.md \u2014 no test impact), plus the live clobber\u2192heal proof. FamilyFund had no code changes, so no FamilyFund test run was needed. Gate is solid.\n\n## Phase 3 \u2014 TODO sweep\n\nLet me check for any TODO markers introduced and confirm no loose threads:"
+      },
+      {
+        "role": "assistant",
+        "text": "No TODOs introduced, no existing ai-harness tracking ticket. Let me check whether this session holds any pool/test leases before the verdict:"
+      },
+      {
+        "role": "assistant",
+        "text": "No leases held. \n\n## Phase 4 \u2014 Verdict: \u2705 READY TO CLOSE\n\n- **FamilyFund**: all work was board/issue edits \u2014 already applied (closed #73; slimmed #16; created #87; de-duped #30/#31; pruned #29; label taxonomy created + applied to 24 tickets). Worktree clean, 0 commits ahead.\n- **ai-harness**: both code commits (`5725a2a` label docs, `a0325b6` self-heal) merged to `main` and pushed; 258 tests green; self-heal proven live.\n- No uncommitted work, no introduced TODOs, no held leases.\n\n**Teardown is minimal:** this is a supervisor-managed `bridge-cse_*` worktree (the live session) already on its own bridge branch \u2014 I will **not** remove it. No leases to release, no agent claim (this session never ran `start-work`), no FamilyFund tracking ticket.\n\nTwo **optional** follow-ups surfaced in the sweep \u2014 your call before I finish:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "File a #2 ticket, File + close it"
+  }
+}

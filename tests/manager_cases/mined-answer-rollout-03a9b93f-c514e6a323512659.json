@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-03a9b93f-c514e6a323512659",
+  "sig": "answer:rollout-03a9b93f:c514e6a323512659",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 03a9b93f-ff4d-4a55-8d3a-4c0b023e17a9.jsonl turn #434",
+  "input": {
+    "action": {
+      "session_id": "rollout-03a9b93f",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund",
+      "question": "Which file/folder should I move to ~/dev/familyfund-secrets/?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01SjUt51o57HWf7PAmkWaqGS",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which file/folder should I move to ~/dev/familyfund-secrets/?",
+            "header": "Move target",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "database/dev/familyfund_dev_data_20260419.sql",
+                "description": "The 2.3 MB raw prod data dump (the partly-anonymized one with real names + 19 remaining real @gmail/@hotmail emails). Currently in the repo's database/dev/ folder, gitignored. Moving to familyfund-secrets gives it a versioned home off the public repo path. (This is #3 from the familyfund.com-surface review.)"
+              },
+              {
+                "label": "Local rendered demo videos (.mp4s)",
+                "description": "The 5 .mp4 renders in .claude/worktrees/sweet-driscoll-0b292c/demos/out/. Gitignored, local-only. They're pre-scrub so still carry PII. The demo-rendering session will re-render them clean \u2014 alternative is to also archive each render to familyfund-secrets for posterity."
+              },
+              {
+                "label": "app1/family-fund-app/.env.stage",
+                "description": "Stage env config (with the MAIL_FROM I just changed). Gitignored. Moving to familyfund-secrets gives stage config a versioned home alongside whatever other env/runbook material is already there."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Review all dumps and review videos on the public."
+      },
+      {
+        "role": "user",
+        "text": "[Request interrupted by user]"
+      },
+      {
+        "role": "user",
+        "text": "repo"
+      },
+      {
+        "role": "assistant",
+        "text": "Public repo audit \u2014 all clean.\n\n**Dumps in the public repo (jdtogni78/FamilyFund main):**\n\n7 tracked `.sql` files, **0 family-emails-list matches in any of them**:\n\n| File | Lines | Purpose | PII |\n|---|---|---|---|\n| `database/familyfund_ddl.sql` | 576 | DDL only | 0 |\n| `database/familyfund_ddl_20220806.sql` | 576 | DDL snapshot | 0 |\n| `database/familyfund_ddl_20260110.sql` | 858 | DDL snapshot | 0 |\n| `database/prod_to_dev.sql` | 334 | anonymization script (just hardened) | 0 |\n| `database/truncate_all.sql` | 38 | utility | 0 |\n| `database/drop_all.sql` | 38 | utility | 0 |\n| `database/delete_test_data.sql` | 15 | utility | 0 |\n\nOnly INSERT in any of them is the synthetic `claude@test.local` row in `prod_to_dev.sql`. The 2.3 MB raw prod data dump (`database/dev/familyfund_dev_data_20260419.sql`) is gitignored \u2014 not in the public repo.\n\n**Videos in the public repo:**\n\n**Zero video files tracked.** `demos/.gitignore` excludes `out/` and `**/.narrate/`, so all rendered `.mp4`s are local-only. The repo carries only the 12 demo **script** YAMLs (`demos/*.demo.yaml`) \u2014 text instructions for the narrate tool, not the renders themselves.\n\nThe 5 currently-rendered videos sit in `.claude/worktrees/sweet-driscoll-0b292c/demos/out/` (admin/trading-config/funds-accounts/account/funds.mp4) \u2014 local to the demo-rendering session's worktree. They were rendered **before** today's scrub, so they still contain the pre-scrub PII; that's exactly why the demo session said they'd re-render. Once they do, the new renders will be clean (DB scrubbed, on-disk emails wiped, MAIL_FROM updated).\n\n**Name-fragment matches in docs (intentional, not PII):**\n\n15 markdown files contain `togni` etc., but every hit is either:\n- the user's **public** GitHub handle `jdtogni78` in URLs/clone commands (SETUP.md, AGENTS.md, etc.), or\n- the **documented scrub regex** in security/incident docs (HISTORY-AUDIT-66.md, SECURITY-EXPOSURE.md), which intentionally records that `jdtogni@gmail.com \u2192 admin@dev.familyfund.local` was the rewrite rule used in the 2026-05-25 history purge.\n\nBoth are public/intentional and not changes to make.\n\n**Net:** Public repo is clean \u2014 no dumps with PII, no videos at all. The only remaining attack surface for accidental publication is the demo-rendering session's local `.mp4`s, which will be replaced by post-scrub renders."
+      },
+      {
+        "role": "user",
+        "text": "Now the second one should be moved to The Secrets and should not be on the public."
+      },
+      {
+        "role": "assistant",
+        "text": "I want to make sure I move the right thing \u2014 \"the second one\" could mean a couple of things in my recent messages. Let me ask."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "the documented scrub regex in security/incident docs (HISTORY-AUDIT-66.md, SECURITY-EXPOSURE.md), which intentionally records that jdtogni@gmail.com \u2192 admin@dev.familyfund.local was the rewrite rule used in the 2026-05-25 history purge"
+  }
+}

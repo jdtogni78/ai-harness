@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-3ae83a92-d6d7fc4e3227b203",
+  "sig": "answer:rollout-3ae83a92:d6d7fc4e3227b203",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 3ae83a92-a569-4759-ba89-823cf99d969f.jsonl turn #323",
+  "input": {
+    "action": {
+      "session_id": "rollout-3ae83a92",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/magical-maxwell-60c79b",
+      "question": "Whose perspective should Demo 1 take?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01REbgaQhHEKFkcPDeoGpDzM",
+        "description": "",
+        "questions": [
+          {
+            "question": "Whose perspective should Demo 1 take?",
+            "header": "Role lens",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Admin full-feature (Recommended)",
+                "description": "Log in as system admin \u2014 every page, report, and figure is visible. Best for a capability showcase / overview demo."
+              },
+              {
+                "label": "Beneficiary end-user",
+                "description": "Log in as a beneficiary \u2014 shows the trimmed, role-gated view (their fund first, no admin icons). More 'real user' story, fewer pages."
+              },
+              {
+                "label": "Admin then beneficiary",
+                "description": "Tour as admin, then revisit one page as a beneficiary to contrast what each role sees. Longer; bridges into the security demo."
+              }
+            ]
+          },
+          {
+            "question": "How should I proceed from here?",
+            "header": "Proceed",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Build & render Demo 1 now",
+                "description": "Write demos/funds-accounts.demo.yaml against the running :3001 app, render the mp4, and send it to you for review."
+              },
+              {
+                "label": "Refine storyboard first",
+                "description": "Iterate on the scene list / narration wording before I build anything."
+              },
+              {
+                "label": "Build all-series scaffolding",
+                "description": "Scaffold YAML stubs for all 6 demos, but only fully render Demo 1."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "note that some things may be at the *secrets repo\ncheck the lease skills\ni mean how the run, so we do same and fix"
+      },
+      {
+        "role": "assistant",
+        "text": "Good instinct \u2014 let me not leave my fix as ad-hoc symlinks if there's a canonical bootstrap. Let me check (a) how the lease/test skills are *supposed* to source their scripts+config, and (b) whether the secrets repo is the canonical home for any of it."
+      },
+      {
+        "role": "assistant",
+        "text": "Quick check on the canonical-config question before pivoting \u2014 the secrets repo has a `configs/` dir; let me see if the pool config is meant to be sourced from there."
+      },
+      {
+        "role": "assistant",
+        "text": "The canonical-fix thread is settled: the FF pool config lives host-local at `~/.ai-harness/pools/familyfund/config.yaml` (a real file, **not** in the secrets repo \u2014 `configs/` there is just gitleaks + family-emails). So my symlinks in `~/.familyfund-pool/` pointing at that config + the ai-harness scripts repo *are* the canonical layout \u2014 same pattern as the pre-existing `pool.sh`/`testpool.sh` symlinks. Nothing to mirror from the secrets repo. \u2705\n\nNow \u2014 the demo. Let me ground a plan in the real app (routes + the `narrate-demo` tooling) rather than hand-waving."
+      },
+      {
+        "role": "assistant",
+        "text": "I've got the real routes and the demo tooling. Let me grab a couple of concrete entities (a data-rich fund + account) so the storyboard references real pages, then I'll lay out the plan."
+      },
+      {
+        "role": "assistant",
+        "text": "Everything's confirmed working (dev stack at :3001, pool restored canonically), so let's design the demos. I grounded this in the real routes and data \u2014 **\"Family Fund A\" (#2) has 22 beneficiary accounts**, so it's the natural showcase fund; the single-account funds (Retirement, Education, etc.) are good for cameo shots.\n\n## How the demos run (the tooling)\n\nThe `narrate-demo` skill renders an **mp4** from a small YAML storyboard (`<repo>/demos/<name>.demo.yaml`) \u2014 macOS `say` TTS + headless Chromium + a glowing fake-cursor, auto-synced to narration length. Its `do:` verbs are navigation-only (`goto`, `move`, `scroll`, `wait`) \u2014 no clicking. That actually fits FF perfectly: each scene is a `goto` to a **`/dev-login/<path>`** URL, which logs in (as admin, so no 403s) *and* lands on the page in one step; cookies persist for the rest of the run. So the whole demo is a smooth guided tour with the cursor highlighting key figures.\n\n## Demo *series* idea (separate, focused videos)\n\n| # | Demo | Pages it tours |\n|---|---|---|\n| **1** | **Funds & Accounts + Reports** *(this one)* | dashboard \u2192 funds index/show/overview \u2192 accounts index/show \u2192 fund & account reports |\n| 2 | Credit Lines / \"Loan Shares\" | borrow-against-balance, payments, late-schedule, catch-up |\n| 3 | Portfolios, Assets & Rebalancing | fund portfolios, assets, trade bands, rebalance report |\n| 4 | Transactions & Matching | deposits, matching rules, auto-match results |\n| 5 | Time-travel & PDF statements | `as_of` historical views + generated PDF reports |\n| 6 | Roles & access (security story) | same pages as admin vs beneficiary \u2014 what each role sees |\n\n## Storyboard \u2014 Demo 1: \"Funds & Accounts\" (~2\u20132.5 min, ~13 scenes)\n\n| Scene | Page (`goto`) | Narration beat |\n|---|---|---|\n| 1 | *(intro card)* | \"Family Fund \u2014 a system for managing family investment funds, shares, and beneficiary accounts.\" |\n| 2 | `/dev-login/dashboard` | \"The dashboard: total assets under management across every fund at a glance.\" |\n| 3 | `/funds` | \"Nine funds are under management \u2014 retirement, education, cash, and the main family pool.\" |\n| 4 | `/funds/2` | \"Family Fund A \u2014 net asset value, current share price, and how it's priced.\" *(cursor \u2192 NAV / share price)* |\n| 5 | `/funds/2/overview` | \"The overview rolls up holdings and performance.\" |\n| 6 | `/funds/2/portfolios` | \"Underneath each fund sit one or more portfolios of real assets.\" |\n| 7 | `/fundReports` \u2192 a report show | \"Funds generate point-in-time reports for the family.\" |\n| 8 | `/funds/2/as_of/<date>` | \"Every figure is historical \u2014 view the fund as of *any* past date.\" |\n| 9 | `/accounts` | \"Twenty-two beneficiary accounts share Family Fund A.\" |\n| 10 | `/accounts/7` | \"An individual account: balance, shares owned vs borrowed \u2014 we report the *net*.\" *(cursor \u2192 balance)* |\n| 11 | `/goals` (or account goals) | \"Each beneficiary can set goals and track progress toward them.\" |\n| 12 | `/accountReports` \u2192 a report show | \"And each account gets its own statement.\" |\n| 13 | *(outro card)* | \"From fund NAV down to a single beneficiary's net worth \u2014 that's Family Fund.\" |\n\nTwo quick calls before I build the YAML and render the first cut:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Admin full-feature (Recommended), Build all-series scaffolding"
+  }
+}

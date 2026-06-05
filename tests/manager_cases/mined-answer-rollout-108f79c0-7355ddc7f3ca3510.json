@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-108f79c0-7355ddc7f3ca3510",
+  "sig": "answer:rollout-108f79c0:7355ddc7f3ca3510",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 108f79c0-c716-4c23-ad30-80b8b1c4a0c7.jsonl turn #124",
+  "input": {
+    "action": {
+      "session_id": "rollout-108f79c0",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01XmiuC29WmxbAoA8w4nMW9a",
+      "question": "What prefix should each ticket title get?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_014z5eqqPAVsQRdX9pZQS1fm",
+        "description": "",
+        "questions": [
+          {
+            "question": "What prefix should each ticket title get?",
+            "header": "Prefix scheme",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Repo nickname [FF]/[AH]/[DSA]",
+                "description": "Prefix titles with the repo's short nickname, matching your session-title [NICK] convention. e.g. '[FF] security: bulk user password reset'. Makes issues scannable by repo in any GitHub view. Some ai-harness titles already use [AH]."
+              },
+              {
+                "label": "Primary domain label [security] etc.",
+                "description": "Prefix with the issue's main GitHub label, e.g. '[security] ...', '[ci] ...', '[ops] ...'. FamilyFund has a domain taxonomy; ai-harness/dstrader-aws have no labels so they'd get none."
+              },
+              {
+                "label": "Board name [Trading & Fund]",
+                "description": "Prefix with the GitHub Project board the ticket lives on. Coarser than repo nickname."
+              }
+            ]
+          },
+          {
+            "question": "Which tickets should I retitle?",
+            "header": "Scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "FamilyFund only",
+                "description": "Only retitle FamilyFund issues. Leaves ai-harness, dstrader-aws, and Job Search drafts untouched."
+              },
+              {
+                "label": "All boards, all open issues",
+                "description": "Retitle every open issue across FamilyFund, ai-harness, and dstrader-aws (Todo + In Progress + any open). Draft notes can't be edited via gh and would be skipped."
+              },
+              {
+                "label": "All boards, Todo only",
+                "description": "Only the available (Status=Todo) issues shown in the list, across all three boards."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now clean up the ad-hoc worktree."
+      },
+      {
+        "role": "assistant",
+        "text": "Done. The `todo` list now shows GitHub labels.\n\n**What changed** (ai-harness `cmd_todo` in `skills/start-work/scripts/agent_claims.sh`, merged to `main` as `b15362c` and pushed):\n\n- `gh project item-list` doesn't carry issue labels, so `cmd_todo` now fetches them once per distinct repo via `gh issue list --json number,labels` and appends them in `[brackets]` after each ticket.\n- The cache is a newline-delimited `repo#num<TAB>labels` string with pure parameter-expansion lookup \u2014 your only bash is macOS 3.2, which has no associative arrays (my first `declare -A` attempt failed; this is why). The trailing-TAB anchor keeps `#1` from matching `#16`.\n- One extra API call per repo (~3 total), not per ticket.\n- Updated the SKILL.md `todo` description to mention the labels.\n\nThe skill file is a symlink into the canonical ai-harness checkout, so the change is live now (verified). FamilyFund tickets show their taxonomy \u2014 e.g. `#16 [security,epic]`, `#30 [ops]`, `#63 [enhancement,blocked]`. ai-harness/dstrader-aws issues show none because those repos haven't applied the label set.\n\nI made the edit in a throwaway ai-harness worktree, merged `--ff-only` to `main`, pushed, and removed the worktree + branch.\n\n---\n\nBack to **`/start-work`**: that was a tooling fix, not a ticket claim. Which ticket do you want to start? Same list as before (now with labels) \u2014 give me a number and I'll `check` it for live claims, then claim after you confirm. Want me to re-run `todo` so you see the labeled view?"
+      },
+      {
+        "role": "user",
+        "text": "rerun todo"
+      },
+      {
+        "role": "assistant",
+        "text": "Labels are now showing across the FamilyFund tickets. (Note: **#28** dropped off since the first run \u2014 another session must have moved it to In Progress.)\n\nFamilyFund labels read at a glance now:\n- **`security`** \u2014 #16, #29, #52, #53, #65, #66, #68, #71, #75, #76, #80, #83, #84, #87\n- **`ci`** \u2014 #52, #53, #71, #75, #76, #83, #84\n- **`infra`** \u2014 #66, #67, #68, #80\n- **`acl`** \u2014 #65\n- **`ops`** \u2014 #30 \u00b7 **`tooling`** \u2014 #54 \u00b7 **`enhancement`** \u2014 #63, #64, #65\n- **`blocked`** \u2014 #63, #67, #68 (gated on a dependency)\n\nWhich one do you want to start? Give me a number and I'll `check` it for a live claim, then claim it after you confirm."
+      },
+      {
+        "role": "user",
+        "text": "retitle all tickets with prefixes"
+      },
+      {
+        "role": "assistant",
+        "text": "Editing every ticket's title is a bulk, outward-facing change across three boards, so let me pin down exactly what you want before touching anything. Two things I need to settle:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Primary domain label [security] etc., All boards, all open issues"
+  }
+}

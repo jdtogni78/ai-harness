@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-0e25d5f1-8cb31e68929c1a20",
+  "sig": "answer:rollout-0e25d5f1:8cb31e68929c1a20",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 0e25d5f1-b847-4e6f-8f9b-9ef926b3e1b8.jsonl turn #102",
+  "input": {
+    "action": {
+      "session_id": "rollout-0e25d5f1",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01KejVCMVj7e53bp68VWqimt",
+      "question": "How should the repay endpoint handle shares > outstanding?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01V8CUHo1347buJwaGk2Aaij",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the repay endpoint handle shares > outstanding?",
+            "header": "Fix approach",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Reject overpayment (Recommended)",
+                "description": "Throw InvalidArgumentException when shares > outstanding; controller flashes error like 'Cannot repay 275 shares against a line with 270 outstanding.' No transaction is created. Forces the user to enter a correct amount; matches the existing 'positive shares' / 'paid_off line' validation style. Update the existing test to expect rejection."
+              },
+              {
+                "label": "Cap REP at outstanding",
+                "description": "Clamp the REP transaction's shares value to $line->outstanding_shares (e.g. 275 \u2192 270). Line still goes paid_off, but BOR/REP balance. Keeps the existing test's spirit (overpayment accepted) but corrects the recorded amount. Flash a warning that the excess was discarded."
+              },
+              {
+                "label": "Both: reject in service, with override flag",
+                "description": "Default to rejection, but accept an `allow_overpay=true` flag that caps. Lets future flows (e.g. consolidation across lines) opt in. More surface area for one bug."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "There's a `docs/QA_BUGS_2026-05-19.md` \u2014 likely your bug tracking document. Let me read it."
+      },
+      {
+        "role": "assistant",
+        "text": "All bugs in `QA_BUGS_2026-05-19.md` are marked \u2705 fixed. Let me look for newer QA bug docs or other pending work documents."
+      },
+      {
+        "role": "assistant",
+        "text": "Found a newer bug doc for today (2026-05-20) in the parent FamilyFund directory. Let me read it."
+      },
+      {
+        "role": "assistant",
+        "text": "Found the active bug doc: `docs/QA_BUGS_2026-05-20.md` (in main, not yet in this worktree) \u2014 8 findings, none marked fixed. Here's the summary:\n\n**Critical (S1) \u2014 Repay endpoint integrity**\n- **#1** Overpayment silently absorbed: REP tx records 275 shares vs CL outstanding 270 \u2192 5 phantom shares disappear from BOR ledger\n- **#2** REP date unbounded: backdated (2020) or far-future (2050) repays accepted, corrupting `account_balances` ordering\n- **#3** Excess doesn't cascade: 10000-share overpay on one CL leaves other active CLs on the same account untouched \u2192 ~937-share ghost\n\n**Major (S2) \u2014 Ledger state**\n- **#4** Baseline contains `status=cancelled, outstanding=108` row that current controller blocks; `borrowedSharesAsOf` still counts cancelled CL until next BOR/REP\n- **#5** Same-day BOR\u2192REP cycle leaves zero historical BOR rows in `account_balances` \u2192 audit trail unrecoverable\n\n**UX (S3)**\n- **#6** Readjust keeps old schedule rows as `cancelled` next to new `scheduled` rows; allocations distributed across both\n- **#7** \"Lifetime disbursed/repaid\" cards sum across cancelled lines and phantom REPs \u2192 disagree with per-CL fields on the same page\n\n**Cosmetic (S4)**\n- **#8** Dark-mode toggle + avatar overlap \"Dashboard\" link at \u22641280px"
+      },
+      {
+        "role": "assistant",
+        "text": "Picking up **S1 #1 \u2014 overpayment swallowed**. Let me find the repay endpoint and understand the current behavior."
+      },
+      {
+        "role": "assistant",
+        "text": "The bug isn't a missing guard \u2014 there's actually a test `test_repay_overpayment_caps_at_outstanding_and_sets_paid_off` (line 294) that *codifies* the buggy behavior: it asserts the REP transaction records the full overpayment (`$this->assertEquals(25.0, (float) $repTran->shares)` on line 311) while the line goes to `outstanding=0`. So the test passes alongside the bug.\n\nTwo reasonable fixes; both close the BOR/REP mismatch but change UX differently:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Reject overpayment (Recommended)"
+  }
+}

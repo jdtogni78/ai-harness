@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-a3aafcc1-d599de4a814faf91",
+  "sig": "answer:rollout-a3aafcc1:d599de4a814faf91",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from a3aafcc1-40fd-4785-a4ff-ed0a75823fad.jsonl turn #87",
+  "input": {
+    "action": {
+      "session_id": "rollout-a3aafcc1",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01VzsvPC2qtCr1SrEswWpsPa",
+      "question": "How far back are prod asset prices missing (roughly)? This sets the backfill window / lookback.",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01TJuDgYSZLQB9fpaXn6NcCj",
+        "description": "",
+        "questions": [
+          {
+            "question": "How far back are prod asset prices missing (roughly)? This sets the backfill window / lookback.",
+            "header": "Gap window",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Within ~30 days",
+                "description": "Recent gap, inside the daily gaps-mode lookback. A plain re-run should cover it."
+              },
+              {
+                "label": "1\u20133 months",
+                "description": "Older than the default 30-day GAP_DETECT_DAYS window, so the daily run would silently miss it."
+              },
+              {
+                "label": "Several months+",
+                "description": "Long gap; better handled with an explicit date-range history-mode backfill."
+              },
+              {
+                "label": "Don't know yet",
+                "description": "Measure first by hitting prod GET /api/asset_prices/gaps before deciding the window."
+              }
+            ]
+          },
+          {
+            "question": "Do you already know WHY the daily sender isn't working? This decides whether we fix-first or just re-run.",
+            "header": "Root cause",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "TWS/IB not connected",
+                "description": "DSTrader can't get market data (TWS login / 2FA / gateway down) so backfill produces nothing."
+              },
+              {
+                "label": "Gap older than lookback",
+                "description": "Daily gaps mode only looks back GAP_DETECT_DAYS (30); older gaps are never retried."
+              },
+              {
+                "label": "Daily run not firing",
+                "description": "The cron / start_dstrader run itself isn't executing on the prod server."
+              },
+              {
+                "label": "Unknown \u2014 diagnose",
+                "description": "Not sure; the plan should include a diagnosis step (check logs, gaps endpoint, TWS status)."
+              }
+            ]
+          },
+          {
+            "question": "How should I deliver this one-time refresh?",
+            "header": "Delivery",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Runbook only",
+                "description": "Produce exact step-by-step commands for you to run on the prod server yourself (safest; TWS 2FA is manual anyway)."
+              },
+              {
+                "label": "Drive it with approval",
+                "description": "I run the steps over ssh dstrader, pausing for your OK before each prod-changing command."
+              },
+              {
+                "label": "Plan doc only",
+                "description": "Just a written plan/checklist now; execution decided later."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Key finding: filling missing prices is done by **DSTrader history mode** (an external system), while FamilyFund detects gaps and alerts. Let me read the scheduled-job handler/alert traits and the AssetPrice ingestion API to map the full flow."
+      },
+      {
+        "role": "assistant",
+        "text": "The fill path is external (DSTrader pushes prices in \"history mode\"). Let me confirm the FamilyFund ingestion endpoint and whether any DSTrader-side sender lives where I can see it."
+      },
+      {
+        "role": "assistant",
+        "text": "FamilyFund's role is clear: it **receives** prices (`POST /api/asset_prices_bulk_update` and `/api/asset_prices`) and **detects** gaps (`GET /api/asset_prices/gaps`). The **sender is DSTrader** (external, runs on the prod server via cron, \"history mode\" = backfill). Let me check whether the DSTrader sender is reachable from here, and nail down the ingestion payload + AssetPrice schema so a concrete plan is possible."
+      },
+      {
+        "role": "assistant",
+        "text": "`dstrader-docker` is present locally. Let me locate the actual price-sender code/script and its \"history\" mode there."
+      },
+      {
+        "role": "assistant",
+        "text": "The \"history mode\" backfill command is right here \u2014 `asset_report.sh:48`: `$RUN_REPORT history price <portfolio.json> prod <start> <end> <TWS_PORT>`. Let me read that script and the scheduler that normally sends daily prices (the part \"not running correctly\")."
+      },
+      {
+        "role": "assistant",
+        "text": "I've traced the whole pipeline. Here's what's actually going on:\n\n## How asset prices flow in prod\n\n```\nIB/TWS (market data)\n   \u2514\u2500 DSTrader.jar  (AssetReportRun)        \u2190 the \"sender\", runs on prod server 192.168.0.120\n        \u251c\u2500 today  price \u2026  \u2192 POST /api/asset_prices_bulk_update/   (daily prices)\n        \u251c\u2500 gaps   <env> <days> <exch> \u2026      \u2190 detect-AND-backfill missing dates  \u2605 this is \"the process that sends missing\"\n        \u2514\u2500 history price <portfolio.json> <env> <start> <end> \u2026  \u2190 explicit-range backfill\n                              \u2502\n                              \u25bc\nFamilyFund (this repo) \u2014 only RECEIVES + DETECTS:\n   \u2022 POST /api/asset_prices_bulk_update/   (`AssetPriceAPIControllerExt::bulkStore`)\n   \u2022 GET  /api/asset_prices/gaps?days=&exchange=  (`AssetPriceGapService::findGaps`)\n```\n\nKey facts:\n- **FamilyFund cannot refresh prices on its own** \u2014 it has no market-data source. Prices must come from DSTrader/TWS. So the \"one-time refresh\" runs on the prod server (`ssh dstrader`), not in this repo.\n- \"The process that sends missing\" is DSTrader's **`gaps` mode** in `~/dev/dstrader-docker/dstrader/runtime/asset_report.sh` \u2014 it calls FF's `/gaps` endpoint, fetches the missing dates from TWS, and POSTs them back. It runs daily before the price report.\n- It's gated by `GAP_DETECT_DAYS` (**default 30**). **A likely reason it \"isn't running correctly\": the gap is older than the 30-day lookback, so the daily run never sees it** \u2014 or TWS wasn't connected on the days it ran.\n- There's also a ready-made `history` mode (commented example at `asset_report.sh:48`) for backfilling an explicit date range \u2014 ideal for a one-time fix.\n\nTo turn this into a concrete runbook I need three things:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "1\u20133 months, Daily run not firing, Runbook only"
+  }
+}

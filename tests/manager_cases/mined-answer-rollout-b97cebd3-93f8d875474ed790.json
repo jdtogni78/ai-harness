@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b97cebd3-93f8d875474ed790",
+  "sig": "answer:rollout-b97cebd3:93f8d875474ed790",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b97cebd3-e77b-4469-9baa-efc6bfe9431f.jsonl turn #500",
+  "input": {
+    "action": {
+      "session_id": "rollout-b97cebd3",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01Hjb4HiDVQRZ6WSzBMX2Adm",
+      "question": "What's the next move for this thread?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01FWFeMSB5ZMsaiYwbvQKMih",
+        "description": "",
+        "questions": [
+          {
+            "question": "What's the next move for this thread?",
+            "header": "Next move",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Write the failing regression tests",
+                "description": "Turn the 10 sketches in QA_BUGS_2026-05-20.md into a real tests/Feature/QaBugs20260520Test.php that runs and fails today. Lands the TDD foundation before any fix code. (Recommended)"
+              },
+              {
+                "label": "Start fixing the top S1 bugs",
+                "description": "Pick the worst (e.g. #1 overpay, #2 date validation, #10 negative outstanding) and implement them, following the regression-first workflow each time."
+              },
+              {
+                "label": "Keep exploring \u2014 different area",
+                "description": "Another round of QA but outside loans/credit-lines: reports/PDF, goals, NAV chart, scheduled jobs, deposit requests, account-balances chart, etc."
+              },
+              {
+                "label": "Wrap up the thread",
+                "description": "Commit the doc + screenshots, release the test0 slot, run the close-thread skill to review the branch and either merge or hand off."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Validation is solid for input ranges. Let me move to behavioral edge cases."
+      },
+      {
+        "role": "assistant",
+        "text": "Confirmed: per-payment register endpoint has the **same** backdate + overpay holes as global repay. Let me test reverse, simulator, and cross-CL allocation."
+      },
+      {
+        "role": "assistant",
+        "text": "The CL show page literally renders \"**Outstanding: -58.3333 shares \u2248 $-127.96 today**\" without clamping. That's a clean UI bug to add. Let me also check the per-account txns list and the borrow chart."
+      },
+      {
+        "role": "assistant",
+        "text": "Now let me append Round 2 findings to the bug doc."
+      },
+      {
+        "role": "assistant",
+        "text": "Round 2 complete \u2014 doc now 661 lines, 12 screenshots. To answer the question directly:\n\n**Regression tests**: No, I did **not** create actual PHPUnit test files \u2014 I wrote *sketches* in `docs/QA_BUGS_2026-05-20.md` (10 of them across both rounds). Each Fix prompt now explicitly says **\"Step 1 \u2014 write the failing test FIRST, confirm it fails on current main, commit. Step 2 \u2014 fix the code.\"** TDD ordering baked in.\n\n**Round 2 new findings appended** (continuing from #8):\n\n- **#9 (S1)** \u2014 Per-payment register endpoint (`/credit-lines/{line}/payments/{p}/register`) has the **same overpay + backdate holes** as `/repay`. Registering 100 sh on an 8.33-due row cascades across 4 installments, allocates ~33.33, leaves **66.66 phantom shares** in `transactions.shares`.\n- **#10 (S1)** \u2014 **`account_credit_lines.outstanding_shares` can go negative**. The UI happily renders \"*Outstanding (shares) -58.3333 \u2248 $-127.96 today*\" and \"*Repayment progress 100% \u2014 108.3333 of 50.0000 shares*\". Captured in `r2-neg-outstanding.png`.\n- **#11 (S2)** \u2014 `POST /transactions/{id}/reverse` silently 302-no-ops when the form body is missing `transaction_id`/`reason`. CSRF works (419) but a missing required field looks like success.\n- **#12 (S3)** \u2014 Reversing one row of an overpaid CL leaves it `paid_off` + outstanding<0 with no warning to \"reverse the over-allocations first.\"\n- **#13 (S3)** \u2014 A backdated CL whose `maturity_date` is already in the past stays `status='active'` instead of `overdue`/`matured`.\n- **#14 (S4, infra)** \u2014 Testpool baseline has **0 rows in `permissions`**, no `qa-*@test.local` users, so dev-login aliases (`?as=fund-admin`, `?as=beneficiary`) 404. Blocks ACL testing against the test pool. Fix prompt #11 patches this in `testpool.sh`.\n\n**Positive \u2014 no bug found**:\n- Range validation on `principal_shares`, `term_months`, `origination_date` is solid (all out-of-range inputs rejected at the form-request layer).\n- XSS via `nickname` is properly Blade-escaped on every page I checked.\n- Same-day BOR-only (no REP) collapses to a single correct `account_balances` row.\n- The simulator (`/credit-lines/{id}/simulator`) is properly read-only.\n\nTest0 slot still leased \u2014 release with `~/.familyfund-pool/testpool.sh release test0` when done."
+      },
+      {
+        "role": "user",
+        "text": "whats next?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Write the failing regression tests"
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4f824b9d-f27e5f7ffef8eb2e",
+  "sig": "answer:rollout-4f824b9d:f27e5f7ffef8eb2e",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4f824b9d-fde1-4b3b-9001-23ea10044aff.jsonl turn #828",
+  "input": {
+    "action": {
+      "session_id": "rollout-4f824b9d",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "For dstrader-docker: is the GPG private key currently committed in dstrader-docker's HEAD?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01GwPqHdTkATT5M9NGTo4yQa",
+        "description": "",
+        "questions": [
+          {
+            "question": "For dstrader-docker: is the GPG private key currently committed in dstrader-docker's HEAD?",
+            "header": "GPG key in HEAD?",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 still in HEAD pending SOPS migration",
+                "description": "Then #7/#8/#9 stay on the A-track (block public sync). We can't publish until prod migrates to SOPS or the .encr files + key are excluded from public via Step 6 exclusion mechanism."
+              },
+              {
+                "label": "No \u2014 only ciphertext is committed; private key is off-repo",
+                "description": "Then #7/#8/#9 move to pure B-track (deployment-only). Public sync can proceed once A-track items land, and prod migration runs in parallel."
+              },
+              {
+                "label": "Not sure \u2014 I should check before deciding",
+                "description": "I'll grep current HEAD for committed key material and report back before we move the tickets."
+              }
+            ]
+          },
+          {
+            "question": "Restructure the three epics to reflect the two-track split?",
+            "header": "Restructure epics",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 split each epic into Track A + Track B sections (Recommended)",
+                "description": "Rewrite the 'Hard gates' table in FF#36 / dstrader#1 / dstrader-docker#16 as two tables: Track A (publication-blockers) and Track B (deployment, independent). Also fix the dstrader-docker#16 stale-#8 row. Makes it visually obvious which work unblocks which goal."
+              },
+              {
+                "label": "Lighter touch \u2014 add labels to existing rows",
+                "description": "Keep the single table per epic but add an [A] / [B] / [A+B] tag to each row. Less restructuring, same information."
+              },
+              {
+                "label": "Just note in memory, don't change epics yet",
+                "description": "Capture the framework in memory and PLAYBOOK; don't touch the epics until we see how the families actually progress. Lower-friction."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "`gh repo edit --archived` syntax issue \u2014 let me check the actual flag."
+      },
+      {
+        "role": "assistant",
+        "text": "Archived. Let me also save a memory entry capturing this batch and update the dstrader-docker-archive#18 references in the master tracker that now lives at dstrader-docker#16 (description still says it's an archive)."
+      },
+      {
+        "role": "assistant",
+        "text": "Done. Final state:\n\n## 3-Tier Live State (2026-05-29)\n\n| Tier | FamilyFund | dstrader (Java) | dstrader-docker |\n|---|---|---|---|\n| **Archive** | `FamilyFund-archive` (private, active) | `dstrader-archive` (private, active) | **`dstrader-docker-archive`** \ud83d\udd12 (private, **GitHub-archived = read-only**) |\n| **Private sanitized** | `FamilyFund` | `dstrader` | `dstrader-docker` |\n| **Public sanitized** | \u274c | \u274c | \u274c |\n\n## What landed this turn\n\n- **11 open tickets transferred** from `dstrader-docker-archive` \u2192 `dstrader-docker` via `gh issue transfer`. Mapping captured below; GitHub redirects keep old `dstrader-docker-archive#N` URLs working.\n- **Bare `#N` references inside 5 transferred bodies remapped** so cross-references resolve to the right tickets on the new repo.\n- **Cross-refs patched** in PLAYBOOK + SOP ([PR #6 merged](https://github.com/jdtogni78/familyfund-secrets/pull/6) \u2192 commit `b74c551`) + `dstrader#1` epic body + memory.\n- **`dstrader-docker-archive` GitHub-archived** via REST API (`PATCH /repos/.../dstrader-docker-archive` with `archived=true`).\n\n## Ticket mapping (for reference)\n\n| Archive# (old) | dstrader-docker# (new) | Title |\n|---|---|---|\n| #6 | #6 | Bug: daily DSTrader run not firing |\n| #7 | #7 | Deploy SOPS+age to prod |\n| #10 | #8 | rotate live TWS/IB + mail creds |\n| #11 | #9 | SOPS prod cutover |\n| #12 | #10 | IB least-priv user |\n| #13 | #11 | VNC scrot wrapper |\n| #14 | #12 | autologin rects.json |\n| #15 | #13 | spirit checkout swap (the original \"#15\") |\n| #16 | #14 | create dstrader-docker-public |\n| #17 | #15 | CodeQL on dstrader-docker-public |\n| #18 | #16 | master tracker epic |\n\nThe original \"Docker archive #15\" you asked about is now `dstrader-docker#13` and remains OPEN \u2014 spirit's cron checkout swap still needs to happen, but that no longer blocks any archive-related work because the archive flag is set and `dstrader-docker-archive` is fully retired as an active repo."
+      },
+      {
+        "role": "user",
+        "text": "I want to also review the plan in another way. I want to push for the sanitized public repos , and segregate the deployment/going live with the sanitize private. Many of the gates were related to deplayment. Lets segregate into these 2 goals"
+      },
+      {
+        "role": "assistant",
+        "text": "Good reframing \u2014 the original gate lists conflated two genuinely separate goals. Let me reclassify each family's gates against this split, then we can decide what to push on which track."
+      },
+      {
+        "role": "assistant",
+        "text": "You're right \u2014 most \"hard gates\" lump publication (public-sync) with deployment (going-live on prod). Here's the reclassification per family.\n\n## Two-track reclassification\n\n**Track A \u2014 Sanitization-for-public** (blocks `*-public` first sync)\n**Track B \u2014 Deployment / going live** (prod work, independent of public repo)\n\n### FamilyFund\n\n| Gate | Track | Notes |\n|---|---|---|\n| `#20` prod secret rotation | **B \u2014 deployment** | Public repo doesn't carry prod secrets (history audited clean). Rotation remediates past exposure, doesn't prevent future public leak. |\n| README/docs skim \u2705 done | A | |\n| Screenshots/PDFs \u2705 done | A | |\n| First SOP run | A | The actual public-sync gate. |\n| `#53` GH Actions secrets audit | A | |\n| `#54` Branch protection on `FF-public` | A (post-first-sync) | |\n\n**Unblock:** FamilyFund's first sync only needs the SOP run + `#53`. **`#20` is not actually a publication gate** \u2014 it's prod hygiene.\n\n### dstrader (Java)\n\n| Gate | Track | Notes |\n|---|---|---|\n| `#2 #3 #4 #8 #19` paths/IDs/jar/secrets-docs/filter-repo | A | All clean PRs against private daily-driver |\n| `#5` MIT LICENSE, `#6` README rewrite, `#14` CODE_OF_CONDUCT | A (polish) | Not gates, just pre-publish hygiene |\n| `#9` verify prod cron after public | **B \u2014 deployment** (post-event) | Verifies prod still works *after* we publish, not before |\n| `#20` pre-flip API hardening | **B \u2014 correctness** | Production-quality improvement, not a leak prevention |\n| `#21` GH Actions audit, `#22` branch protection | A | |\n\n**Unblock:** dstrader Java's public sync needs A-track only. `#9/#20` shouldn't gate it.\n\n### dstrader-docker\n\n| Gate | Track | Notes |\n|---|---|---|\n| `#13` spirit checkout swap | **B \u2014 deployment** | Just stops cron touching the old archive; independent |\n| `#7` deploy SOPS to spirit | **B \u2014 deployment** | |\n| `dstrader-docker#3` README/docs skim | A | |\n| `dstrader-docker#4` re-audit clean origin | A | |\n| `dstrader-docker#1 #2` GH Actions audit + branch protection | A | |\n| `#8` rotate TWS/IB+mail creds | **CROSS-CUTTING** | See below |\n| `#9` SOPS prod cutover | **CROSS-CUTTING** | See below |\n| `#10` IB least-privilege user | **CROSS-CUTTING** | Risk reduction on exposure |\n\n**Cross-cutting concern for dstrader-docker \u2014 the GPG-in-HEAD question:**\n- Public sync uses 6b single-commit (per FF#55 PR3), so HISTORY is NOT exposed.\n- BUT current HEAD still has `*.encr` files (GPG-encrypted creds). If current HEAD also has the GPG private key committed, publishing current HEAD exposes whatever those `.encr` decrypt to.\n- If yes \u2192 `#7/#8/#9` (SOPS migration of prod) becomes a real A-track gate.\n- If no (the private GPG key is already off-repo and only the ciphertext is committed) \u2192 publishing is safe even with GPG-encrypted ciphertext, and `#7/#8/#9` move to pure B-track.\n\nAlso flagging: I noticed the dstrader-docker#16 epic still has a stale row labeled `#8` for \"de-hardcode compose\" (closed work pre-transfer) alongside the active `#8` for \"rotate creds\" \u2014 that needs fixing during any restructure."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "2 separate tickets - we should move encr files to secrets repos (blocks public), full implementation of SOPS on prod (blocks deploy) - lets call public vs deploy tracks, Yes \u2014 split each epic into Track A + Track B sections (Recommended)"
+  }
+}

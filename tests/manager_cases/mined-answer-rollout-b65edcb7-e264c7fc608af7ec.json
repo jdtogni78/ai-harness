@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-b65edcb7-e264c7fc608af7ec",
+  "sig": "answer:rollout-b65edcb7:e264c7fc608af7ec",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from b65edcb7-f90a-40dd-8397-842e3b6931db.jsonl turn #249",
+  "input": {
+    "action": {
+      "session_id": "rollout-b65edcb7",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_014zHCwzKq8kmrBCnZmE68ac",
+      "question": "How far should I take this beneficiary-ACL hardening in this session?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01YQYRwRbK6r3fD8SD8MenUz",
+        "description": "",
+        "questions": [
+          {
+            "question": "How far should I take this beneficiary-ACL hardening in this session?",
+            "header": "Scope",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Full safe unit + tests",
+                "description": "Backfill migration + dashboard role-tiering + scope/gate ALL leaky index pages for beneficiaries + cross-tenant tests (extend CrossTenantIsolationTest/AclMatrix), verified in a preview env on this branch. The complete, shippable fix. Largest effort."
+              },
+              {
+                "label": "Minimal safe slice",
+                "description": "Dashboard tiering + funds scoping (done) + run the backfill, so the beneficiary experience is safe. Defer the long tail of other index pages to a tracked board ticket."
+              },
+              {
+                "label": "Investigate & report only",
+                "description": "Produce the full role\u00d7page exposure matrix + a board ticket, make no further code changes, so you can prioritize what to fix and when."
+              }
+            ]
+          },
+          {
+            "question": "Include the approved ?as= auto-redirect middleware in this work, or keep it separate?",
+            "header": "?as= middleware",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Fold it in",
+                "description": "Implement the dev-only ?as= auto-redirect-through-dev-login as part of this branch's changes."
+              },
+              {
+                "label": "Keep separate",
+                "description": "Leave it queued; handle it as its own change after the ACL work lands."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Good pivot \u2014 let me answer both directly. First, \"are all users corrected?\": no, I only fixed account 7's user (`user1`). Let me find **every** account-owner in the same broken state (owns an account but has no role on that account's fund), so we know the real blast radius and whether a backfill migration is warranted."
+      },
+      {
+        "role": "assistant",
+        "text": "Here's the blast radius: **14 accounts across 11 more users** are in the exact same broken state as account 7 \u2014 all `userN@dev.familyfund.local` owners on fund 2, none with a role. So **no, only 1 of 12 affected users is corrected.**\n\nA backfill is the right call. Before I write it, let me read the roles seeder to pick the correct vehicle (migration vs seeder) and reuse its role-creation logic safely \u2014 especially the permission dependency."
+      },
+      {
+        "role": "assistant",
+        "text": "Now I have what I need. The `beneficiary` role grants `accounts.view-own`, `transactions.view-own`, `funds.view`, `reports.view`, `credit-lines.view-own` \u2014 and crucially `createFundRole()` calls `syncPermissions()`, which requires those permissions to already exist. So a backfill migration must ensure permissions exist first.\n\nLet me check the latest migration filename so I can place a new one after it."
+      },
+      {
+        "role": "assistant",
+        "text": "I'll write the prod-safe, idempotent backfill migration."
+      },
+      {
+        "role": "assistant",
+        "text": "The backfill migration is written (idempotent, prod-safe: only adds the role, never downgrades admins, self-seeds the needed permissions). Now \u2014 **important**: applying it on the *current* code would spread the exact dashboard over-exposure and funds leak you just saw to all 11 users. So the backfill is coupled to the dashboard/scoping fixes; they should ship together.\n\nBefore I lay out the plan, let me ground the \"what should a beneficiary actually see\" question in the existing design doc rather than my guess."
+      },
+      {
+        "role": "assistant",
+        "text": "The design doc (`PLAN_user_login_acl.md`) confirms the intent: **\"beneficiary: View own account only.\"** So the dashboard over-exposure and unscoped funds index are deviations from the intended design \u2014 genuine bugs, not by-design. That gives me a solid target for what a beneficiary *should* see.\n\n## Direct answers to your two questions\n\n**1. Are all users corrected?** No \u2014 only `user1` (account 7). **11 more users across 14 accounts** are in the identical broken state (own an account, no role on its fund) \u2014 all on fund 2 (`user2..user8`, `user164..169`).\n\n**2. Migration for prod?** Yes \u2014 I wrote `database/migrations/2026_05_24_000001_backfill_account_owner_beneficiary_roles.php`. It's idempotent and prod-safe: ensures the beneficiary permissions exist, then grants the fund-scoped `beneficiary` role to every account-owner who has no role on that fund \u2014 **never** downgrades an admin/manager, skips system-admins, runs at deploy via `php artisan migrate`. Reverse is a deliberate no-op.\n\n## The catch \u2014 these are coupled\n\nRunning that backfill on the **current** code would hand all 11 users the same problems you just found: the coarse dashboard (admin-tier links) and the `/funds` leak. So the backfill must ship **together** with the lockdown fixes. Current state:\n\n| Item | Status |\n|---|---|\n| `user1` granted beneficiary (dev DB, live at :3001) | \u2705 done |\n| Funds index scoping (repo override + `withAuthorization()`) | \u2705 done *in worktree* |\n| Backfill migration (all 11 users) | \u2705 written, **not run** |\n| Dashboard role-tiering (beneficiary \u2260 fund-admin links) | \u274c todo |\n| Other unscoped indexes (Goals, MatchingRules, TradePortfolios, AccountGoals, PortfolioAssets, CashDeposits, Assets\u2026) | \u274c todo \u2014 audit |\n| `?as=` auto-redirect middleware | \u23f8 approved, queued |\n\n**Also critical:** `:3001` serves the **main checkout**, not this worktree \u2014 so none of my *code* fixes are visible there yet (only the DB role change is). To actually see/verify them I'd lease a preview slot that mounts this worktree.\n\nGiven the size and prod impact, let me confirm how far to take this in one go."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Full safe unit + tests, Fold it in"
+  }
+}

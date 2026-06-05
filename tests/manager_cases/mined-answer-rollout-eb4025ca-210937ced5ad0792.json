@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-eb4025ca-210937ced5ad0792",
+  "sig": "answer:rollout-eb4025ca:210937ced5ad0792",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from eb4025ca-9c5b-4da9-bba1-b8c4e9d432f8.jsonl turn #32",
+  "input": {
+    "action": {
+      "session_id": "rollout-eb4025ca",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "How does the script land?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01XtmSavfBG5RiWv9S2tNgNs",
+        "description": "",
+        "questions": [
+          {
+            "question": "How does the script land?",
+            "header": "Script",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Lands \u2014 build it",
+                "description": "Narration + chart plan look right. Create dstrader/demos/ with the explainer page, the .demo.yaml, and a README; render a test pass with macOS `say` so you can review the timing/charts."
+              },
+              {
+                "label": "Tone is off",
+                "description": "Adjust tone before building \u2014 say which direction (more conversational, more technical, shorter, drop a scene, etc.)."
+              },
+              {
+                "label": "Wrong content emphasis",
+                "description": "Reorder, drop, or add scenes \u2014 e.g. drop the band-width-knob scene, add a multi-asset example, lead with sell-high/buy-low instead of risk-choice, etc."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "We have recently created demos for Family Fun, and I was thinking, what could I do for a demo for DS Trader? Uh, so what I thought is, what about we explain what strategies are? Uh, let's explain the main strategy first, which is, uh, the rebalancing one. Uh, so I wanna highlight a few things. I want to make sure we explain that the goal is... this is essentially a rebalancing strategy and then explain the the knobs that we have, the controls we have to... that it kicks in early on if things get off. There's the trading bands that maybe we should show a graph of a trading band to give an example of how this... the the two behaves. The the... a strategy behave. But, also, I want to mention that by rebalancing, you're automatically selling when it's high, buying when it's low. As a side effect, so it gives you a natural exit strategy while keeping your choice of risks. This is the another thing that we should mention is that you are making choices on the risks. You should make choices on the risks. And and how... what's the percentages? And how... and and that should reflect, um, you should not be making decisions short term. You should be asking yourself, now what... now based on what happened yesterday, but what... based on what hap... what what... your risk profile is for the given stocks."
+      },
+      {
+        "role": "assistant",
+        "text": "Good framing \u2014 rebalancing as the *mechanism* but risk-choice and sell-high/buy-low as the *story* is what'll make this land. Here's an arc that hits everything you mentioned:\n\n1. **What is a strategy?** \u2014 a rule for keeping your portfolio honest to a decision you already made.\n2. **The decision is about risk, not the market** \u2014 pick a target allocation (e.g., 70/30). Emphasize this is your stance on *how much risk you want in these names*, not a view on tomorrow's price.\n3. **The drift problem** \u2014 without rebalancing, winners get heavier, real risk silently drifts away from stated risk.\n4. **Trading bands (the graph)** \u2014 show price/allocation over time with band edges overlaid; band hits = triggers.\n5. **Mechanism in action** \u2014 upper band \u2192 trim winner; lower band \u2192 add to laggard. Call out: this *is* sell-high / buy-low, mechanically, no forecast needed.\n6. **The knobs** \u2014 band width: tight = early correction, more trading; wide = lets winners run, more drift. That's the real choice.\n7. **The payoff** \u2014 natural exit strategy without throwing away your risk choice; you're not re-deciding based on yesterday.\n\nBefore I draft a concrete script, two things would shape it:"
+      },
+      {
+        "role": "assistant",
+        "text": "Got it \u2014 concept explainer with synthetic charts. Let me check the FamilyFund demos to match the style and see how the narrate-demo tooling handles non-app content."
+      },
+      {
+        "role": "assistant",
+        "text": "Useful \u2014 FamilyFund already has a `portfolios-rebalancing.demo.yaml`, so there's a direct reference. dstrader has no demos dir yet. Let me read the FF rebalancing demo and the demos README to match style."
+      },
+      {
+        "role": "assistant",
+        "text": "Looked at the FF rebalancing demo (it's a stub) and the README. The tool is Playwright-driven \u2014 it navigates a running webpage. For a synthetic-chart explainer, the cleanest path is a small self-contained HTML page (Chart.js, no dstrader backend needed) that the demo walks through section by section.\n\nHere's a draft 8-scene script (~3 min total) hitting every point you raised. Review the narration before I build anything:\n\n**Scene 1 \u2014 Hook** *(intro, no chart)*\n> \"Most trading strategies try to predict the market. dstrader's main strategy doesn't. It just keeps your portfolio honest to a decision you already made.\"\n\n**Scene 2 \u2014 The risk choice** *(allocation pie / target bars)*\n> \"Before any trade, you make one choice: what percent of your portfolio should be in each name. That's not a market call \u2014 it's a statement about how much risk you want in each name. This is the decision. Everything else is just keeping it true.\"\n\n**Scene 3 \u2014 Drift without rebalancing** *(stacked-area or line chart: 60/40 drifting to 80/20)*\n> \"Markets move. Winners get heavier. Without rebalancing, your 40% in Apple might be 55% by year-end. Your real risk has drifted away from the risk you signed up for \u2014 and you never decided that.\"\n\n**Scene 4 \u2014 Trading bands** *(target line + upper/lower band, allocation oscillating inside)*\n> \"dstrader keeps you honest with trading bands. Around each target, you set a band \u2014 say plus or minus 5%. Inside the band, no trade. Cross it, and dstrader rebalances back to target.\"\n\n**Scene 5 \u2014 Sell high, buy low mechanically** *(same band chart with red sell dots at upper crossings, green buy dots at lower)*\n> \"Watch what that means. Apple rallies \u2014 its weight crosses the upper band \u2014 dstrader sells some. Apple drops \u2014 its weight falls below the lower band \u2014 dstrader buys more. You're selling high and buying low, automatically. No forecast required.\"\n\n**Scene 6 \u2014 The knob: band width** *(side-by-side: tight band vs wide band, same price path)*\n> \"The band width is the real knob. Tight bands react early but trade more. Wide bands let winners run but let your portfolio drift further. That choice is about cost and conviction \u2014 not about the market.\"\n\n**Scene 7 \u2014 Natural exit, kept risk** *(band chart with cumulative sells highlighted on a rally)*\n> \"Here's what this buys you: a natural exit. Every rally is already being trimmed on the way up. Every drop is already being bought on the way down. Your risk choice from a year ago is being respected today \u2014 not second-guessed by yesterday's headline.\"\n\n**Scene 8 \u2014 Close** *(target chart restored)*\n> \"That's the rebalancing strategy in dstrader: a rule that turns your risk choice into action, and pays you to do the boring thing.\"\n\n**Proposed file structure:**\n```\ndstrader/demos/\n  README.md                          # mirrors FF's\n  rebalancing-strategy.demo.yaml     # narrate-demo storyboard\n  rebalancing-explainer.html         # self-contained Chart.js page, 8 #section-N anchors\n  out/                               # rendered mp4 (git-ignored)\n```\n\n**Render flow:** `python3 -m http.server 8765 -d dstrader/demos/` \u2192 narrate-demo `goto http://localhost:8765/rebalancing-explainer.html#section-N` per scene \u2192 macOS `say` for test, OpenAI onyx for final (matching FF convention)."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Lands \u2014 build it"
+  }
+}

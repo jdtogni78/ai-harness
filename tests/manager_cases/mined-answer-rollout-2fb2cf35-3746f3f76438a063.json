@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-2fb2cf35-3746f3f76438a063",
+  "sig": "answer:rollout-2fb2cf35:3746f3f76438a063",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 2fb2cf35-1e06-4ccf-8f19-661200f9ebeb.jsonl turn #163",
+  "input": {
+    "action": {
+      "session_id": "rollout-2fb2cf35",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_0143BLSi72cXwwaoR5TWBJAa",
+      "question": "Now that the fork-and-surface base is merged, file a follow-up for the auto-resume layer?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01SNBh1w44m11RdQbAq8qHkr",
+        "description": "",
+        "questions": [
+          {
+            "question": "Now that the fork-and-surface base is merged, file a follow-up for the auto-resume layer?",
+            "header": "Auto-resume f/u",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes, Terminal default",
+                "description": "File a ticket: post-fork, auto-spawn one Terminal.app per recovered session running `claude -r <uuid>`. Knob: RESUME_ON_RESTART=terminal|app|print|off (default terminal). Includes mitigation: TTL/archived already filter noise."
+              },
+              {
+                "label": "Yes, but app default",
+                "description": "Same ticket, but default RESUME_ON_RESTART=app (Claude.app opens at each cwd, user picks from /resume). Less noisy than N terminal windows."
+              },
+              {
+                "label": "I want a different mechanism",
+                "description": "I have a different idea for auto-resume \u2014 let me describe it before we file anything."
+              },
+              {
+                "label": "Drop it",
+                "description": "Don't file a follow-up. The manual `resume-work` picker is enough."
+              }
+            ]
+          },
+          {
+            "question": "Want me to nudge #29 to Done on the board?",
+            "header": "Board nudge",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes",
+                "description": "Run `gh project item-edit` (or upgrade the token scope first if needed) to move #29 to Done on board #2."
+              },
+              {
+                "label": "I'll do it manually",
+                "description": "I'll click through the board UI myself."
+              },
+              {
+                "label": "Leave it",
+                "description": "Skip the board nudge."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Here's the delta:\n\n- **Update note at top** explains why the design changed (worker found the CLI gap)\n- **Goal**: drop \"Allowlisted dirs may auto-resume\"\n- **Part A step 4** (auto-resume via `--resume <uuid>`): removed\n- **Part B step 1**: drop `auto_resume` field from checkpoint\n- **AC**: drop the two auto-resume bullets\n- **Tradeoffs**: drop the auto-resume tradeoff\n- **Out of scope**: add the auto-resume gap as a deferred item"
+      },
+      {
+        "role": "assistant",
+        "text": "Body updated. Worker has the green light on option A and is continuing on the orphan walk, TTL, archived marker, idempotency, oneoff checkpoints, and sweep. I'll be auto-invoked when they ping back."
+      },
+      {
+        "role": "user",
+        "text": "1) I want all local sessions on a given computer to auto resume\n2) what is the conterpart session name?"
+      },
+      {
+        "role": "assistant",
+        "text": "Quick on (2), then I need to check one thing before answering (1) cleanly.\n\n**(2) Counterpart session**: it's `oneoff-mini-1c561b44` \u2014 picker title `[AH] oneoff-mini-1c561b44`, `cse_0194L9v2amdPMtmc8Wn1rChC`, worker=running, anchored at `~/dev/ai-harness`. That's the only one I spawned.\n\nOn (1) \u2014 \"all local sessions auto-resume\" \u2014 I want to check exactly what `session_resume.py` and `claude -r` can actually do today before I tell the worker to course-correct, since the original auto-resume mechanism I spec'd (preloading a transcript at `mm-*` server spawn) was the part the CLI doesn't support."
+      },
+      {
+        "role": "assistant",
+        "text": "There's a hard constraint to surface before we re-spec, with a concrete proposal:\n\n**The constraint.** Per the docstring in `session_resume.py:5-10`, there's no public API to \"promote a local uuid into a fresh `cse_`\" \u2014 the cloud Claude Code service has no endpoint to seed a new session from a stored transcript. So **auto-resuming back into the desktop/mobile picker row is not achievable** with today's APIs. The picker rows for prior sessions stay dead after reboot.\n\n**What IS achievable** for \"auto-resume on this computer\": `session_resume.py:70-74` already has `terminal_open_argv()` \u2014 it spawns `open -na Terminal.app --args zsh -lc \"cd <cwd> && claude -r <uuid>\"` per forked uuid. So the realistic mechanism is: after the supervisor-startup sweep forks every orphan, it also calls `--open-terminal` on each, giving you **one Terminal.app window per recovered session, each with `claude -r <uuid>` running and the transcript pre-loaded**. Local CLI, not the cloud picker. This covers both supervisor-managed dirs and one-offs uniformly.\n\n**The tradeoff.** On a reboot of a host with 8 prior sessions, that's 8 Terminal windows that pop up at login. TTL (24h default) filters stale ones, and the `archived` marker skips intentionally-closed sessions \u2014 but it's still noisy. Mitigation knobs: `RESUME_ON_RESTART=open-terminal|open-app|print|off` (default `open-terminal`), where `open-app` is \"just bring Claude.app forward at the cwds and let the user pick\", and `print` is \"log the resume commands but don't spawn anything.\""
+      },
+      {
+        "role": "assistant",
+        "text": "A bunch landed while we were talking \u2014 heads up: **PR #30 merged (ea24b9a)** with the manual-pickup version (the Option-A decision before you redirected). Worker auto-closed #29 and tore down its worktree. So the foundation is in `main`; auto-resume is now a layer on top of it, not a replacement for the just-shipped code.\n\n**Your UI question \u2014 \"how are sessions created without any UI?\"**\n\nWhen `python3 -m remote_control new-session` runs, it launches a `claude remote-control` daemon. That daemon is a **bridge server** \u2014 it registers with the Claude cloud on startup and is *immediately* assigned a `cse_*` id, before anyone taps the picker row. The picker row is just a UI affordance to attach to an already-alive session. That's why I was able to `sessions submit` to the worker without you ever opening it on the phone or desktop app. **No Terminal window because the server is a backend bridge, not an interactive `claude` process** \u2014 `claude remote-control` runs headless, waiting for `/events` POSTs from the cloud (which is what happens whether you tap the picker row or I submit via the CLI).\n\n**Why the same trick doesn't directly give us auto-resume**: `claude remote-control` has no `--resume <uuid>` flag \u2014 there's no way to spawn a bridge server pre-loaded with a prior transcript. And the cloud has no \"import this local transcript into a fresh cse_\" endpoint (`session_resume.py:5-10`). So a freshly-spawned bridge server gets a `cse_*` immediately, but always starts with an empty transcript. The auto-resume mechanisms that DO work (`claude -r <uuid>`) run as local interactive processes, which is why they need a Terminal window or Claude.app foreground.\n\n**Two housekeeping items:**\n\n1. Worker flagged that #29's board Status may not have auto-moved to Done (the claim script reported the `gh` token lacks `project` scope). I can run `gh project item-edit` to nudge it.\n2. Auto-resume decision is still open: file as a follow-up ticket on top of the now-shipped fork-and-surface base?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "I dont want auto resume as sessions are sometimes broken/unresumable - I want new session + prompt/info from old, Yes"
+  }
+}

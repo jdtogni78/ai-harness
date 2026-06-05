@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-4b158e4d-31442468c8b98c13",
+  "sig": "answer:rollout-4b158e4d:31442468c8b98c13",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 4b158e4d-ed58-4d90-ba30-31314fcf024b.jsonl turn #142",
+  "input": {
+    "action": {
+      "session_id": "rollout-4b158e4d",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01A1kArEtzcmq1JgrARBW4ib",
+      "question": "Which live target should I use to prove the end-to-end POST?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01QF7sM5aXbc34tmErCskY6V",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which live target should I use to prove the end-to-end POST?",
+            "header": "Live POC",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Stop at dry-run",
+                "description": "Plumbing is verified (helper + CLI + skill). Skip the live POST \u2014 call the POC done."
+              },
+              {
+                "label": "Send to this current session",
+                "description": "POST a harmless message (e.g. \"ping from sessions submit POC\") to cse_01A1kArEtzcmq1JgrARBW4ib. Self-send \u2014 turn will arrive in this very chat."
+              },
+              {
+                "label": "I'll give you a target",
+                "description": "You name a specific cse_* id (or session title) and the exact message to send."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Now I have the full picture. Implementing."
+      },
+      {
+        "role": "assistant",
+        "text": "Now the CLI subcommand. Mirrors `_run_archive`."
+      },
+      {
+        "role": "assistant",
+        "text": "Smoke-check the dispatch + dry-run flow."
+      },
+      {
+        "role": "assistant",
+        "text": "Existing tests green. Now the skill."
+      },
+      {
+        "role": "assistant",
+        "text": "Skill is registered. For task 4 (live POC), I want to be careful \u2014 sending a turn to a random live session would interfere with whoever is using it. Let me dry-run against this worktree's own bridge id (which I know exists), then ask you to pick a real send target."
+      },
+      {
+        "role": "assistant",
+        "text": "POC plumbing is in place and dry-run is verified against a real `cse_*` id. For an actual live POST I'd want to pick a safe target \u2014 both visible sessions on this host are `worker=running` (sending into them would interleave with their work)."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Send to this current session"
+  }
+}

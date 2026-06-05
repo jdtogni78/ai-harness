@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-c220aeeb-8224c34b3352f636",
+  "sig": "answer:rollout-c220aeeb:8224c34b3352f636",
+  "captured_at": "2026-06-04T01:28:48+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from c220aeeb-1ff6-4d18-91c9-3d870ae06b40.jsonl turn #991",
+  "input": {
+    "action": {
+      "session_id": "rollout-c220aeeb",
+      "repo": null,
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev",
+      "question": "Given the correction \u2014 actually scrub history (D) or accept the historical commits stay browsable (A/B)?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_018ZFicqJoCzuns3Bo6vizmS",
+        "description": "",
+        "questions": [
+          {
+            "question": "Given the correction \u2014 actually scrub history (D) or accept the historical commits stay browsable (A/B)?",
+            "header": "Real choice",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "D \u2014 Full history rewrite on private, then fresh push to public",
+                "description": "Filter-repo round on FamilyFund to scrub items 2/3/5/7 from history (not just HEAD). Push to FamilyFund-v3, rename-swap (FF \u2192 FF-v2-archive, FF-v3 \u2192 FF). Then either delete + recreate FF-public from clean history, OR push the new HEAD on top of existing public (since the leak is now gone from history anyway). ~30-60 min. Proper scrub everywhere."
+              },
+              {
+                "label": "B \u2014 Delete + recreate FF-public, accepting historical commits remain in the chain",
+                "description": "What you picked already, with eyes open: nukes the current FF-public, recreates with fresh push from private. Cleanup at HEAD. Historical commits with ER605/jumpbox/etc are still browsable via git log on the new public. Low-effort, accepts the residual exposure (which is identical to having done nothing about the public history)."
+              },
+              {
+                "label": "A \u2014 Just append on existing public",
+                "description": "Even simpler. Doesn't drop FF-public. Doesn't reset hardening (CodeQL/SARIF/Secret-Scanning/branch-protection all stay in place). Cleanup commit on top. Historical commits browsable, same as B."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "remove app1/family-fund-app/coverage_targets_example.txt"
+      },
+      {
+        "role": "assistant",
+        "text": "Added as item 9 to the in-flight worker. It was still in the early-execution phase (~30s post-dispatch) so the addition should land before it commits.\n\nTotal cleanup batch is now **9 items**. Whichever items the user notices next while reviewing the public README, I can keep streaming to the worker the same way (it has the manager's cse_id in the reply-to header from PR #28's now-merged `--reply-to AUTO` default)."
+      },
+      {
+        "role": "user",
+        "text": "im assuming we will have to re-create the public? what is the plan of execution"
+      },
+      {
+        "role": "assistant",
+        "text": "Right \u2014 appending the cleanup commit just hides the leak under a new commit; `git show 4eb1a76d` on FF-public would still expose ER605/jumpbox/Plaid/Monarch/GPG to anyone looking at history. Pausing the worker before its final push."
+      },
+      {
+        "role": "assistant",
+        "text": "## Plan-of-execution options\n\nThe 9-item cleanup commit on private FamilyFund is happening regardless. The question is **how the public mirror gets updated.** Three real mechanics:\n\n### A \u2014 Append cleanup commit (what the brief currently does)\n- `git push $NEW_HEAD:refs/heads/main` to FamilyFund-public\n- Result: public main has cleanup commit at top; **old commits 4eb1a76d \u2190 4262146 \u2190 79026c7 \u2190 all reachable via `git log`** \u2192 ER605/jumpbox/Plaid/Monarch/GPG content still publicly inspectable\n- Mechanically simple; ~30 seconds\n- **Doesn't actually scrub from public.** Bad for this case.\n\n### B \u2014 Re-create FamilyFund-public from current clean state\n1. `gh repo delete jdtogni78/FamilyFund-public --yes` (or rename to `FamilyFund-public-v0-deleted` if you want a trace)\n2. `gh repo create jdtogni78/FamilyFund-public --public`\n3. Mirror-push private FF main @ new HEAD (which includes the cleanup commit)\n4. Re-apply branch protection + CodeQL + Secret Scanning + Push Protection\n- Public history shows commits from the rewrite onward (b3b96cd \u2192 ... \u2192 new cleanup commit) \u2014 clean\n- **Caveat:** anyone who cloned FF-public between 21:43 UTC (first sync) and now (~3 hours later) has the leaked content locally. Window has been short + low-visibility (no announcements, no web indexers yet) so likely zero clones, but you can't prove zero.\n- Trade-off: loses CodeQL run history, loses the public-facing PR/issue counters (none yet), invalidates the 21:43 createdAt timestamp\n- ~5 minutes\n\n### C \u2014 Switch FF-public mechanic to single-commit fresh init (SOP Option 6b)\n1. Same delete-and-recreate as B\n2. But push as a single `git init` commit instead of full history\n3. Future syncs always re-init + force-push single commit (matches dstrader-docker's mechanic)\n- Public never sees history at all. Most thorough scrub.\n- Trade-off: outside viewers lose commit-by-commit context forever; every sync requires force-push.\n- ~5 minutes for first; future syncs are slightly heavier\n\n### D \u2014 History rewrite on private FF first, THEN re-push to public\n1. `git filter-repo --replace-text` (and/or `--invert-paths` for whole files) against current FF history to redact items 2/3/5/7 from history not just HEAD\n2. Push to new private repo `FamilyFund-v3` (per the `rewrite-to-new-repo-pattern` memory) \u2192 rename swap\n3. Then push to FF-public via mechanic A (which now ships clean history)\n- Most thorough across BOTH private and public surfaces \u2014 anyone looking at FF private history also wouldn't see the items\n- Heaviest path \u2014 same 4-pass cycle we just finished\n- ~30-60 min including SOP re-audit"
+      },
+      {
+        "role": "assistant",
+        "text": "Wait \u2014 I owe you a correction before the worker proceeds. My option B description was misleading. Let me be precise:\n\n**The actual public-side state after each option:**\n\n- **B (delete + recreate)**: Drops the current FF-public, creates fresh, mirror-pushes the private FF's main with the cleanup commit at top. **But** the parent commits `4eb1a76d \u2192 79026c7 \u2192 4262146` are still in the chain (because they're real commits in private FF's history). On the NEW public, `git log` would still walk through them, and `git show 4eb1a76d` would still expose the ER605/jumpbox/Monarch content. **B does NOT scrub the leaked content from being browsable in public history.** Its only real benefit over A is destroying any server-side cache / PR refs that the original FF-public accumulated \u2014 and since no PRs have happened yet, that benefit is near zero.\n\n- **D (history rewrite on private first)**: Genuinely scrubs the items from the chain itself. After this, `git show 4eb1a76d` returns \"unknown ref\" on the public. Properly scrubbed.\n\n- **A (append)**: Same as B for what's publicly browsable. Cheapest.\n\nSo the real choice is **D (full scrub of public history)** vs **A/B (accept that historical commits remain browsable on public, just with a cleanup commit at HEAD)**.\n\nGiven your earlier stance of \"archive/re-publish acceptable\" and the short exposure window:"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "D \u2014 Full history rewrite on private, then fresh push to public"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-080473e5-ec77cfcc30ce6a53",
+  "sig": "answer:rollout-080473e5:ec77cfcc30ce6a53",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 080473e5-4255-4eab-981d-e07e9c0c3e3e.jsonl turn #11",
+  "input": {
+    "action": {
+      "session_id": "rollout-080473e5",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01MUnyW3zt4i3Exa3a1mw2rh",
+      "question": "Which relaunch flow do you want to live-test?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_013uZa41AMzqodTVCdb4NASP",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which relaunch flow do you want to live-test?",
+            "header": "Relaunch mode",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "/relaunch a specific session",
+                "description": "Pick a stopped/crashed cse_*, spawn a fresh bridge in its cwd seeded with its transcript brief. Original session not restored \u2014 new one starts from the brief as first turn."
+              },
+              {
+                "label": "Supervisor restart + fork",
+                "description": "launchctl kickstart -k the supervisor; mm-* servers respawn from active-dirs.txt; then fork orphaned cse_ transcripts back in. Riskier \u2014 interrupts all live sessions on this host."
+              },
+              {
+                "label": "Both, in order",
+                "description": "Restart supervisor first, then /relaunch one of the sessions that got killed, to verify the fork\u2192relaunch path end-to-end."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "user",
+        "text": "Are you able to relaunch and will the sessions be restored? I wanna do a live test now."
+      },
+      {
+        "role": "assistant",
+        "text": "Quick check before I touch anything \u2014 \"relaunch\" is ambiguous here and the answer is different for each:\n\n1. **`/relaunch <cse_id>`** \u2014 spawns a *fresh* bridge session seeded with a brief auto-derived from the prior session's transcript (cwd + branch + last N user turns). The original session is *not* resumed; you get a new `cse_*` with `vN` title bump and the prior context as its first user turn. Works for stopped/crashed/unresumable sessions.\n\n2. **Restart the supervisor** (`launchctl kickstart -k \u2026`) \u2014 SIGTERMs all `mm-*` servers, then they're respawned from `~/.ai-harness/active-dirs.txt`. Live `cse_*` sessions inside those servers are interrupted; orphaned transcripts on disk need to be forked back in *after* the new server is up (per memory).\n\nWhich one do you want to test?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "Supervisor restart + fork"
+  }
+}

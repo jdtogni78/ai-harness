@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-85cb3f7f-bb170367e644438d",
+  "sig": "answer:rollout-85cb3f7f:bb170367e644438d",
+  "captured_at": "2026-06-04T01:28:50+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from 85cb3f7f-4e47-4f6d-be0c-cedfc1bf0f31.jsonl turn #541",
+  "input": {
+    "action": {
+      "session_id": "rollout-85cb3f7f",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01YZYvSALAVwSZ5gdzcLwdN4",
+      "question": "Which scenarios to add now?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_018rLagY5t7G8pxndLJRAhYR",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which scenarios to add now?",
+            "header": "Expansion set",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "S7 \u2014 Fund invariants under lending (Recommended)",
+                "description": "Asserts AUM, share price, and the new 3-bucket sum are invariant under draw/repay. Hits commit 12ef9b38 directly."
+              },
+              {
+                "label": "S8 \u2014 AccountExt accessor consistency (Recommended)",
+                "description": "Pure-math test that the 4 new accessors stay coherent (gross \u2212 borrowed = net) through the lifecycle. Hits commit 6eaf4801."
+              },
+              {
+                "label": "S9 \u2014 Delay-notification dedup (Recommended)",
+                "description": "Runs ScanLatePaymentsJob twice and asserts a single CreditLineDelayNotification row. Hits commit 1e6bdc2b."
+              },
+              {
+                "label": "S10 \u2014 Partial credit across 3 REPs (Recommended)",
+                "description": "Walks 1/3 + 1/3 + 1/3 payments; asserts row status transitions PARTIAL\u2192PARTIAL\u2192PAID. Hits the partial-credit fix in 1e6bdc2b."
+              }
+            ]
+          },
+          {
+            "question": "Any of the harder ones too?",
+            "header": "Stretch",
+            "multiSelect": true,
+            "options": [
+              {
+                "label": "S11 \u2014 Backdated reversal collision",
+                "description": "Reverse an old REP after a later REP already settled the row; assert allocation ledger consistency."
+              },
+              {
+                "label": "S12 \u2014 Cross-fund isolation",
+                "description": "Two funds; borrowing in fund A must not touch fund B's NAV/balances. Larger setup."
+              },
+              {
+                "label": "S13 \u2014 Concurrent draw race",
+                "description": "Two near-simultaneous draws hitting availableToBorrow; tests the DrawService lockForUpdate. Tricky to write reliably without real concurrency."
+              },
+              {
+                "label": "None of these now",
+                "description": "Just S7\u2013S10."
+              }
+            ]
+          },
+          {
+            "question": "Also extend the Dusk smoke layer?",
+            "header": "Dusk",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Yes \u2014 add 1-2 Dusk smokes for S7 (fund summary UI) and S9 (late-notification banner) (Recommended)",
+                "description": "Lightweight UI smoke that the new fund-summary HTML and delay-notification UI render without errors. Run from familyfund container only (pool slots lack ChromeDriver)."
+              },
+              {
+                "label": "Just S7 fund summary smoke",
+                "description": "Verify the 3-bucket Allocated/Loaned/Unallocated stripe renders under a borrowing."
+              },
+              {
+                "label": "No new Dusk \u2014 PHPUnit only",
+                "description": "Keep the existing 2 Dusk smokes; skip new ones. PHPUnit assertions already cover the math."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Merge clean \u2014 no conflicts. Big arrival: `GoalCalculationService` (exactly what the `goal-current-is-net` memory anticipated) and `CreditLineDelayNotification`. Let me re-run the scenarios and review the new code in parallel."
+      },
+      {
+        "role": "assistant",
+        "text": "Confirmed: shipped as **\"Loan Share\"** (not \"Share Loan\" \u2014 I got the ordering wrong); observer wiring still broken. Let me update the failing assertions, un-skip S5 (since `GoalCalculationService` now provides net), correct the memory, and re-run."
+      },
+      {
+        "role": "assistant",
+        "text": "Now un-skip S5's HTTP test \u2014 `GoalCalculationService` is the implementation the memory predicted."
+      },
+      {
+        "role": "assistant",
+        "text": "All 18 pass \u2014 no skips. Now let me update the memory (the rename actually shipped as \"Loan Share\", not \"Share Loan\") and review the broader merge to spot expansion areas."
+      },
+      {
+        "role": "assistant",
+        "text": "Now let me review what main brought in, then propose expansions."
+      },
+      {
+        "role": "assistant",
+        "text": "Tests now 18/18 pass after merge. Here's the review and expansion proposal.\n\n## What main brought in\n\n| Commit | Change | Where |\n|---|---|---|\n| `9f9ce944` | New `GoalCalculationService` returning `current` (net), `current_gross`, `borrowed_value`, `borrowed_shares` | `app/Services/GoalCalculationService.php` |\n| `6eaf4801` | New `AccountExt` accessors: `sharesWithoutBorrowingAsOf`, `valueWithoutBorrowingAsOf`, `borrowedSharesAsOf`, `borrowedValueAsOf` | `AccountExt.php:138-167` |\n| `12ef9b38` | Fund summary recast as 3 buckets: **Allocated + Loaned (from unallocated) + Available unallocated**. AUM/share price unchanged by lending. | `FundTrait`, `UIColors` |\n| `b368c632` | Account balances chart now plots net + borrow sub-line | `accounts/balances_graph.blade.php` |\n| `1e6bdc2b` | New `CreditLineDelayNotification` ledger (persisted dedup), partial-credit accounting fix, error surfacing | `CreditLineDelayNotification`, `ScanLatePaymentsJob`, `TrajectoryBuilder` |\n| `c79126a6` | UI rename **\"Credit Line\" \u2192 \"Loan Share\"** \u2014 labels only; classes/tables/routes still use `credit_line` | Blade + mail templates |\n| `490cebd9` | Borrowed-shares row in fund allocation summaries | `FundTrait`, `FundExt` |\n\nNotable gaps after the merge \u2014 observer wiring is **still broken** (the `transaction-observer-wiring-gap` memory remains valid).\n\n## What S1-S6 now cover\n\nAfter merge fixes (Loan Share label, un-skipped S5): **all 18 tests pass.** They cover multi-line lifecycle, REP routing matrix, non-interaction with PUR/SAL/MAT, backdated late sweep, the canonical goal-net rule (via `GoalCalculationService`), and readjust+reverse.\n\n## Where the new code is uncovered by my scenarios\n\n| Risk | New code | Uncovered |\n|---|---|---|\n| Fund AUM / share-price drift from lending | `12ef9b38` 3-bucket math | No scenario asserts AUM + share-price are invariant under draw/repay |\n| Account accessor inconsistency | `6eaf4801` 4 new accessors | No scenario asserts `gross \u2212 borrowed = net` after each lifecycle step |\n| Delay-notification re-send under retry/cache-flush | `1e6bdc2b` `CreditLineDelayNotification` | No scenario hits `ScanLatePaymentsJob` twice and asserts dedup |\n| Partial-credit math regression | `1e6bdc2b` partial-credit fix | No scenario walks 1/3 + 1/3 + 1/3 row payments |\n| Backdated reversal collisions | (pre-existing risk) | No scenario reverses an old REP after a later REP already settled the row |\n| Cross-fund leakage | (pre-existing risk) | No scenario proves fund A borrowing doesn't touch fund B |\n| Concurrent draws hitting cap | `DrawService::open` row lock at line 70 | No scenario races two draws against `availableToBorrow` |\n\n## Proposed expansion \u2014 7 new scenarios\n\nMy recommendation: **land S7\u2013S10 now** (each ~30 lines, fast PHPUnit, all hit fresh fix sites from this merge). Defer S11\u2013S13 unless you want broader coverage.\n\n- **S7 \u2014 Fund invariants under lending** *(covers commit 12ef9b38)*. Open a credit line; assert: (a) fund.AUM unchanged, (b) share price unchanged, (c) Allocated + Loaned + Available = total. After repay: same invariants hold. Highest value: the \"loaned \u2260 asset\" claim is load-bearing for the new fund summary.\n- **S8 \u2014 AccountExt accessor consistency** *(covers commit 6eaf4801)*. Pure math: at each step (initial / after draw / after partial repay / after full repay) assert `sharesWithoutBorrowingAsOf \u2212 borrowedSharesAsOf = sharesAsOf` and the same triple for `valueAsOf`. Catches future drift between the four accessors.\n- **S9 \u2014 Delay-notification dedup** *(covers commit 1e6bdc2b)*. Backdate a draw to force a late row, run `ScanLatePaymentsJob` twice, assert exactly one `CreditLineDelayNotification` row exists. Proves the cache\u2192table migration holds across worker restarts.\n- **S10 \u2014 Partial credit across multiple REPs** *(covers commit 1e6bdc2b)*. Repay a row in three 1/3-share chunks; assert: row stays `partial` after #1 and #2, flips to `paid` only after #3; allocations ledger has 3 entries summing to `shares_due`.\n- **S11 \u2014 Backdated reversal of a row settled by later REP**. REP-A pays row, REP-B is a separate later payment, then reverse REP-A; row should stay paid (because REP-B re-fills it via cascade) OR revert to scheduled with no allocations leaking. Proves the allocation ledger's audit trail.\n- **S12 \u2014 Cross-fund isolation**. Two funds, two beneficiaries, one borrowing; assert the other fund's NAV, share-price, and beneficiary balances are 100% unchanged. Defends against accidental fund-level coupling.\n- **S13 \u2014 Concurrent draw race**. Two near-simultaneous draws against the same account where the second would exceed `availableToBorrow`; using `DB::transaction` + the existing `lockForUpdate` in `DrawService.php:70`, one must reject with `OverBorrowException`. Slightly tricky but tests a real race the lock was added for.\n\nQuestion: ship S7-S10 now (recommended), or different mix?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "S10 \u2014 Partial credit across 3 REPs (Recommended), S8 \u2014 AccountExt accessor consistency (Recommended), S7 \u2014 Fund invariants under lending (Recommended), S9 \u2014 Delay-notification dedup (Recommended), S11 \u2014 Backdated reversal collision, S12 \u2014 Cross-fund isolation, Yes \u2014 add 1-2 Dusk smokes for S7 (fund summary UI) and S9 (late-notification banner) (Recommended)"
+  }
+}

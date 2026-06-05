@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-d3a717ce-59fd24426a4a8645",
+  "sig": "answer:rollout-d3a717ce:59fd24426a4a8645",
+  "captured_at": "2026-06-04T01:28:51+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from d3a717ce-609b-42da-a54d-10157cd74c4b.jsonl turn #318",
+  "input": {
+    "action": {
+      "session_id": "rollout-d3a717ce",
+      "repo": "ai-harness",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/ai-harness/.claude/worktrees/bridge-cse_01K5KvV7qdfBcZByfrPGiTiq",
+      "question": "How should the personal project names (FamilyFund, dstrader*, job-search, etc.) be handled in the public repo?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_014BCJxgBRmZFUxzBEStBRrm",
+        "description": "",
+        "questions": [
+          {
+            "question": "How should the personal project names (FamilyFund, dstrader*, job-search, etc.) be handled in the public repo?",
+            "header": "Project names",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Genericize all (Recommended)",
+                "description": "Replace every project name with neutral placeholders (FamilyFund\u2192webapp, dstrader*\u2192trading-svc, DSTraderAnalysis\u2192analysis, job-search\u2192jobsearch). Fully neutral; the harness is the focus. I recreate the local copy and keep tests green."
+              },
+              {
+                "label": "Keep all real names",
+                "description": "Leave FamilyFund / dstrader / job-search etc. as-is. More concrete and credible as a portfolio, but exposes that you run personal finance, trading, and job-search projects."
+              },
+              {
+                "label": "Genericize finance/trading only",
+                "description": "Replace the finance/trading names (FamilyFund, dstrader, dstrader-docker, dstrader_python, DSTraderAnalysis) but keep the innocuous job-search. Middle ground."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "Clean. Now I'll harden the copy's `.gitignore` (leak classes) and add a `.gitleaks.toml` so the public repo can't silently re-leak \u2014 both from the FamilyFund findings."
+      },
+      {
+        "role": "assistant",
+        "text": "Now check for gitleaks, then initialize the local repo with a **single fresh commit under a neutral identity** \u2014 no remote, no push."
+      },
+      {
+        "role": "assistant",
+        "text": "The local public repo is built. Let me record the final state in memory, then summarize."
+      },
+      {
+        "role": "assistant",
+        "text": "All done. Here's where things landed.\n\n## \u2705 Committed & pushed to `main`\nThe portfolio docs are live on `origin/main` (`af468c5..aca7cf9`): the rewritten `README.md`, `docs/ARCHITECTURE.md`, `docs/OPERATIONS.md`, and the `DECISIONS.md` pointer fix. While integrating, I also discovered a **brand-new subsystem** (the AI `PreToolUse` permission gate, merged via #23) that my overview didn't cover yet \u2014 so I folded it into all three docs (it's the in-session enforcement arm of the session manager, sharing one stakes policy) and refreshed the counts to **427 tests / ~6.5k LOC**. Suite is green.\n\n## \u2705 Local public repo built \u2014 not pushed\nAt **`~/dev/ai-harness-public`**, exactly as you asked (hold off on GitHub):\n- Built from a **clean `git archive` export** \u2014 no `.git`, no history rides along (the #1 FamilyFund warning).\n- **Sanitized**: usernames `claudio1\u2192user`/`dtogni\u2192user2`, handle `jdtogni78\u2192youruser`, the LAN IPs/NAS/prod hosts redacted, the hardcoded DB password \u2192 `localdevpassword`, real first names in test hostnames neutralized, plist files renamed `com.user.*`/`com.user2.*`. Verified clean with a **case-insensitive** sweep (the first pass missed `Claudio1`/`Daniel` \u2014 caught and fixed).\n- **427 tests pass** in the copy (genericization kept input/expectation consistent).\n- Added a **hardened `.gitignore`** + **`.gitleaks.toml`** so it can't silently re-leak.\n- **Single fresh commit** (`f81da06`) under a neutral identity, **no remote, no push**.\n\n## FamilyFund cross-check \u2014 folded in\nTheir practices confirmed the approach and added: build-from-archive (done), gitignore leak-classes (done), gitleaks config (done), neutral commit identity (done). Their ED-0017 also confirms **SOPS is the wrong tool here** \u2014 no secret material belongs in a public repo, and the one secret was just a LAN dev password \u2192 placeholdered, not encrypted.\n\n## Open decisions for when you're ready to actually publish\n*(each is a quick recreate \u2014 one more pass)*\n1. **Project names** (`FamilyFund`/`dstrader`/\u2026) \u2014 I left them in; decide keep vs. genericize.\n2. **Commit identity** \u2014 neutral placeholder now; swap to your real GH-noreply if you want attribution.\n3. **LICENSE** \u2014 none yet (most portfolios add MIT).\n4. Consider **dropping `DECISIONS.md` GD-0007** entirely + slimming `CLAUDE.md` (prod/board specifics).\n5. `brew install gitleaks` so I can run an actual scan, and add a **pre-commit + CI gate**.\n\nWant me to knock out any of those (e.g. genericize project names, add a LICENSE) and recreate the local repo?"
+      },
+      {
+        "role": "user",
+        "text": "Please expound them and ask me directly. iteratively."
+      },
+      {
+        "role": "assistant",
+        "text": "Good call \u2014 these are real decisions with tradeoffs, so let's go one at a time. There are five; I'll take the most consequential first and we'll work down the list.\n\n---\n\n## Decision 1 of 5 \u2014 Project names\n\n**What's at stake.** Your repo references six personal projects by name \u2014 `FamilyFund`, `dstrader`, `dstrader-docker`, `dstrader_python`, `DSTraderAnalysis`, and `job-search` \u2014 across ~33 files: `active-dirs.txt`, `session-nicknames.txt`, `DECISIONS.md`, the pool scripts, the `lease-env`/`test-env` skill docs (which describe FamilyFund's Laravel/MariaDB preview + test pools specifically), and several tests/fixtures. In the local public copy I built, these are **still present** (I deferred this one to you).\n\n**Why it matters.** These aren't secrets, but they're *identifying* and *domain-revealing*: a reader learns you run a **family fund-management web app** (i.e., money), **trading systems/bots**, and a **job-search tool**. That's a fairly personal footprint to expose.\n\n**The tradeoff:**\n- **Keep them** \u2014 More concrete and credible. Real system names read as \"this person ships real things,\" and the env-pool skills make natural sense with a real app behind them. Cost: exposes your private project portfolio and that you do personal finance/trading.\n- **Genericize all** \u2014 Fully neutral (e.g. `FamilyFund\u2192webapp`, `dstrader*\u2192trading-svc`, `job-search\u2192jobsearch`). The *harness* becomes the star, not the apps. Cost: more churn (tests, fixtures, skill prose go slightly abstract), and I recreate the local copy.\n- **Split** \u2014 Genericize only the finance/trading names (the sensitive domains), keep the innocuous `job-search`.\n\nMy lean, given your consistent \"sanitized\" preference and that these reveal personal-finance/trading work: **genericize** \u2014 but it's genuinely your call since they're not secrets and real names can strengthen a portfolio."
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "ask me one at a time"
+  }
+}

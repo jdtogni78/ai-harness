@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "mined-answer-rollout-f48fbc87-47191a04c431bccc",
+  "sig": "answer:rollout-f48fbc87:47191a04c431bccc",
+  "captured_at": "2026-06-04T01:28:49+00:00",
+  "captured_by": "mined",
+  "tags": [
+    "A-waiting-q",
+    "ANSWER",
+    "mined"
+  ],
+  "notes": "mined from f48fbc87-69f2-435d-aeae-1cad21446e59.jsonl turn #321",
+  "input": {
+    "action": {
+      "session_id": "rollout-f48fbc87",
+      "repo": "FamilyFund",
+      "kind": "answer",
+      "reason": "mined from local rollout",
+      "run_dir": "/Users/claudio1/dev/FamilyFund/.claude/worktrees/bridge-cse_01H9L9XjemcbagSpDhnBZxye",
+      "question": "Which strategy for eliminating the pull-ref residual?",
+      "command": [],
+      "api": "",
+      "managed": true,
+      "required": {
+        "tool_name": "AskUserQuestion",
+        "tool_use_id": "toolu_01VnUYinqQa9TXiuYFp4ywBb",
+        "description": "",
+        "questions": [
+          {
+            "question": "Which strategy for eliminating the pull-ref residual?",
+            "header": "Strategy",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "New repo + swap",
+                "description": "I create a new private repo, push the clean history, (optionally) transfer issues, then YOU delete old FamilyFund and I rename new \u2192 FamilyFund. Immediate, certain; loses/needs-migration of PRs + board links."
+              },
+              {
+                "label": "GitHub Support GC",
+                "description": "Keep the current repo as-is and open a GitHub Support ticket to GC unreachable objects. Preserves all 70 issues + 11 PRs + board links; depends on their turnaround."
+              },
+              {
+                "label": "Hold",
+                "description": "Leave it for now \u2014 repo is private and dev creds are dead, so no live-secret urgency. Revisit before the publish gate (#68)."
+              }
+            ]
+          },
+          {
+            "question": "If we do the new-repo swap, how should issues be handled?",
+            "header": "Issues",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "Migrate 20 open issues",
+                "description": "gh issue transfer the open issues to the new repo before deleting old (keeps comments + redirects; they'll get new numbers). Closed issues incl. #66 left behind / lost on delete."
+              },
+              {
+                "label": "Migrate all 70",
+                "description": "Transfer open + closed issues (more thorough record, incl. #66 audit trail), but tedious and all get renumbered."
+              },
+              {
+                "label": "Start fresh",
+                "description": "Don't migrate; the new repo starts with no issues. Simplest, but #66's audit trail + 20 open tracked items are lost (history/docs still in-repo)."
+              }
+            ]
+          }
+        ]
+      },
+      "fresh": false,
+      "title": ""
+    },
+    "transcript_tail": [
+      {
+        "role": "assistant",
+        "text": "#66 is **Done** on the board and closed. Let me record this milestone in memory and verify the canonical repo is healthy."
+      },
+      {
+        "role": "assistant",
+        "text": "Let me do a final health check of the canonical repo and worktrees, then close out."
+      },
+      {
+        "role": "assistant",
+        "text": "The destructive purge is **complete, verified, and #66 is closed**. Summary:\n\n## \u2705 What was done (#66 git-history secret/PII purge)\n\n**Backup first** \u2014 `~/familyfund-repo-backups/2026-05-25-1328/`: pristine `--mirror` + `--all` bundle (verified *\"complete history\"*) + refs manifest. **Rollback target is intact** (see below).\n\n**Validated before executing** \u2014 ran the full recipe on a throwaway clone and re-audited; only touched origin after the gate passed and you approved.\n\n**Executed + force-pushed:**\n- `git-filter-repo`: path-purge of 14 data paths + 4 dead legacy dirs, plus `--replace-text` of the owner email (broadened to `jd?togni\u2026` to also catch a misspelled `jtogni@\u2026` test fixture the original rule missed).\n- `prod_to_dev.sql`: **option (a)** per your choice \u2014 substitution accepted.\n- Force-pushed all 29 branches; `main` `656ed77b \u2192 b4348876`. Deleted **15 stale, merged, PR-free branches**; kept `main` + 11 dependabot (open PRs) + 2 unmerged branches \u2192 origin now 14 branches.\n- Baked the audit + recipe docs onto the rewritten history; hard-reset canonical `~/dev/FamilyFund`.\n\n**Independently verified** (fresh clone of rewritten origin, publishable `refs/heads`+`refs/tags`):\n\n| | before | after |\n|---|---:|---:|\n| `datadir_acl/` objects | 248 | **0** |\n| leaked APP_KEYs | 2 | **0** |\n| family-PII emails | ~97 | **0** |\n| real password hashes | 550 | **0** (5 synthetic dev-targets remain) |\n| owner email (content) | 291 | **0** |\n\nResidual 32 emails = open-source `composer.lock` package-authors (public, not PII).\n\n## \u26a0\ufe0f One residual I can't fix from here \u2014 needed before publish (#68)\nGitHub still serves **29 `refs/pull/*`** pointing at *pre-rewrite* commits, so the old data is reachable **by SHA via those PR refs only** (unreachable from any branch/tag). **Ask GitHub Support to GC unreachable objects** before going public. Dev `APP_KEY`/`DB_PASSWORD` are already rotated (dead), so this residual is PII + offline-crackable hashes, not a live secret.\n\n## Owner follow-ups (can't be done from this sandbox)\n- **Re-clone on the macbook host** \u2014 its checkout shares no history with rewritten origin.\n- **Recreate the 2 stale bridge worktrees** from clean history (I left the `mm-FamilyFund` supervisor running \u2014 stopping it would have killed this executing session).\n- Unrelated: five ~60 MB PNGs in `docs/qa-shots-2026-05-20/` trip GitHub's large-file warning (out of #66 scope).\n\n## Rollback (if anything looks wrong)\n```\ncd ~/familyfund-repo-backups/2026-05-25-1328/FamilyFund-origin.git\ngit remote add restore https://github.com/jdtogni78/FamilyFund.git\ngit push --force --mirror restore\n```\n\n#66 is closed and moved to **Done** on board #1.\n\nNo `/schedule` offer here \u2014 the one outstanding item (GitHub-Support GC) is a manual owner action with no fixed date."
+      },
+      {
+        "role": "user",
+        "text": "I think a better strategy would be to recreate a local repo, push to a github and rename the repos.\nIs this still possible?"
+      },
+      {
+        "role": "assistant",
+        "text": "Yes \u2014 it's still entirely possible, and it's actually the *only* way to fully eliminate the residual without depending on GitHub Support's GC. Let me check a couple of facts so I can be concrete about what it takes."
+      },
+      {
+        "role": "assistant",
+        "text": "Yes, it's still possible \u2014 and for *fully* eliminating the residual without waiting on GitHub, it's the right instinct. But there's one important correction and a real cost to weigh.\n\n## The key correction: renaming \u2260 purging\nRenaming a GitHub repo just changes its URL (with redirects) \u2014 the **same** repo keeps its entire object store, including the 29 `refs/pull/*` that still point at the pre-rewrite commits. So a rename alone leaves the exposure exactly where it is. The action that actually destroys those cached objects is **deleting the old repo**. So the real sequence is:\n\n1. Create a **new** private repo, push the clean history (I have it ready: `/tmp/ff-purge.git`, 29 heads, **0 pull-refs**).\n2. Migrate whatever metadata you want to keep.\n3. **Delete the old `FamilyFund` repo** \u2190 this is what removes the residual.\n4. Rename the new repo \u2192 `FamilyFund` (reclaims the URL; existing remotes keep working by name).\n\n## What a fresh repo does NOT inherit (the cost)\nCode + full git history + workflow *files* come across. These do **not**:\n- **70 issues** (20 open, 50 closed incl. #66) and their threads\n- **11 open dependabot PRs** (dependabot will recreate them)\n- Board **#1** links (issues get new numbers \u2192 board items break unless re-linked)\n- Labels, milestones, branch protection, repo settings\n\nIssues *can* be moved individually with `gh issue transfer` (keeps comments + redirect); PRs cannot.\n\n## Two honest scope notes\n- My token lacks `delete_repo`, so **I can't delete the old repo** \u2014 that step is yours (web UI, or `gh auth refresh -s delete_repo`). Everything else (create, push clean, transfer issues, rename) I can do.\n- The lower-disruption alternative still exists: **ask GitHub Support to GC** the unreachable objects on the *current* repo \u2014 keeps all 70 issues + PRs + board links intact, but depends on their turnaround. (Repo is private and dev creds are dead, so there's no live-secret urgency either way.)\n\nHow do you want to proceed?"
+      }
+    ],
+    "session_meta": {}
+  },
+  "actual_at_capture": {
+    "rec_manager": "",
+    "rec_session": "",
+    "analysis": ""
+  },
+  "expected": {
+    "rec_manager": "none",
+    "rec_session": "New repo + swap, Migrate 20 open issues"
+  }
+}
