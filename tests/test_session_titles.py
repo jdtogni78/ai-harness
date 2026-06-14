@@ -12,6 +12,7 @@ from remote_control.session_titles import (
     encode_dev_prefix,
     existing_prefix_host,
     extract_sub_token,
+    extract_sub_tokens,
     is_host_local,
     live_session_entries,
     merged_repo_index,
@@ -217,6 +218,46 @@ class PrefixTest(unittest.TestCase):
         # a leading prefix. Otherwise plan_renames would drop the [B]
         # body on a title that strip_prefix leaves untouched.
         self.assertIsNone(extract_sub_token("[A][B]nospace"))
+
+    def test_extract_sub_tokens_multi_with_nick(self):
+        # With nick supplied, every leading bracket equal to nick is dropped
+        # (the dup-NICK heal case); the remainder is the real sub chain.
+        self.assertEqual(
+            extract_sub_tokens("[DEV.mini][MGR-1][S1] body", nick="DEV.mini"),
+            ["MGR-1", "S1"])
+        self.assertEqual(
+            extract_sub_tokens("[DEV.mini] [DEV.mini][MGR-1][S1] body",
+                               nick="DEV.mini"),
+            ["MGR-1", "S1"])
+        self.assertEqual(
+            extract_sub_tokens("[DEV.mini] body", nick="DEV.mini"), [])
+
+    def test_apply_prefix_with_subs_emits_chain(self):
+        # `subs=` (multi) appends one bracket per element after the NICK; an
+        # empty entry collapses out.
+        self.assertEqual(
+            apply_prefix("body", "DEV.mini", subs=["MGR-1", "S1"]),
+            "[DEV.mini][MGR-1][S1] body")
+        self.assertEqual(
+            apply_prefix("body", "DEV.mini", subs=["MGR-1", "", "S1"]),
+            "[DEV.mini][MGR-1][S1] body")
+        # `subs=` overrides legacy single `sub=`.
+        self.assertEqual(
+            apply_prefix("body", "DEV.mini", sub="ignored", subs=["A", "B"]),
+            "[DEV.mini][A][B] body")
+
+    def test_plan_renames_preserves_multi_sub_chain(self):
+        # The watcher's pass on a [NICK][MGR-N][S<k>] title must round-trip the
+        # entire chain, not just the last bracket.
+        sessions = [{"id": "cse_bridge",
+                     "title": "[CRC.mini][MGR-2][S3] body",
+                     "config": {}}]
+        plan = {r.id: r for r in plan_renames(
+            sessions, {"cse_bridge": "claude-remote-control"},
+            build_nickname_map(), host="mini")}
+        self.assertEqual(plan["cse_bridge"].new_title,
+                         "[CRC.mini][MGR-2][S3] body")
+        self.assertFalse(plan["cse_bridge"].changed)
 
     def test_apply_prefix_heals_dup_form(self):
         # End-to-end: watcher's apply_prefix on the dup form must collapse
@@ -427,6 +468,44 @@ class RunSetRepoFallbackTest(unittest.TestCase):
                 os.environ["REMOTE_CONTROL_HOST"] = prev_host
         self.assertEqual(rc, 0)
         self.assertEqual(cap["title"], "[AO] no claim")
+
+    def test_cwd_override_recovers_repo_outside_index(self):
+        """`titles set --id <sid> --cwd <dir>` derives [NICK] from the dir
+        when neither the on-disk index nor the API source URL knows the sid.
+        This is the path the manage skill uses to tag a manager session that
+        isn't running inside any bridge worktree."""
+        from remote_control import session_titles as st
+
+        captured = {}
+
+        def fake_set(cfg, token, sid, title):
+            captured["title"] = title
+            return 200, {}
+
+        orig_repo_cwd, orig_list, orig_set = (
+            st.repo_from_cwd, st.monitor.list_sessions, st.set_title)
+        prev_host = os.environ.get("REMOTE_CONTROL_HOST")
+        st.repo_from_cwd = lambda cwd, dev: "AppOne"
+        st.monitor.list_sessions = lambda cfg, token, log: []
+        st.set_title = fake_set
+        os.environ["REMOTE_CONTROL_HOST"] = "mini"
+        try:
+            opts = {"dev": "/nonexistent", "file": "/nonexistent", "map": "",
+                    "self": False, "id": "cse_mgr",
+                    "desc": "public scans (2 workers)",
+                    "projects": "/nonexistent", "cwd": "/some/dir",
+                    "subs": ["MGR-1"]}
+            rc = st._run_set(None, "tok", opts, log=lambda m: None)
+        finally:
+            st.repo_from_cwd, st.monitor.list_sessions, st.set_title = (
+                orig_repo_cwd, orig_list, orig_set)
+            if prev_host is None:
+                os.environ.pop("REMOTE_CONTROL_HOST", None)
+            else:
+                os.environ["REMOTE_CONTROL_HOST"] = prev_host
+        self.assertEqual(rc, 0)
+        self.assertEqual(captured["title"],
+                         "[AO.mini][MGR-1] public scans (2 workers)")
 
     def test_self_local_bridge_gets_host_suffix(self):
         """`set --self` is run from inside a session's own worktree on this host,

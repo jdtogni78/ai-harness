@@ -280,26 +280,12 @@ def strip_prefix(title: str) -> str:
     return _PREFIX_RE.sub("", title or "", count=1)
 
 
-def extract_sub_token(title: str) -> Optional[str]:
-    """The contents of the LAST leading bracket in a chained
-    ``[A][B] desc`` or ``[A] [A][B] desc`` prefix, or None if the title has
-    at most one leading bracket. Lets :func:`plan_renames` preserve a
-    subname tag the watcher itself doesn't know -- the only authoritative
-    source is the title it's currently looking at, set there by
-    ``new-session --subname`` at spawn time.
-
-    Tolerates space-separated leading brackets so the watcher self-heals
-    the duplicated-prefix form (``[NICK] [NICK][SUB] desc``) that
-    accumulates when the platform's auto-titler races our PUT mid-pass.
-    With 3+ leading brackets, the first N-1 are assumed to be stacked
-    NICK forms (our own apply_prefix re-prepending on top of an
-    unstripped carry-over) and the LAST is the SUB -- e.g.
-    ``[NICK] [NICK] [NICK][SUB]`` -> ``SUB``. The trailing whitespace
-    requirement (lookbehind) means the leading bracket-run must end at
-    a word boundary; ``[A][B]nospace`` returns None just like
-    strip_prefix leaves it alone."""
+def _leading_brackets(title: str) -> List[str]:
+    """All leading bracketed tokens (in order) before the leading whitespace
+    boundary, or ``[]`` if the title has none or no bracket-run ends at
+    whitespace. The trailing-whitespace requirement mirrors strip_prefix so the
+    two helpers agree on what counts as a prefix."""
     text = title or ""
-    # Anchor at the start and walk one leading bracket-group at a time.
     brackets: List[str] = []
     pos = 0
     while True:
@@ -308,16 +294,39 @@ def extract_sub_token(title: str) -> Optional[str]:
             break
         brackets.append(m.group(1))
         pos = m.end()
-    # 0 or 1 leading bracket -> no chained sub.
-    if len(brackets) < 2:
-        return None
-    # The leading bracket-run must end at whitespace (matches strip_prefix
-    # so the two helpers agree on what counts as a prefix). Without this,
-    # ``[A][B]nospace`` would return ``B`` while strip_prefix leaves the
-    # title untouched -- plan_renames would then drop the [B] body.
+    if not brackets:
+        return []
     if pos >= len(text) or not text[pos].isspace():
-        return None
-    return brackets[-1]
+        return []
+    return brackets
+
+
+def extract_sub_tokens(title: str, nick: Optional[str] = None) -> List[str]:
+    """All sub-bracket tokens in a chained ``[NICK][S1][S2] desc`` prefix, in
+    order, or ``[]`` if there are none. With *nick* supplied (the canonical
+    rendered NICK token for this session), every leading bracket equal to
+    *nick* is treated as a stacked NICK-dup and dropped; the remainder are
+    real subs. Without *nick*, falls back to the legacy single-sub heuristic
+    (assume the first N-1 leading brackets are stacked NICK dups, return the
+    LAST one) so :func:`extract_sub_token` and the existing
+    new-session ``--subname`` round-trip stay byte-identical."""
+    brackets = _leading_brackets(title)
+    if len(brackets) < 2:
+        return []
+    if nick is not None:
+        i = 0
+        while i < len(brackets) and brackets[i] == nick:
+            i += 1
+        return brackets[i:]
+    return [brackets[-1]]
+
+
+def extract_sub_token(title: str) -> Optional[str]:
+    """Back-compat single-sub form of :func:`extract_sub_tokens`. Returns the
+    LAST leading bracket in a chained ``[A][B] desc`` or ``[A] [A][B] desc``
+    prefix, or ``None`` if the title has at most one leading bracket."""
+    subs = extract_sub_tokens(title)
+    return subs[-1] if subs else None
 
 
 def existing_prefix_host(title: str) -> Optional[str]:
@@ -341,14 +350,23 @@ def existing_prefix_host(title: str) -> Optional[str]:
     return parts[-1] if len(parts) >= 2 else None
 
 
-def apply_prefix(title: str, nickname: str, sub: Optional[str] = None) -> str:
+def apply_prefix(title: str, nickname: str, sub: Optional[str] = None,
+                 subs: Optional[List[str]] = None) -> str:
     """Re-prefix a title with ``[nickname] `` (idempotent: an existing prefix is
-    replaced, not stacked). With *sub*, emit the chained
-    ``[nickname][sub] desc`` form -- the subname tag new-session uses to mark
-    a spawned one-off subsession so it's distinguishable in the picker."""
+    replaced, not stacked). With *sub* or *subs*, emit the chained
+    ``[nickname][s1][s2] desc`` form -- the subname-tag mechanism new-session
+    uses to mark a spawned one-off subsession, and the manage skill extends
+    with a second ``[S<k>]`` to identify a worker within its manager. *subs*
+    (multi) takes precedence over *sub* (legacy single); empty entries collapse."""
     body = strip_prefix(title)
-    if sub:
-        return f"[{nickname}][{sub}] {body}".rstrip()
+    chain: List[str] = []
+    if subs:
+        chain = [s for s in subs if s]
+    elif sub:
+        chain = [sub]
+    if chain:
+        tail = "".join(f"[{s}]" for s in chain)
+        return f"[{nickname}]{tail} {body}".rstrip()
     return f"[{nickname}] {body}".rstrip()
 
 
@@ -527,12 +545,15 @@ def plan_renames(
         branch = branch_for(sid, repo) if (local and want_branch) else ""
         vals = session_values(s, repo, nmap, host=host, host_local=local, branch=branch)
         token = render_prefix(template, vals)
-        # Preserve a [SUB] tag set by new-session --subname (or by a human via
-        # ``titles set``). The watcher itself has no per-session source for
-        # subnames -- the only authoritative source is the title it's looking
-        # at right now -- so re-extract on every pass and re-emit.
-        sub = extract_sub_token(old)
-        plan.append(Rename(sid, repo, token, old, apply_prefix(old, token, sub=sub)))
+        # Preserve any [SUB] tags set by new-session --subname or by the
+        # manage skill's titles-set (e.g. ``[MGR-3][S1]``). The watcher itself
+        # has no per-session source for subnames -- the only authoritative
+        # source is the title it's looking at right now -- so re-extract every
+        # pass and re-emit. Pass the rendered NICK so dup-NICK leading brackets
+        # are dropped and any real subs (one OR multiple) survive intact.
+        subs = extract_sub_tokens(old, nick=token)
+        plan.append(Rename(sid, repo, token, old,
+                           apply_prefix(old, token, subs=subs)))
     return plan
 
 
@@ -883,7 +904,7 @@ USAGE = (
     "usage: python3 -m remote_control titles [list|apply] [--dev DIR] "
     "[--projects-dir DIR] [--nicknames-file PATH] [--map repo=NICK,...] "
     "[--only REPO] [--all]\n"
-    "       python3 -m remote_control titles set [--self|--id CSE_ID] [--sub SUB] \"<description>\"\n"
+    "       python3 -m remote_control titles set [--self|--id CSE_ID] [--cwd DIR] [--sub SUB]... \"<description>\"\n"
     "       python3 -m remote_control titles watch [--interval SECS]\n"
     "  list  (default): show the planned [NICK] title prefixes (no writes)\n"
     "  apply         : PUT the changed titles\n"
@@ -903,9 +924,13 @@ USAGE = (
     "                  sessions whose worktree lives outside the scanned\n"
     "                  dev roots\n"
     "                  --sub SUB: emit the chained '[NICK][SUB] desc' form\n"
-    "                  so the watcher's extract_sub_token preserves SUB on\n"
-    "                  subsequent re-renders. Used by manager sessions to\n"
-    "                  tag themselves '[MGR-N]' (active worker count).\n"
+    "                  so the watcher's extract_sub_tokens preserves SUB on\n"
+    "                  subsequent re-renders. Repeatable; manager sessions\n"
+    "                  use two ('--sub MGR-3 --sub S1') to tag a worker with\n"
+    "                  its manager id and its ordinal within that manager.\n"
+    "                  --cwd DIR: override repo derivation from DIR (the\n"
+    "                  manage skill passes the manager's own cwd so a session\n"
+    "                  outside any indexed bridge layout still gets [NICK]).\n"
     "  --projects-dir DIR : Claude Code transcript root (default ~/.claude/\n"
     "    projects). Repo is derived from a session's transcript-dir name when\n"
     "    its bridge worktree has been deleted but the transcript folder remains.\n"
@@ -923,7 +948,8 @@ def _parse_args(argv: List[str]) -> dict:
     opts = {"cmd": "list", "dev": DEV, "file": NICKNAMES_FILE,
             "map": "", "only": None, "self": False, "id": None, "desc": "",
             "projects": PROJECTS_DIR, "logdir": LOGDIR, "all": False,
-            "force_host": False, "sub": None, "interval": 0}
+            "force_host": False, "sub": None, "subs": [], "cwd": None,
+            "interval": 0}
     desc: List[str] = []
     i = 0
     while i < len(argv):
@@ -953,7 +979,13 @@ def _parse_args(argv: List[str]) -> dict:
         elif a == "--force-host":
             opts["force_host"] = True
         elif a == "--sub":
-            i += 1; opts["sub"] = argv[i]
+            i += 1
+            # Repeatable: each --sub appends one bracket. Legacy callers that
+            # passed a single --sub still work (read via opts["subs"][0]).
+            opts["subs"].append(argv[i])
+            opts["sub"] = argv[i]
+        elif a == "--cwd":
+            i += 1; opts["cwd"] = argv[i]
         elif a in ("-h", "--help"):
             opts["cmd"] = "help"
         elif not a.startswith("-"):
@@ -996,6 +1028,19 @@ def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
             return 2
         repo = repo_from_worktree_path(cwd)
         host_local = True  # --self: we ARE running inside it, on this host
+    # ``--cwd PATH`` is the explicit override the manage skill uses: a manager
+    # session running outside any indexed bridge layout still gets a project
+    # nickname by passing the dir it conceptually belongs to (typically the
+    # manager's own cwd). The override beats both the index lookup AND the
+    # cloud-source fallback because the caller asserts they know better, and
+    # it implies host-local (the caller IS running here).
+    if opts.get("cwd"):
+        cwd_override = opts["cwd"]
+        cwd_repo = (repo_from_worktree_path(cwd_override)
+                    or repo_from_cwd(cwd_override, opts["dev"]))
+        if cwd_repo:
+            repo = cwd_repo
+            host_local = True
     if repo is None:  # authoritative fallback: the session's own git source URL
         s = next((x for x in (monitor.list_sessions(cfg, token, log) or [])
                   if x.get("id") == sid), None)
@@ -1020,17 +1065,26 @@ def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
     if repo is None:
         log(f"warning: could not determine repo for {sid}; "
             f"setting title without a [NICK] prefix")
+    subs = list(opts.get("subs") or ([] if not opts.get("sub") else [opts["sub"]]))
     if repo:
         branch = ""
         if host_local and "{branch}" in template:
-            wt = cwd if not opts["id"] else str(bridge_worktree_path(opts["dev"], repo, sid))
+            if opts.get("cwd"):
+                wt = opts["cwd"]
+            elif not opts["id"]:
+                wt = cwd
+            else:
+                wt = str(bridge_worktree_path(opts["dev"], repo, sid))
             branch = git_branch(wt)
         vals = session_values({"id": sid}, repo, nmap, host=host_nickname(),
                               host_local=host_local, branch=branch)
-        title = apply_prefix(desc, render_prefix(template, vals),
-                             sub=opts.get("sub"))
+        title = apply_prefix(desc, render_prefix(template, vals), subs=subs)
     else:
-        title = (f"[{opts['sub']}] {desc}" if opts.get("sub") else desc)
+        # No repo -> no [NICK]; preserve any --sub bracket chain inline so a
+        # manager's [MGR-N][S1] markers survive even when nickname resolution
+        # failed (the title is still useful in the picker).
+        chain = "".join(f"[{s}]" for s in subs if s)
+        title = f"{chain} {desc}".strip() if chain else desc
     code, body = set_title(cfg, token, sid, title)
     if code == 200:
         print(f"set {sid} -> {title!r}")
