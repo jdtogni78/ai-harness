@@ -107,42 +107,70 @@ answer.
 9. **Mark closed in the state log** (`workers.sh close …`) and the row drops
    out of the active list.
 
-## Session title convention: `[MGR-N]`
+## Session title convention
 
-Manager sessions retitle themselves with a `[MGR-N]` bracket so they stand
-out in the picker / `sessions list`, where `N` is the count of active
-workers (closed / forgotten ones don't count). The render looks like:
+Two title shapes — one for the manager, one for each worker — both produced
+by `workers.sh` helpers that wrap `python3 -m remote_control titles set`
+with the right brackets. The watcher preserves the chained `[NICK.host][...]`
+segments across re-renders.
+
+**Manager**: `[NICK.host][MGR-<ord>] <task> (N worker[s])` — `<ord>` is a
+stable per-host ordinal allocated on the manager's first `mgr-id` call
+(persisted in `~/.ai-harness/manager/ordinals.jsonl`), so two managers
+running concurrently on the same host get distinct `[MGR-1]` / `[MGR-2]`
+brackets that don't shift if one closes. Example:
 
 ```
-[FF.mini][MGR-3] Managing 3 workers
+[AH.mini][MGR-1] titles 85+88 (1 worker)
 ```
 
-The titles watcher preserves the `[MGR-N]` segment across re-renders (same
-mechanism that preserves `[mgr-ff5-label]` on a `--subname`-tagged worker
-session). The bracket gets updated on every state-changing play:
+**Worker**: `[NICK.host][MGR<ord>-W<k>][#<ticket>] <brief>` — `<k>` is the
+worker's slot within its manager (non-recycling per `register`), and
+`#<ticket>` is the mandatory GitHub issue this worker was spawned to work.
+Example:
 
-- **dispatch** — after registering, retitle to the new count.
-- **close** — after marking closed in the state log, retitle.
-- **forget** — after marking forgotten, retitle.
+```
+[AH.mini][MGR1-W2][#88] titles convention spec
+```
 
-Helper (runs in any play):
+Notes on the bracket parts (per ticket #88):
+- Host segment drops a trailing `note` (`AH.m5`, not `AH.m5note`) — the
+  watcher's `normalize_host_segment` handles this. Personal nicknames still
+  belong in the host's plist via `REMOTE_CONTROL_HOST`.
+- Ticket reference is always bare `#<n>` (not `ticket<n>`) so GitHub
+  auto-linking works wherever titles are rendered.
+
+The brackets get refreshed on every state-changing play:
+
+- **dispatch** — after `register`, retitle the manager to the new count,
+  then retitle the new worker.
+- **close** — after `close` in the state log, retitle the manager.
+- **forget** — after `forget`, retitle the manager.
+
+Helpers (vendored in `skills/manage/scripts/workers.sh`):
 
 ```bash
-count="$(~/.claude/skills/manage/scripts/workers.sh list --json | jq 'length')"
-plural=$([[ $count == 1 ]] && echo "" || echo "s")
-cd ~/dev/ai-harness && python3 -m remote_control titles set \
-  --id <manager-cse_id> \
-  --sub "MGR-${count}" \
-  "Managing ${count} worker${plural}"
+WSH=~/.claude/skills/manage/scripts/workers.sh
+
+# Manager title — count, plural, and the [MGR-<ord>] bracket are derived.
+"$WSH" retitle "<task description>"
+
+# Worker title — pulls dir, worker_ord, and ticket from the state log.
+"$WSH" retitle-worker <worker_cse_id> ["<optional brief override>"]
+
+# One-shot migration for managers stuck on the old [MGR-<count>] form.
+"$WSH" migrate-titles            # dry-run
+"$WSH" migrate-titles --apply
 ```
 
-The `--sub` flag emits the chained `[NICK.host][SUB] desc` form; the watcher
-preserves `[MGR-N]` on subsequent re-renders via `extract_sub_token`. Use
-`--id <manager-cse_id>` (this session's own id, from `workers.sh path`'s
-filename or `MANAGER_CSE_ID`); `--self` only works when cwd is the bridge
-worktree, which a manager session may not be in at the moment it retitles.
-If `count==0`, still set `[MGR-0]` — it tells the boss this is an idle
-manager, not a non-manager session.
+`retitle` auto-allocates the manager ordinal on first call (it shells
+through to `mgr-id`), so a play can call `retitle` directly without a
+separate `mgr-id` warm-up. `retitle-worker` requires the worker to have
+been `register`ed with `--ticket N` first (registration without a ticket
+is rejected — see "Confirmation rules" below).
+
+If `count==0`, the helpers still emit `[MGR-<ord>] <task> (0 workers)` so
+the boss can tell an idle manager from a non-manager session at a glance.
 
 ## State: where the manager remembers its workers
 
@@ -414,16 +442,23 @@ For one approved unit classified as **full session** in **Play: plan**:
      --prompt-file <brief-file>
    ```
    The CLI prints `session : cse_<worker>`. Capture it.
-6. **Register in the state log**:
+6. **Register in the state log**. The `--ticket <N>` argument is mandatory
+   per #88: dispatching a worker without a tracking ticket is a bug, and
+   `register` will refuse it:
    ```bash
-   ~/.claude/skills/manage/scripts/workers.sh register \
-     cse_<worker> <repo-root> \
+   WSH=~/.claude/skills/manage/scripts/workers.sh
+   "$WSH" register cse_<worker> <repo-root> \
      --ticket <N> \
      --brief "<one-line summary>"
    ```
-7. **Retitle this session** to reflect the new worker count — see
-   "Session title convention: `[MGR-N]`" above. Routine action, no
-   confirmation needed (matches the [[start-work-skill]] pattern).
+7. **Retitle the worker AND this manager session** so the bracket chain
+   reflects the new count. Routine action, no confirmation needed:
+   ```bash
+   "$WSH" retitle-worker cse_<worker> "<one-line brief>"
+   "$WSH" retitle "<this manager's task>"
+   ```
+   Both commands shell through to `titles set --cwd --sub`; see "Session
+   title convention" above for the rendered shape.
 8. **Arm the monitoring loop, if not already armed.** The loop is what
    wakes the manager every ~20 minutes to check for silently-dead workers
    (see **Play: tick**). Idempotent — safe to "arm" on every dispatch; the
@@ -556,8 +591,11 @@ When the boss says "close worker N" (after a satisfactory report):
    `workers.sh list --json | jq 'length'`. If `0`, run
    `workers.sh loop-disarm` and do NOT call ScheduleWakeup at the end of
    this turn — the next tick won't fire. If `>0`, leave the loop armed.
-8. **Retitle this session** to reflect the new (lower) active-worker count
-   — see "Session title convention: `[MGR-N]`" above.
+8. **Retitle this session** to reflect the new (lower) active-worker count:
+   ```bash
+   ~/.claude/skills/manage/scripts/workers.sh retitle "<this manager's task>"
+   ```
+   See "Session title convention" above.
 
 ### Play: **forget** — drop a worker from tracking without closing
 
@@ -566,8 +604,10 @@ dead, forget it":
 
 1. `workers.sh forget cse_<worker> --reason "<short reason>"`.
 2. **Auto-disarm if last worker** (same check as **close** step 6).
-3. **Retitle this session** to reflect the new active-worker count — see
-   "Session title convention: `[MGR-N]`" above.
+3. **Retitle this session** to reflect the new active-worker count:
+   ```bash
+   ~/.claude/skills/manage/scripts/workers.sh retitle "<this manager's task>"
+   ```
 4. Confirm: row is gone from the active list; the live session (if any) is
    untouched — this is purely a manager-side bookkeeping action.
 
@@ -684,9 +724,16 @@ active workers. **Stays silent unless an anomaly is found** — periodic
   boss).
 - **Surface worker replies verbatim.** Distill for the state log, but do
   not filter what the boss sees. The boss is the final judge of "done".
-- **One worker = one ticket** (when tickets are used). If a worker's
-  scope grows mid-task, file a follow-up issue rather than letting one
-  ticket cover two workers' worth of work.
+- **One worker = one ticket — mandatory** (per #88). Every full-session
+  worker dispatch MUST carry a `--ticket <N>` value pointing at a real
+  GitHub issue on the right Project board. `workers.sh register` will
+  refuse to record the worker without one, and `retitle-worker` requires
+  the ticket to compose the `[#<n>]` bracket. The earlier "trivial
+  one-shots can skip" loophole is gone — if a unit isn't worth filing a
+  ticket for, it isn't worth a full-session worker (downgrade it to a
+  `claude -p` oneshot instead). If a worker's scope grows mid-task, file
+  a follow-up issue rather than letting one ticket cover two workers'
+  worth of work.
 
 ## When NOT to use this skill
 

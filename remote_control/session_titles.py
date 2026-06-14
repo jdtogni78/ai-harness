@@ -273,6 +273,24 @@ def nickname_for(repo: str, nmap: Dict[str, str]) -> str:
     return nmap.get(repo.lower()) or derive_nickname(repo)
 
 
+_HOST_NOTE_SUFFIX_RE = re.compile(r"(?i)note$")
+
+
+def normalize_host_segment(host: str) -> str:
+    """Drop a trailing ``note`` from a host nickname token so titles render
+    ``[AH.m5]`` instead of ``[AH.m5note]``. A MacBook whose hostname falls
+    through ``NICKNAME_RULES`` to the dotted-label split yields the literal
+    ``...m5note`` -- the canonical fix is ``REMOTE_CONTROL_HOST=m5`` in that
+    host's plist, but until every host is set we normalize at render time.
+    Strips trailing separators left after the suffix is gone; if the result
+    is empty (host was exactly ``note``), returns the input unchanged so the
+    title never renders a blank host segment."""
+    if not host:
+        return host
+    stripped = _HOST_NOTE_SUFFIX_RE.sub("", host).rstrip("-_.")
+    return stripped or host
+
+
 def strip_prefix(title: str) -> str:
     """Drop a leading ``[token] `` prefix we previously added, if any. Strips a
     chained ``[N][S] `` form too -- so a title written as ``[NICK.host][SUB] desc``
@@ -413,7 +431,7 @@ def session_values(
     return {
         "nick": nickname_for(repo, nmap),
         "repo": repo,
-        "host": host if host_local else "",
+        "host": normalize_host_segment(host) if host_local else "",
         "branch": branch if host_local else "",
         "id": sid,
         "shortid": short_session_id(sid),
