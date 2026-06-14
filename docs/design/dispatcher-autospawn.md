@@ -36,6 +36,42 @@
 > "Dispatch action" and "Idempotency" sections below describe the original
 > (buggy) flow and are kept for history; the amendment supersedes them.
 
+> **Amendment 2 (activation / HTTP 409 fix).** Live bootstrap on mini produced
+> NO runaway (amendment 1 holds) but the dispatcher prompt did NOT land:
+> `inject_into_server` harvested the dev server's pre-created session id from
+> `<host>-dev.log` and POSTed the turn immediately, and the API returned
+> **HTTP 409 "Session is not active"**. Two root causes, both timing:
+>
+> - A `--create-session-in-dir` session is **not submittable the instant its
+>   `session_<id>` OSC-8 link appears in the log.** It sits in a transient
+>   non-active state (`status != "active"` / `connection_status != "connected"`)
+>   until the server's TUI actually attaches it; a POST before then 409s.
+> - The first log link can be **superseded**: live, the log showed
+>   `session_015x…` at byte 151 (boot, pre-created, ended up `archived`/
+>   `disconnected`) and a *different* `session_01An…` at byte ~5.5 MB — the one
+>   that reached `active`/`connected`. `wait_for_session_id` reads only a 64 KB
+>   tail, so a fresh inject against a just-booted (tiny) log harvested the stale
+>   `015x…` and never saw the eventual active id.
+>
+> Fix (`new_session.submit_active_with_retry`, wired into `inject_into_server`):
+> a bounded loop (≤ `dispatcher_wait_timeout_secs`) that, each pass,
+> **(a)** re-harvests the *latest* `session_<id>` from the log (adopting a
+> superseded id), **(b)** gates on `GET /sessions/{id}` reporting
+> `status==active` AND `connection_status==connected` — the same `status`
+> signal `usage_limit.detect.limit_pause_detail` and `session_titles
+> .is_active_session` already use — and **(c)** POSTs, **retrying on 409** until
+> the turn is accepted. It returns success only when the submit genuinely 200s;
+> a permanent not-active/409 returns a clean failure at the deadline (no hang).
+> The `[dispatcher]` title PUT now targets the session that *accepted* the turn
+> (the resolved final id), not the first-harvested one. (New API helper
+> `usage_limit.monitor.fetch_session_state`.)
+>
+> Also: the dispatcher injects with `cwd == the dev ROOT`, which is not a git
+> repo, so `initial_subname_title` returned None and the `[dispatcher]` tag was
+> skipped (`could not derive repo … skipping`). It now falls back to a repo-less
+> `[DEV.<host>]` prefix when the cwd IS the dev root, giving the dispatcher
+> session a `[DEV.<host>][dispatcher]` tag.
+
 ## Problem
 
 In the manager-only model, each host should always have one live

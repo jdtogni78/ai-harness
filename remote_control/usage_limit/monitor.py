@@ -166,6 +166,26 @@ def still_limit_paused(cfg: UsageLimitConfig, sid: str, token: str) -> Tuple[Opt
     return paused, detail
 
 
+def fetch_session_state(cfg: UsageLimitConfig, token: str, sid: str,
+                        log) -> Tuple[Optional[int], str, str]:
+    """``GET /sessions/{id}`` -> ``(http_code, status, connection_status)``.
+
+    Used by the dispatcher inject path to tell a *submittable* session
+    (``status == "active"`` AND ``connection_status == "connected"``) from a
+    freshly pre-created one that the API will 409 on ("Session is not active").
+    A just-pre-created ``--create-session-in-dir`` session sits in a transient
+    non-active state until its server's TUI actually attaches it; submitting
+    before then returns HTTP 409. ``code`` is None on transport error (caller
+    treats that like "unknown, keep polling")."""
+    code, data = api_request(cfg, "GET", f"/sessions/{sid}", token)
+    if code != 200 or not isinstance(data, dict):
+        if code is not None:
+            log(f"session-state {sid} http={code} body={str(data)[:160]}")
+        return code, "", ""
+    d = data.get("response_shape", data)
+    return code, (d.get("status") or ""), (d.get("connection_status") or "")
+
+
 # --------------------------------------------------------------------------- #
 # Detect + resume
 # --------------------------------------------------------------------------- #

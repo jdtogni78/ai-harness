@@ -9,8 +9,8 @@ from unittest import mock
 from remote_control import new_session
 from remote_control.new_session import (
     autogen_name, build_argv, default_subname, extract_session_id,
-    initial_subname_title, name_is_safe, pick_spawn_mode, read_log_tail,
-    wait_for_session_id,
+    initial_subname_title, inject_into_server, name_is_safe, pick_spawn_mode,
+    read_log_tail, submit_active_with_retry, wait_for_session_id,
 )
 
 
@@ -713,6 +713,259 @@ class SubnameTest(unittest.TestCase):
         self.assertIn("reply-to: cse_X", out)
         self.assertIn("wait   :", out)
         self.assertIn("prompt :", out)
+
+
+class _StepClock:
+    """Clock whose ``now()`` is fixed and only advances on ``sleep()`` -- so a
+    polling loop that respects its deadline terminates deterministically (the
+    deadline is reached purely by elapsed sleeps, no wall time)."""
+    def __init__(self, step: float = 1.0):
+        self.t = 0.0
+        self.step = step
+
+    def now(self) -> float:
+        return self.t
+
+    def sleep(self, secs: float) -> None:
+        self.t += self.step
+
+
+class InjectActivationTest(unittest.TestCase):
+    """The 409 fix: submit_active_with_retry must wait for active+connected and
+    retry the POST on HTTP 409 ('Session is not active') until the turn lands.
+    These exercise the REAL submit seam (return codes), not a faked-away one --
+    the previous tests stubbed submit to always-200 and so missed the live 409.
+    """
+
+    def _run(self, *, states, submits, log_ids=None, timeout=10.0):
+        """Drive submit_active_with_retry over scripted GET-state and POST
+        results. *states* / *submits* are lists consumed one per call (last
+        entry repeats). *log_ids* (optional) is the sequence the log re-harvest
+        returns (last repeats), default: always the initial id."""
+        calls = {"state": 0, "submit": 0, "tail": 0}
+        logs: list = []
+        clock = _StepClock(step=1.0)
+
+        def fetch_state(cfg, token, sid, log):
+            i = min(calls["state"], len(states) - 1)
+            calls["state"] += 1
+            return states[i]  # (code, status, conn)
+
+        def submit(cfg, token, sid, message, log):
+            i = min(calls["submit"], len(submits) - 1)
+            calls["submit"] += 1
+            return submits[i]  # (code, body)
+
+        def read_tail(path):
+            if log_ids is None:
+                return b"session_INITIAL"
+            i = min(calls["tail"], len(log_ids) - 1)
+            calls["tail"] += 1
+            return f"session_{log_ids[i]}".encode()
+
+        rc, sid = submit_active_with_retry(
+            initial_sid="cse_INITIAL", message="hello", logpath=Path("/x.log"),
+            timeout_secs=timeout, log=logs.append,
+            submit=submit, get_token=lambda cfg, log: "TOKEN",
+            fetch_state=fetch_state, read_tail=read_tail,
+            sleep=clock.sleep, clock=clock.now, poll_secs=1.0,
+        )
+        return rc, sid, calls, logs
+
+    def test_active_first_try_submits_once(self):
+        rc, sid, calls, _ = self._run(
+            states=[(200, "active", "connected")],
+            submits=[(200, {})])
+        self.assertEqual(rc, 0)
+        self.assertEqual(sid, "cse_INITIAL")
+        self.assertEqual(calls["submit"], 1)
+
+    def test_not_active_then_active_waits_then_submits(self):
+        # First two state polls report a not-yet-active pre-created session, the
+        # third reports active -> exactly one submit, which 200s.
+        rc, sid, calls, logs = self._run(
+            states=[(200, "pending", "disconnected"),
+                    (200, "pending", "connecting"),
+                    (200, "active", "connected")],
+            submits=[(200, {})])
+        self.assertEqual(rc, 0)
+        self.assertEqual(calls["submit"], 1)
+        self.assertEqual(calls["state"], 3)
+
+    def test_409_then_active_retries_and_succeeds(self):
+        # Session reports active, but the POST races and 409s once; the retry
+        # (still active) then 200s. This is the exact live failure mode.
+        rc, sid, calls, logs = self._run(
+            states=[(200, "active", "connected"),
+                    (200, "active", "connected")],
+            submits=[(409, {"error": "Session is not active"}), (200, {})])
+        self.assertEqual(rc, 0)
+        self.assertEqual(calls["submit"], 2)
+        self.assertTrue(any("409" in m for m in logs))
+
+    def test_superseded_id_is_reharvested_from_log(self):
+        # The log id changes (pre-created 015x… -> active 01An…). The loop must
+        # adopt the latest log id and submit into THAT session.
+        rc, sid, calls, logs = self._run(
+            states=[(200, "pending", "disconnected"),   # initial 015x not active
+                    (200, "active", "connected")],       # 01An is active
+            submits=[(200, {})],
+            log_ids=["015x", "01An"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(sid, "cse_01An")
+        self.assertTrue(any("superseded" in m for m in logs))
+
+    def test_permanent_not_active_times_out_cleanly(self):
+        # Never becomes active -> bounded rc=1 at the deadline, NOT a hang.
+        rc, sid, calls, logs = self._run(
+            states=[(200, "pending", "disconnected")],
+            submits=[(200, {})],   # never reached
+            timeout=5.0)
+        self.assertEqual(rc, 1)
+        self.assertEqual(calls["submit"], 0)
+        self.assertTrue(any("TIMEOUT" in m for m in logs))
+
+    def test_permanent_409_times_out_cleanly(self):
+        # State says active but the POST always 409s -> bounded rc=1, no hang.
+        rc, sid, calls, logs = self._run(
+            states=[(200, "active", "connected")],
+            submits=[(409, {"error": "Session is not active"})],
+            timeout=5.0)
+        self.assertEqual(rc, 1)
+        self.assertGreaterEqual(calls["submit"], 2)  # retried, then gave up
+        self.assertTrue(any("TIMEOUT" in m for m in logs))
+
+    def test_hard_error_fails_fast_without_retry(self):
+        # A 500 (not a 409) is a real error -> fail immediately, don't burn the
+        # whole window retrying it.
+        rc, sid, calls, logs = self._run(
+            states=[(200, "active", "connected")],
+            submits=[(500, {"err": "boom"})],
+            timeout=30.0)
+        self.assertEqual(rc, 1)
+        self.assertEqual(calls["submit"], 1)
+
+    def test_inject_into_server_retries_409_then_titles_active_session(self):
+        # End-to-end through inject_into_server: harvested id is not-yet-active,
+        # the POST 409s once then 200s; the title PUT must target the session
+        # that actually accepted the turn, and rc is 0.
+        titled: dict = {}
+
+        def fake_set_title(cfg, token, sid, title):
+            titled["sid"], titled["title"] = sid, title
+            return (200, {})
+
+        state_seq = [(200, "active", "connected"), (200, "active", "connected")]
+        submit_seq = [(409, {"error": "Session is not active"}), (200, {})]
+        si = {"s": 0, "p": 0}
+
+        def fetch_state(cfg, token, sid, log):
+            i = min(si["s"], len(state_seq) - 1); si["s"] += 1
+            return state_seq[i]
+
+        def submit(cfg, token, sid, message, log):
+            i = min(si["p"], len(submit_seq) - 1); si["p"] += 1
+            return submit_seq[i]
+
+        with tempfile.TemporaryDirectory() as d:
+            dev = Path(d)
+            logdir = dev / "logs"; logdir.mkdir()
+            (logdir / "mini-dev.log").write_bytes(b"session_01AnbfphActive\n")
+            env = _env(d, extra={"REMOTE_CONTROL_DEV": str(dev),
+                                 "REMOTE_CONTROL_LOGDIR": str(logdir)})
+            from remote_control.config import SupervisorConfig
+            with mock.patch.dict(os.environ, env, clear=False):
+                cfg = SupervisorConfig.from_env()
+                logs: list = []
+                # Drive the activation loop with a fake clock so no real sleeps.
+                clock = _StepClock(step=1.0)
+                with mock.patch.object(new_session.time, "sleep", clock.sleep), \
+                     mock.patch.object(new_session.time, "monotonic", clock.now):
+                    rc = inject_into_server(
+                        server_name="mini-dev", cwd=dev, cfg=cfg,
+                        prompt_body="do the dispatch", subname="dispatcher",
+                        wait_timeout=10.0, log=logs.append,
+                        waiter=lambda lp, to, **_: "cse_01AnbfphActive",
+                        submit=submit, get_token=lambda cfg, log: "TOKEN",
+                        set_title=fake_set_title, fetch_state=fetch_state)
+        self.assertEqual(rc, 0)
+        self.assertEqual(si["p"], 2)  # 409 then 200
+        # Title went to the session that accepted the turn.
+        self.assertEqual(titled["sid"], "cse_01AnbfphActive")
+        self.assertIn("[dispatcher]", titled["title"])
+
+
+class FetchSessionStateTest(unittest.TestCase):
+    """fetch_session_state must surface status + connection_status (the two
+    fields that distinguish a submittable session from a pre-created one that
+    409s) out of the GET /sessions/{id} body, including under response_shape."""
+
+    def _call(self, api_return):
+        from remote_control.usage_limit import monitor
+        from remote_control.config import UsageLimitConfig
+        with tempfile.TemporaryDirectory() as d:
+            with mock.patch.dict(os.environ, _env(d), clear=False):
+                cfg = UsageLimitConfig.from_env()
+            with mock.patch.object(monitor, "api_request",
+                                   lambda cfg, m, p, t: api_return):
+                return monitor.fetch_session_state(
+                    cfg, "TOK", "cse_X", lambda m: None)
+
+    def test_active_connected_top_level(self):
+        code, status, conn = self._call(
+            (200, {"status": "active", "connection_status": "connected"}))
+        self.assertEqual((code, status, conn), (200, "active", "connected"))
+
+    def test_reads_response_shape_wrapper(self):
+        code, status, conn = self._call(
+            (200, {"response_shape": {"status": "pending",
+                                      "connection_status": "disconnected"}}))
+        self.assertEqual((status, conn), ("pending", "disconnected"))
+
+    def test_non_200_returns_code_and_blanks(self):
+        code, status, conn = self._call((409, {"error": "Session is not active"}))
+        self.assertEqual((code, status, conn), (409, "", ""))
+
+    def test_transport_error_returns_none_code(self):
+        code, status, conn = self._call((None, "URLError"))
+        self.assertEqual((code, status, conn), (None, "", ""))
+
+
+class DevRootTitleFallbackTest(unittest.TestCase):
+    """The dispatcher injects with cwd == the dev ROOT, which is not a git repo.
+    initial_subname_title must fall back to a [DEV.<host>] prefix instead of
+    returning None (the live 'could not derive repo … skipping [dispatcher]
+    title tag')."""
+
+    def test_dev_root_cwd_gets_dev_prefix(self):
+        with tempfile.TemporaryDirectory() as d:
+            dev = Path(d)
+            title = initial_subname_title(
+                dev, host="mini", subname="dispatcher", dev_root=dev,
+                nicknames_file="/no/such/file")
+        self.assertIsNotNone(title)
+        self.assertIn("[DEV.mini][dispatcher]", title)
+        self.assertIn("auto-spawned", title)
+
+    def test_repo_under_dev_root_unaffected(self):
+        # A real repo under dev root still derives its own nick (not DEV).
+        with tempfile.TemporaryDirectory() as d:
+            dev = Path(d)
+            repo = dev / "fake-repo"; repo.mkdir()
+            title = initial_subname_title(
+                repo, host="mini", subname="dispatcher", dev_root=dev,
+                nicknames_file="/no/such/file")
+        self.assertIn("[FR.mini][dispatcher]", title)
+        self.assertNotIn("[DEV.", title)
+
+    def test_other_unresolvable_cwd_still_returns_none(self):
+        # A cwd that is neither the dev root nor a repo under it stays None.
+        with tempfile.TemporaryDirectory() as d:
+            dev = Path(d) / "dev"; dev.mkdir()
+            elsewhere = Path(d) / "elsewhere"; elsewhere.mkdir()
+            self.assertIsNone(initial_subname_title(
+                elsewhere, host="mini", subname="x", dev_root=dev,
+                nicknames_file="/no/such/file"))
 
 
 if __name__ == "__main__":
