@@ -17,6 +17,7 @@ from remote_control.session_titles import (
     live_session_entries,
     merged_repo_index,
     nickname_for,
+    normalize_host_segment,
     parse_cmd_session_id,
     parse_format_line,
     parse_nickname_map,
@@ -28,6 +29,7 @@ from remote_control.session_titles import (
     repo_from_worktree_path,
     repo_sid_from_project_dirname,
     session_id_from_path,
+    session_values,
     short_session_id,
     strip_prefix,
     title_format,
@@ -1249,6 +1251,50 @@ class TitlesWatchArgParseTest(unittest.TestCase):
         opts = _parse_args(["watch", "--interval", "120"])
         self.assertEqual(opts["cmd"], "watch")
         self.assertEqual(opts["interval"], 120)
+
+
+class NormalizeHostSegmentTest(unittest.TestCase):
+    def test_strips_trailing_note(self):
+        self.assertEqual(normalize_host_segment("m5note"), "m5")
+
+    def test_strips_case_insensitive(self):
+        self.assertEqual(normalize_host_segment("m5NOTE"), "m5")
+        self.assertEqual(normalize_host_segment("m5Note"), "m5")
+
+    def test_leaves_unrelated_hosts_alone(self):
+        self.assertEqual(normalize_host_segment("mini"), "mini")
+        self.assertEqual(normalize_host_segment("mac"), "mac")
+        # 'remote' ends in 'mote', not 'note' — no strip.
+        self.assertEqual(normalize_host_segment("remote"), "remote")
+
+    def test_strips_trailing_separators_left_behind(self):
+        self.assertEqual(normalize_host_segment("m5-note"), "m5")
+        self.assertEqual(normalize_host_segment("m5.note"), "m5")
+        self.assertEqual(normalize_host_segment("m5_note"), "m5")
+
+    def test_empty_result_falls_back_to_input(self):
+        # Bare 'note' would otherwise strip to '' — keep the original so the
+        # render never emits a blank host token.
+        self.assertEqual(normalize_host_segment("note"), "note")
+
+    def test_empty_input_returns_empty(self):
+        self.assertEqual(normalize_host_segment(""), "")
+
+    def test_session_values_normalizes_host(self):
+        nmap = {"ai-harness": "AH"}
+        s = {"id": "cse_abc"}
+        v = session_values(s, "ai-harness", nmap, host="m5note", host_local=True)
+        self.assertEqual(v["host"], "m5")
+        self.assertEqual(v["nick"], "AH")
+
+    def test_session_values_does_not_normalize_cloud_host(self):
+        # Cloud (non-host-local) sessions always get host="" regardless of
+        # what the caller passed.
+        v = session_values(
+            {"id": "cse_x"}, "ai-harness", {"ai-harness": "AH"},
+            host="m5note", host_local=False,
+        )
+        self.assertEqual(v["host"], "")
 
 
 if __name__ == "__main__":
