@@ -1,9 +1,11 @@
 import unittest
 from pathlib import Path
 
+from remote_control import new_session
 from remote_control.config import SupervisorConfig
 from remote_control.discovery import Server
-from remote_control.procutil import _augment_path, spawn_argv, spawn_env
+from remote_control.procutil import (
+    _augment_path, run_marker_line, spawn_argv, spawn_env)
 
 
 def _cfg(host="note"):
@@ -30,6 +32,33 @@ class SpawnArgvTest(unittest.TestCase):
         argv = spawn_argv(srv, cfg)
         self.assertEqual(argv[argv.index("--permission-mode") + 1],
                          "bypassPermissions")
+
+
+class RunMarkerTest(unittest.TestCase):
+    """The run-start marker stamped into <name>.log before each (re)spawn so the
+    dispatcher inject harvests only the CURRENT run's session id (not a stale or
+    archived one preserved across a restart)."""
+
+    def test_marker_has_prefix_unique_token_and_newline(self):
+        line = run_marker_line()
+        self.assertTrue(line.startswith(b"### ai-harness run-start "))
+        self.assertTrue(line.endswith(b"\n"))
+        # Distinct token per call (default uses time+pid).
+        self.assertNotEqual(run_marker_line(), run_marker_line())
+
+    def test_marker_token_is_honoured_when_given(self):
+        self.assertEqual(run_marker_line("RUN42"),
+                         b"### ai-harness run-start RUN42\n")
+
+    def test_marker_prefix_agrees_with_new_session(self):
+        # procutil writes the marker; new_session.extract_session_id anchors to
+        # it. If the two prefixes drift apart, run-anchoring silently breaks.
+        from remote_control import procutil
+        self.assertEqual(procutil._RUN_MARKER_PREFIX,
+                         new_session._RUN_MARKER_PREFIX)
+        # And a marker procutil writes is recognised by the harvester's anchor.
+        tail = run_marker_line("X") + b"session_01Fresh?from=cli\n"
+        self.assertEqual(new_session.extract_session_id(tail), "cse_01Fresh")
 
 
 class SpawnEnvTest(unittest.TestCase):

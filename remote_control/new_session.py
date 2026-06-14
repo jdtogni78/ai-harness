@@ -113,6 +113,21 @@ USAGE = (
 _SESSION_LINK_RE = re.compile(rb"session_([A-Za-z0-9]+)(?:\?from=cli)?")
 _LOG_TAIL_BYTES = 64_000
 
+# Run-anchor marker. The supervisor's ``<host>-dev.log`` is opened in APPEND
+# mode (procutil.spawn), so it accumulates ``session_<id>`` links across every
+# server (re)start -- including STALE, now-ARCHIVED sessions from prior runs.
+# After a supervisor restart the app prints "Environment preserved. Restart
+# claude remote-control to reconnect existing sessions." and RECONNECTS a
+# preserved (possibly archived) session instead of creating a fresh one, so the
+# only ``session_<id>`` in the persistent tail can be a dead id. Harvesting that
+# id poisons the dispatcher inject (it can never go active -> a slow re-dispatch
+# loop). To anchor harvesting to the CURRENT server run, procutil writes a
+# unique marker line to the log immediately before exec; ``extract_session_id``
+# only considers ids AT OR AFTER the last marker, so pre-run (stale) ids are
+# ignored. The literal prefix is matched; the run token after it is opaque.
+_RUN_MARKER_PREFIX = b"### ai-harness run-start "
+_RUN_MARKER_RE = re.compile(re.escape(_RUN_MARKER_PREFIX) + rb"[0-9A-Za-z._-]+")
+
 
 # --------------------------------------------------------------------------- #
 # Pure helpers
@@ -181,8 +196,18 @@ def read_log_tail(logpath: Path, tail_bytes: int = _LOG_TAIL_BYTES) -> bytes:
 
 def extract_session_id(tail: bytes) -> Optional[str]:
     """First ``session_<id>?from=cli`` hyperlink in *tail*, returned with the
-    ``cse_`` prefix that the API exposes. None if absent."""
-    m = _SESSION_LINK_RE.search(tail)
+    ``cse_`` prefix that the API exposes. None if absent.
+
+    Run-anchoring: if *tail* contains one or more run-start markers (see
+    ``_RUN_MARKER_PREFIX``), only the region AFTER the LAST marker is searched,
+    so ids written by an earlier server run (stale/archived, accumulated in the
+    persistent append-mode log) are ignored in favour of the current run's id.
+    When no marker is present (older logs, or callers that don't write one) the
+    whole tail is searched -- backward-compatible with the pre-anchor behaviour.
+    """
+    markers = list(_RUN_MARKER_RE.finditer(tail))
+    region = tail[markers[-1].end():] if markers else tail
+    m = _SESSION_LINK_RE.search(region)
     return f"cse_{m.group(1).decode('ascii')}" if m else None
 
 
@@ -451,6 +476,24 @@ _ACTIVATION_POLL_SECS = 1.0       # gap between activation/409 retries
 _SUBMITTABLE_STATUS = "active"
 _SUBMITTABLE_CONN = "connected"
 
+# Terminal session states: a session in one of these will NEVER become
+# submittable, so waiting for ``active`` is pointless. Observed live: a restart
+# reconnected a preserved, already-ARCHIVED session, whose id was the only one
+# in the persistent log; the inject burned the full 45s polling for it to go
+# active (it never could) and the supervisor re-dispatched every tick. When the
+# harvested id is in a dead state we bail FAST (don't burn the window) and -- if
+# no live id supersedes it -- surface a distinct rc so the supervisor can recycle
+# the dev server (drop the preserved session) rather than loop. Lower-cased
+# compare; the set is generous so unknown dead variants also short-circuit.
+_DEAD_STATUSES = frozenset({
+    "archived", "deleted", "completed", "failed", "expired",
+    "cancelled", "canceled", "terminated", "closed", "ended",
+})
+
+# Distinct rc for "the harvested session is dead/terminal" so the supervisor can
+# tell a poisoned-log failure (recycle the dev server) from a benign timeout.
+RC_DEAD_SESSION = 2
+
 
 def submit_active_with_retry(
     *,
@@ -481,8 +524,11 @@ def submit_active_with_retry(
          On any other non-200 -> a real error; fail fast (don't burn the window
          retrying an auth/5xx error).
 
-    Returns ``(rc, final_sid)`` where rc is 0 on success, 1 on timeout/failure.
-    A permanent not-active gives a clean rc=1 at the deadline -- never a hang.
+    Returns ``(rc, final_sid)`` where rc is 0 on success, 1 on timeout/failure,
+    and ``RC_DEAD_SESSION`` (2) when the only harvestable id is in a terminal
+    state (archived/deleted/...). A permanent not-active gives a clean rc=1 at
+    the deadline -- never a hang. A dead harvested id returns FAST (no full-window
+    poll), so a poisoned log can't cost the whole timeout per tick.
     """
     from .usage_limit import monitor
     submit = submit or monitor.submit_user_message
@@ -513,6 +559,24 @@ def submit_active_with_retry(
         # "unknown", fall through to attempting the submit (the POST itself is
         # the authoritative check) rather than spinning silently.
         code, status, conn = fetch_state(cfg, token, sid, log)
+
+        # (2a) FAST dead-id bail. A terminal session (archived/deleted/...) will
+        # never go active; polling it to the deadline is the slow-loop bug. If
+        # the CURRENT id is dead AND no live id supersedes it on a re-harvest,
+        # give up immediately with RC_DEAD_SESSION so the supervisor recycles the
+        # dev server instead of re-dispatching into the same poisoned log.
+        if code == 200 and status.lower() in _DEAD_STATUSES:
+            fresh = extract_session_id(read_tail(logpath))
+            if not fresh or fresh == sid:
+                log(f"inject: harvested session {sid} is terminal "
+                    f"(status={status!r}); no live session in this run -- "
+                    f"bailing fast for dev-server recycle")
+                return RC_DEAD_SESSION, sid
+            # A different, possibly-live id appeared -- adopt it and re-loop.
+            log(f"inject: dead session {sid} superseded by {fresh}; retrying")
+            sid = fresh
+            continue
+
         submittable = (code != 200) or (
             status == _SUBMITTABLE_STATUS and conn == _SUBMITTABLE_CONN)
         if not submittable:

@@ -78,15 +78,26 @@ def should_dispatch_dispatcher(
     )
 
 
+# Dispatch outcomes (int, not bool, so the caller can tell a poisoned-log
+# failure -- which needs a dev-server recycle to drop the preserved/archived
+# session -- from a benign generic failure). Mirrors new_session.RC_DEAD_SESSION.
+DISPATCH_OK = 0
+DISPATCH_FAIL = 1
+DISPATCH_DEAD_SESSION = 2   # harvested id terminal (archived/...) -> recycle dev
+
+
 def _default_dispatch(
     *, claude_bin: Path, cwd: Path, prompt_file: Path,
     wait_timeout_secs: int, log: Callable[[str], None],
     inject_into: str,
-) -> bool:
+) -> int:
     """Shell out to ``python3 -m remote_control new-session --inject-into
-    <host>-dev``. Blocking; returns True iff the dispatcher's first turn was
-    submitted into the running ``<host>-dev`` server. Failures log and return
-    False -- the supervisor's tick loop must keep running.
+    <host>-dev``. Blocking; returns a ``DISPATCH_*`` code:
+    ``DISPATCH_OK`` iff the dispatcher's first turn landed in the running
+    ``<host>-dev`` server, ``DISPATCH_DEAD_SESSION`` when the harvested session
+    was terminal (a poisoned log -- the dev server needs recycling to drop the
+    preserved/archived session), or ``DISPATCH_FAIL`` for any other failure.
+    Failures log and return -- the supervisor's tick loop must keep running.
 
     NOTE (runaway-bug fix): this uses ``--inject-into`` so the dispatcher cse_
     lands on the EXISTING ``<host>-dev`` server (raising its Capacity 0->1),
@@ -110,12 +121,16 @@ def _default_dispatch(
         )
     except (subprocess.TimeoutExpired, OSError) as e:
         log(f"dispatcher: dispatch failed: {type(e).__name__}: {e}")
-        return False
+        return DISPATCH_FAIL
+    if r.returncode == DISPATCH_DEAD_SESSION:
+        log(f"dispatcher: harvested session terminal (rc=2) -- dev server log "
+            f"is poisoned; will recycle. stderr={r.stderr.strip()[:300]}")
+        return DISPATCH_DEAD_SESSION
     if r.returncode != 0:
         log(f"dispatcher: new-session rc={r.returncode} stderr={r.stderr.strip()[:300]}")
-        return False
+        return DISPATCH_FAIL
     log(f"dispatcher: new-session ok stdout={r.stdout.strip()[:300]}")
-    return True
+    return DISPATCH_OK
 
 
 # --------------------------------------------------------------------------- #
@@ -277,7 +292,7 @@ class Supervisor:
         self.log(f"dispatcher: injecting cse_ into {dev_name} (cap=0)")
         self._dispatcher_inflight = True
         try:
-            ok = self._dispatch(
+            outcome = self._dispatch(
                 claude_bin=self.cfg.claude_bin,
                 cwd=self.cfg.dev,
                 prompt_file=self.cfg.dispatcher_prompt_file,
@@ -285,7 +300,14 @@ class Supervisor:
                 log=self.log,
                 inject_into=dev_name,
             )
-            if ok:
+            # Older injected dispatches returned a bool; normalise so a True/False
+            # seam still works (True -> OK, False -> generic FAIL).
+            if outcome is True:
+                outcome = DISPATCH_OK
+            elif outcome is False:
+                outcome = DISPATCH_FAIL
+
+            if outcome == DISPATCH_OK:
                 # Record the dev server pid we dispatched into so a later bad
                 # capacity read can't trigger a re-dispatch while this same
                 # server is still alive (defense-in-depth B).
@@ -294,6 +316,31 @@ class Supervisor:
                 # cse_'s server can't be recycled out from under it on a tick
                 # where read_capacity hasn't yet observed Capacity 1.
                 self.last_busy[dev_name] = now
+            elif outcome == DISPATCH_DEAD_SESSION:
+                # The dev server's persistent log only offered a TERMINAL
+                # (archived/...) session id -- a restart reconnected a preserved
+                # dead session instead of creating a fresh one. Polling it can
+                # never succeed, so RECYCLE the dev server: the respawn writes a
+                # fresh run-marker and creates a fresh pre-created session, and
+                # the pid change clears the failure latch so the NEXT tick gets a
+                # clean attempt. We also latch against the OLD pid so we don't
+                # re-dispatch into the dying process before the recycle lands.
+                self._dispatched_dev_pid = pid
+                self.log(f"dispatcher: recycling {dev_name} (pid {pid}) to drop "
+                         f"the preserved/archived session and force a fresh one")
+                dev_srv = Server(dev_name, self.cfg.dev, "same-dir")
+                self._recycle(dev_srv, pid, now)
+            else:
+                # Generic failure (timeout/auth/transport). Do NOT re-dispatch
+                # into this same dev-server process every tick (the slow-loop
+                # bug): latch the attempt against the live pid. The latch clears
+                # only when the dev server's pid changes (recycle/respawn), so a
+                # genuinely-stuck state stays QUIET instead of storming, and a
+                # legitimate fresh server still gets a new attempt.
+                self._dispatched_dev_pid = pid
+                self.log(f"dispatcher: dispatch into {dev_name} (pid {pid}) "
+                         f"failed (outcome={outcome}); latching to avoid a "
+                         f"per-tick re-dispatch storm until the server recycles")
         finally:
             self._dispatcher_inflight = False
 

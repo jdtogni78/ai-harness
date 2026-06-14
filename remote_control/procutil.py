@@ -8,6 +8,7 @@ import os
 import re
 import signal
 import subprocess
+import time
 from pathlib import Path
 from typing import Dict, List, Mapping, Optional
 
@@ -17,6 +18,25 @@ from .discovery import Server
 # Used-session count N from the latest "Capacity: N/M" the server's TUI printed.
 _CAPACITY_RE = re.compile(rb"Capacity: (\d+)/\d+")
 _CAPACITY_TAIL_BYTES = 200000
+
+# Run-anchor marker written to ``<name>.log`` immediately before each (re)spawn.
+# The log is opened APPEND (below), so it accumulates ``session_<id>`` links
+# across every restart. After a supervisor restart the app may RECONNECT a
+# preserved (possibly archived) session instead of creating a fresh one, leaving
+# only a stale id in the persistent tail -- which poisons the dispatcher inject.
+# The marker lets new_session.extract_session_id ignore ids from before THIS run
+# (it only harvests after the last marker). Must match new_session._RUN_MARKER_*.
+_RUN_MARKER_PREFIX = b"### ai-harness run-start "
+
+
+def run_marker_line(token: Optional[str] = None) -> bytes:
+    """The run-start marker line for a fresh server run (a unique, opaque token
+    after the literal prefix). Pure given *token*; defaults to a wall-clock +
+    pid token so each (re)spawn is distinguishable. Trailing newline so the
+    next log line (the server's own output) starts clean."""
+    if token is None:
+        token = f"{time.time():.6f}.{os.getpid()}"
+    return _RUN_MARKER_PREFIX + token.encode("ascii", "replace") + b"\n"
 
 
 def _running_re(host: str) -> "re.Pattern[str]":
@@ -195,8 +215,14 @@ def spawn(server: Server, cfg: SupervisorConfig) -> Optional[subprocess.Popen]:
         return None
     logpath = Path(cfg.logdir) / f"{server.name}.log"
     logpath.parent.mkdir(parents=True, exist_ok=True)
-    logf = open(logpath, "a")
+    logf = open(logpath, "ab")
     try:
+        # Run-anchor: stamp the log so the dispatcher inject harvests only THIS
+        # run's session id, not a stale/archived one preserved across a restart.
+        # Written through the same fd the child inherits, BEFORE exec, so the
+        # marker bytes are guaranteed to precede the server's own output.
+        logf.write(run_marker_line())
+        logf.flush()
         return subprocess.Popen(
             spawn_argv(server, cfg),
             cwd=str(directory),

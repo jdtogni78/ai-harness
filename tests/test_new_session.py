@@ -119,6 +119,47 @@ class ExtractSessionIdTest(unittest.TestCase):
         self.assertEqual(extract_session_id(tail), "cse_01XYZ")
 
 
+class ExtractSessionIdRunAnchorTest(unittest.TestCase):
+    """Run-anchoring: the persistent append-mode <host>-dev.log accumulates
+    ``session_<id>`` links across restarts (stale + archived). procutil writes a
+    run-start marker before each (re)spawn; extract_session_id must harvest only
+    ids AT OR AFTER the LAST marker so a pre-run (archived) id is ignored in
+    favour of the current run's id. This is the fix for the slow-loop where a
+    restart reconnected a preserved/archived session and the inject harvested
+    that dead id forever."""
+
+    MARK = new_session._RUN_MARKER_PREFIX
+
+    def test_ignores_pre_run_id_in_favour_of_current_run(self):
+        # STALE archived id from a prior run, then a marker, then the fresh id.
+        tail = (b"session_01StaleArchived?from=cli\n"
+                + self.MARK + b"1700000000.42\n"
+                + b"session_01FreshActive?from=cli\n")
+        self.assertEqual(extract_session_id(tail), "cse_01FreshActive")
+
+    def test_anchors_to_the_last_marker_across_multiple_runs(self):
+        # Several runs accumulated; only the id after the FINAL marker counts.
+        tail = (b"session_01Run1?from=cli\n"
+                + self.MARK + b"a\n" + b"session_01Run2?from=cli\n"
+                + self.MARK + b"b\n" + b"session_01Run3?from=cli\n")
+        self.assertEqual(extract_session_id(tail), "cse_01Run3")
+
+    def test_no_id_after_marker_returns_none(self):
+        # The current run hasn't printed its session link yet (or the app
+        # reconnected a preserved session with no NEW link): no post-marker id
+        # -> None, so the caller keeps waiting / times out cleanly rather than
+        # harvesting the pre-marker archived id.
+        tail = (b"session_01StaleArchived?from=cli\n"
+                + self.MARK + b"x\n" + b"server starting...\n")
+        self.assertIsNone(extract_session_id(tail))
+
+    def test_no_marker_falls_back_to_whole_tail(self):
+        # Backward-compat: logs without any marker (older runs, oneoff spawns)
+        # search the whole tail, first match -- unchanged behaviour.
+        self.assertEqual(
+            extract_session_id(b"x session_01Bare?from=cli y"), "cse_01Bare")
+
+
 class ReadLogTailTest(unittest.TestCase):
     def test_missing_file_returns_empty(self):
         self.assertEqual(read_log_tail(Path("/no/such/log")), b"")
@@ -843,6 +884,34 @@ class InjectActivationTest(unittest.TestCase):
             submits=[(500, {"err": "boom"})],
             timeout=30.0)
         self.assertEqual(rc, 1)
+        self.assertEqual(calls["submit"], 1)
+
+    def test_archived_harvested_id_bails_fast_not_full_timeout(self):
+        # The harvested id is terminal (archived) and no live id supersedes it.
+        # The loop must return RC_DEAD_SESSION on the FIRST state poll -- NOT
+        # burn the whole timeout polling for an archived session to go active
+        # (the live slow-loop bug). One state call, zero submits, fast bail.
+        from remote_control.new_session import RC_DEAD_SESSION
+        rc, sid, calls, logs = self._run(
+            states=[(200, "archived", "connected")],
+            submits=[(200, {})],   # never reached
+            timeout=45.0)          # a LONG window -- proves we don't consume it
+        self.assertEqual(rc, RC_DEAD_SESSION)
+        self.assertEqual(calls["submit"], 0)
+        self.assertEqual(calls["state"], 1)          # bailed on the first poll
+        self.assertTrue(any("terminal" in m for m in logs))
+
+    def test_archived_id_superseded_by_live_id_is_rescued(self):
+        # The first harvest is an archived id; a re-harvest then surfaces a
+        # fresh live id (current run's pre-created session). The loop must adopt
+        # the fresh id and submit into IT rather than bailing on the dead one.
+        rc, sid, calls, logs = self._run(
+            states=[(200, "archived", "connected"),   # initial id is dead
+                    (200, "active", "connected")],     # fresh id is live
+            submits=[(200, {})],
+            log_ids=["01Dead", "01Fresh"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(sid, "cse_01Fresh")
         self.assertEqual(calls["submit"], 1)
 
     def test_inject_into_server_retries_409_then_titles_active_session(self):
