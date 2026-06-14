@@ -81,12 +81,22 @@ def should_dispatch_dispatcher(
 def _default_dispatch(
     *, claude_bin: Path, cwd: Path, prompt_file: Path,
     wait_timeout_secs: int, log: Callable[[str], None],
+    inject_into: str,
 ) -> bool:
-    """Shell out to ``python3 -m remote_control new-session``. Blocking; returns
-    True iff the dispatcher cse_ registered + first turn submitted. Failures
-    log and return False -- the supervisor's tick loop must keep running."""
+    """Shell out to ``python3 -m remote_control new-session --inject-into
+    <host>-dev``. Blocking; returns True iff the dispatcher's first turn was
+    submitted into the running ``<host>-dev`` server. Failures log and return
+    False -- the supervisor's tick loop must keep running.
+
+    NOTE (runaway-bug fix): this uses ``--inject-into`` so the dispatcher cse_
+    lands on the EXISTING ``<host>-dev`` server (raising its Capacity 0->1),
+    NOT a freshly-spawned ``oneoff-*`` server. The old path spawned a one-shot
+    server whose session never touched ``<host>-dev``, so its Capacity stayed 0
+    and the supervisor re-dispatched every tick -- a per-tick one-shot storm.
+    """
     cmd = [
         sys.executable, "-m", "remote_control", "new-session",
+        "--inject-into", inject_into,
         "--dir", str(cwd),
         "--no-reply-to",
         "--subname", "dispatcher",
@@ -130,6 +140,12 @@ class Supervisor:
         # subprocesses. Default delegates to ``new-session`` via the CLI.
         self._dispatch = dispatch if dispatch is not None else _default_dispatch
         self._dispatcher_inflight: bool = False
+        # Defense-in-depth (B): the ``<host>-dev`` server pid we last dispatched
+        # the dispatcher cse_ into. While this same process is alive we never
+        # re-dispatch (a single bad Capacity read can't storm). Reset to None
+        # when the dev server pid changes (recycle/respawn) -- its session is
+        # gone, so a fresh dispatch is legitimate.
+        self._dispatched_dev_pid: Optional[int] = None
         self.last_busy: Dict[str, float] = {}   # name -> epoch last seen busy/spawned/adopted
         self._children: Dict[str, "object"] = {}  # name -> Popen we spawned (for reaping)
         # Per-name count of consecutive ticks where the server has been flagged
@@ -208,19 +224,37 @@ class Supervisor:
             child.poll()  # reap if it was ours
 
     # --- dispatcher autospawn ---
+    def _dev_server_pid(self, dev_name: str) -> Optional[int]:
+        return self.proc.server_pid(dev_name)
+
     def _ensure_dispatcher(self, now: float) -> None:
-        """If autospawn is on and ``<host>-dev`` has no live cse_, dispatch one.
+        """If autospawn is on and ``<host>-dev`` has no live cse_, inject one
+        INTO the running dev server (not a fresh ``oneoff-*`` server).
 
         Called once per tick *after* the spawn/recycle pass, so this tick has
         already (re)started the server if needed. The dispatch call is
-        synchronous (blocks ~30s for the cse_ to register) -- by the time
-        ``tick()`` returns, the new cse_ holds Capacity 1, so the next tick's
-        check is a no-op."""
+        synchronous (blocks for the dispatcher's first turn to land) -- by the
+        time ``tick()`` returns, the dev server's pre-created session holds
+        Capacity 1, so the next tick's ``cap==0`` check is a no-op.
+
+        Defense-in-depth (B): we remember the dev server pid we last dispatched
+        against (``self._dispatched_dev_pid``). While that same server process
+        is still alive we do NOT re-dispatch, even if a single bad capacity read
+        transiently reports 0. A re-dispatch only happens after the dev server
+        has actually been replaced (pid changed -> recycle/respawn dropped the
+        old session). This guards against the per-tick re-dispatch storm even if
+        the Capacity signal is briefly wrong.
+        """
         if not self.cfg.dispatcher_autospawn:
             return
         dev_name = f"{self.cfg.host}-dev"
-        pid = self.proc.server_pid(dev_name)
+        pid = self._dev_server_pid(dev_name)
         present = pid is not None
+        # B: forget any prior dispatch tied to a dev server that's no longer
+        # running (recycled/crashed) -- its session is gone, so a fresh dispatch
+        # is legitimate once the new server is up.
+        if self._dispatched_dev_pid is not None and self._dispatched_dev_pid != pid:
+            self._dispatched_dev_pid = None
         cap = self.proc.read_capacity(self.cfg.logdir / f"{dev_name}.log") if present else -1
         if not should_dispatch_dispatcher(
             autospawn_enabled=True,
@@ -229,11 +263,18 @@ class Supervisor:
             inflight=self._dispatcher_inflight,
         ):
             return
+        # B: already dispatched against THIS live dev server process -- don't
+        # re-dispatch on a transient cap==0 read. (The cap==0 guard above is the
+        # primary stop; this is the belt-and-suspenders against a bad read.)
+        if self._dispatched_dev_pid is not None and self._dispatched_dev_pid == pid:
+            self.log(f"dispatcher: already dispatched into {dev_name} "
+                     f"(pid {pid}); skipping despite cap=0 read")
+            return
         if not self.cfg.dispatcher_prompt_file.is_file():
             self.log(f"dispatcher: prompt file missing: "
                      f"{self.cfg.dispatcher_prompt_file}; skipping")
             return
-        self.log(f"dispatcher: dispatching cse_ for {dev_name} (cap=0)")
+        self.log(f"dispatcher: injecting cse_ into {dev_name} (cap=0)")
         self._dispatcher_inflight = True
         try:
             ok = self._dispatch(
@@ -242,8 +283,13 @@ class Supervisor:
                 prompt_file=self.cfg.dispatcher_prompt_file,
                 wait_timeout_secs=self.cfg.dispatcher_wait_timeout_secs,
                 log=self.log,
+                inject_into=dev_name,
             )
             if ok:
+                # Record the dev server pid we dispatched into so a later bad
+                # capacity read can't trigger a re-dispatch while this same
+                # server is still alive (defense-in-depth B).
+                self._dispatched_dev_pid = pid
                 # Keep the dev server's idle clock fresh so the just-dispatched
                 # cse_'s server can't be recycled out from under it on a tick
                 # where read_capacity hasn't yet observed Capacity 1.

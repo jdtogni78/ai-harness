@@ -41,6 +41,7 @@ USAGE = (
     "usage: python3 -m remote_control new-session [--dir PATH] [--name SLUG]\n"
     "                                      [--spawn worktree|same-dir]\n"
     "                                      [--permission-mode MODE]\n"
+    "                                      [--inject-into SERVER]\n"
     "                                      [--wait [--wait-timeout SECS]]\n"
     "                                      [--prompt TEXT | --prompt-file PATH]\n"
     "                                      [--reply-to CSE_ID | --no-reply-to]\n"
@@ -49,6 +50,18 @@ USAGE = (
     "  Spawn a single-session `claude remote-control` server (capacity 1),\n"
     "  picker-visible, supervisor-invisible. Self-exits when its session ends.\n"
     "    --dir              run in this dir (default: cwd)\n"
+    "    --inject-into SERVER  do NOT spawn a fresh server. Instead, attach to\n"
+    "                       an already-running named server (e.g. `<host>-dev`)\n"
+    "                       by harvesting the cse_* of the session it already\n"
+    "                       pre-created (read from `<SERVER>.log` in the\n"
+    "                       supervisor's logdir), then set its [SUB] title and\n"
+    "                       submit the first turn into it. Raises that server's\n"
+    "                       Capacity 0->1 rather than starting an `oneoff-*`\n"
+    "                       server. Requires --prompt/--prompt-file. Used by the\n"
+    "                       supervisor's dispatcher autospawn so the dispatcher\n"
+    "                       cse_ lands on the supervisor-owned <host>-dev server\n"
+    "                       (the only allowlisted dev server) instead of a fresh\n"
+    "                       one-shot. --name/--spawn/--reply-to are ignored.\n"
     "    --name             server name (default: oneoff-<nick>-<8hex>, where\n"
     "                       <nick> is this machine's host-nick); refuses any\n"
     "                       name starting with 'mm-' or '<host>-' (supervisor\n"
@@ -269,6 +282,7 @@ def _parse_args(argv: List[str]) -> dict:
         "prompt": None, "prompt_file": None,
         "reply_to": None, "no_reply_to": False,
         "subname": None, "no_subname": False,
+        "inject_into": None,
     }
     i = 0
     while i < len(argv):
@@ -279,6 +293,8 @@ def _parse_args(argv: List[str]) -> dict:
             i += 1; opts["name"] = argv[i]
         elif a == "--spawn":
             i += 1; opts["spawn"] = argv[i]
+        elif a == "--inject-into":
+            i += 1; opts["inject_into"] = argv[i]
         elif a == "--permission-mode":
             i += 1; opts["permission_mode"] = argv[i]
         elif a == "--wait":
@@ -400,6 +416,65 @@ def _submit_prompt(
     return 1
 
 
+def inject_into_server(
+    *,
+    server_name: str,
+    cwd: Path,
+    cfg: SupervisorConfig,
+    prompt_body: str,
+    subname: Optional[str],
+    wait_timeout: float,
+    log,
+    waiter: Optional[Callable[..., Optional[str]]] = None,
+    submit: Optional[Callable[..., Any]] = None,
+    get_token: Optional[Callable[..., Any]] = None,
+    set_title: Optional[Callable[..., Any]] = None,
+) -> int:
+    """Attach to an ALREADY-RUNNING named server instead of spawning a fresh
+    ``oneoff-*`` server.
+
+    The supervisor's ``<host>-dev`` server comes up with a *pre-created* session
+    (``--create-session-in-dir``), which writes the same ``session_<id>`` OSC-8
+    link to ``<server_name>.log`` that a one-off spawn does. We harvest that
+    cse_, set its ``[SUB]`` title, and submit the first turn into it -- raising
+    the EXISTING ``<host>-dev`` server's Capacity 0->1, with no second server.
+
+    This is the fix for the dispatcher runaway: the old ``new-session`` default
+    spawned a brand-new ``oneoff-*`` server (capacity 1) whose cse_ attached to
+    THAT server, leaving ``<host>-dev`` at Capacity 0 forever -- so the
+    supervisor re-dispatched every tick (a one-shot storm). By injecting into
+    the running dev server, the dispatch actually occupies the slot the
+    supervisor is gating on, so ``should_dispatch_dispatcher``'s ``cap==0``
+    guard then correctly STOPS re-dispatching.
+
+    Returns 0 on success (prompt submitted), non-zero on any failure. Failures
+    log and return -- the supervisor's tick loop must keep running.
+    """
+    waiter = wait_for_session_id if waiter is None else waiter
+    logpath = Path(cfg.logdir) / f"{server_name}.log"
+    if not logpath.is_file():
+        log(f"inject: server log not found: {logpath} "
+            f"(is {server_name} running with a pre-created session?)")
+        return 1
+    sid = waiter(logpath, wait_timeout)
+    if not sid:
+        log(f"inject: TIMEOUT waiting {wait_timeout}s for {server_name}'s "
+            f"pre-created session id in {logpath}")
+        return 1
+    print(f"inject: target server {server_name} session {sid}")
+
+    if subname:
+        _post_subname_title(sid, cwd, cfg.host, subname, cfg.dev, log,
+                            set_title=set_title, get_token=get_token)
+
+    rc = _submit_prompt(sid, prompt_body, log, submit=submit, get_token=get_token)
+    if rc == 0:
+        # Emit the same `session : cse_...` sentinel a one-off spawn prints so
+        # callers (relaunch's stdout-grep, the supervisor's log) can tee the id.
+        print(f"  session: {sid}")
+    return rc
+
+
 def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
          rng: Optional[Callable[[int], str]] = None,
          env: Optional[Mapping[str, str]] = None,
@@ -447,6 +522,27 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
     if not cwd.is_dir():
         print(f"target dir does not exist: {cwd}", file=sys.stderr)
         return 2
+
+    # --inject-into: attach to an already-running named server (the supervisor's
+    # <host>-dev) instead of spawning a fresh oneoff-* server. Short-circuits the
+    # whole spawn path -- we never start a `claude remote-control`, we just
+    # harvest the dev server's pre-created session id and submit into it.
+    if opts["inject_into"]:
+        if prompt_body is None:
+            print(f"--inject-into requires --prompt or --prompt-file\n{USAGE}",
+                  file=sys.stderr)
+            return 2
+        # Subname defaults like the spawn path, but derived from the TARGET
+        # server name (strip the host prefix) rather than an autogen oneoff name.
+        inj_subname: Optional[str] = None
+        if not opts["no_subname"]:
+            inj_subname = opts["subname"] or default_subname(opts["inject_into"])
+        return inject_into_server(
+            server_name=opts["inject_into"],
+            cwd=cwd, cfg=cfg, prompt_body=prompt_body, subname=inj_subname,
+            wait_timeout=opts["wait_timeout"], log=log, waiter=waiter,
+            submit=submit, get_token=get_token, set_title=set_title,
+        )
 
     name = opts["name"] or autogen_name(cfg.host, rng)
     err = name_is_safe(name, cfg.host)
