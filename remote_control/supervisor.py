@@ -325,6 +325,16 @@ class Supervisor:
                 # the pid change clears the failure latch so the NEXT tick gets a
                 # clean attempt. We also latch against the OLD pid so we don't
                 # re-dispatch into the dying process before the recycle lands.
+                #
+                # Crucially, the respawn alone is NOT enough: the CLI's bridge-
+                # init would otherwise REUSE the preserved/archived env from the
+                # dev dir's bridge-pointer.json (pid dead + source==standalone +
+                # pointer <4h old) and come back Capacity 0 with the same dead
+                # session. The pointer-clear lives in procutil.spawn() (gated on
+                # dispatcher_autospawn AND <host>-dev): this recycle routes
+                # _recycle -> _spawn -> proc.spawn(), so that hook fires here and
+                # the respawn genuinely drops the reuse. (If that routing ever
+                # changes, clear the pointer explicitly in this branch.)
                 self._dispatched_dev_pid = pid
                 self.log(f"dispatcher: recycling {dev_name} (pid {pid}) to drop "
                          f"the preserved/archived session and force a fresh one")
