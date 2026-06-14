@@ -20,8 +20,10 @@ from __future__ import annotations
 
 import os
 import signal
+import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Set
 
 SUPERVISOR_USAGE = (
@@ -54,6 +56,58 @@ def to_deactivate(running: Iterable[str], wanted: Set[str]) -> List[str]:
     return [name for name in running if name not in wanted]
 
 
+def should_dispatch_dispatcher(
+    *,
+    autospawn_enabled: bool,
+    dev_server_present: bool,
+    capacity: int,
+    inflight: bool,
+) -> bool:
+    """Pure decision: dispatch a local-dispatcher cse_ this tick?
+
+    - autospawn must be enabled,
+    - the ``<host>-dev`` server must be allowlisted + running this tick,
+    - Capacity must be 0 (no live session attached; -1 means we haven't read
+      the log yet, so skip until we know),
+    - no prior dispatch is still in flight."""
+    return (
+        autospawn_enabled
+        and dev_server_present
+        and capacity == 0
+        and not inflight
+    )
+
+
+def _default_dispatch(
+    *, claude_bin: Path, cwd: Path, prompt_file: Path,
+    wait_timeout_secs: int, log: Callable[[str], None],
+) -> bool:
+    """Shell out to ``python3 -m remote_control new-session``. Blocking; returns
+    True iff the dispatcher cse_ registered + first turn submitted. Failures
+    log and return False -- the supervisor's tick loop must keep running."""
+    cmd = [
+        sys.executable, "-m", "remote_control", "new-session",
+        "--dir", str(cwd),
+        "--no-reply-to",
+        "--subname", "dispatcher",
+        "--prompt-file", str(prompt_file),
+        "--wait-timeout", str(wait_timeout_secs),
+    ]
+    try:
+        r = subprocess.run(
+            cmd, capture_output=True, text=True,
+            timeout=wait_timeout_secs + 15,
+        )
+    except (subprocess.TimeoutExpired, OSError) as e:
+        log(f"dispatcher: dispatch failed: {type(e).__name__}: {e}")
+        return False
+    if r.returncode != 0:
+        log(f"dispatcher: new-session rc={r.returncode} stderr={r.stderr.strip()[:300]}")
+        return False
+    log(f"dispatcher: new-session ok stdout={r.stdout.strip()[:300]}")
+    return True
+
+
 # --------------------------------------------------------------------------- #
 # Supervisor
 # --------------------------------------------------------------------------- #
@@ -65,12 +119,17 @@ class Supervisor:
         log: Optional[Callable[[str], None]] = None,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.time,
+        dispatch: Optional[Callable[..., bool]] = None,
     ) -> None:
         self.cfg = cfg
         self.proc = proc
         self.log = log if log is not None else make_logger(cfg.manager_log)
         self._sleep = sleep
         self._clock = clock
+        # Injectable so tests can assert dispatch args without spawning real
+        # subprocesses. Default delegates to ``new-session`` via the CLI.
+        self._dispatch = dispatch if dispatch is not None else _default_dispatch
+        self._dispatcher_inflight: bool = False
         self.last_busy: Dict[str, float] = {}   # name -> epoch last seen busy/spawned/adopted
         self._children: Dict[str, "object"] = {}  # name -> Popen we spawned (for reaping)
         # Per-name count of consecutive ticks where the server has been flagged
@@ -148,6 +207,50 @@ class Supervisor:
         if child is not None:
             child.poll()  # reap if it was ours
 
+    # --- dispatcher autospawn ---
+    def _ensure_dispatcher(self, now: float) -> None:
+        """If autospawn is on and ``<host>-dev`` has no live cse_, dispatch one.
+
+        Called once per tick *after* the spawn/recycle pass, so this tick has
+        already (re)started the server if needed. The dispatch call is
+        synchronous (blocks ~30s for the cse_ to register) -- by the time
+        ``tick()`` returns, the new cse_ holds Capacity 1, so the next tick's
+        check is a no-op."""
+        if not self.cfg.dispatcher_autospawn:
+            return
+        dev_name = f"{self.cfg.host}-dev"
+        pid = self.proc.server_pid(dev_name)
+        present = pid is not None
+        cap = self.proc.read_capacity(self.cfg.logdir / f"{dev_name}.log") if present else -1
+        if not should_dispatch_dispatcher(
+            autospawn_enabled=True,
+            dev_server_present=present,
+            capacity=cap,
+            inflight=self._dispatcher_inflight,
+        ):
+            return
+        if not self.cfg.dispatcher_prompt_file.is_file():
+            self.log(f"dispatcher: prompt file missing: "
+                     f"{self.cfg.dispatcher_prompt_file}; skipping")
+            return
+        self.log(f"dispatcher: dispatching cse_ for {dev_name} (cap=0)")
+        self._dispatcher_inflight = True
+        try:
+            ok = self._dispatch(
+                claude_bin=self.cfg.claude_bin,
+                cwd=self.cfg.dev,
+                prompt_file=self.cfg.dispatcher_prompt_file,
+                wait_timeout_secs=self.cfg.dispatcher_wait_timeout_secs,
+                log=self.log,
+            )
+            if ok:
+                # Keep the dev server's idle clock fresh so the just-dispatched
+                # cse_'s server can't be recycled out from under it on a tick
+                # where read_capacity hasn't yet observed Capacity 1.
+                self.last_busy[dev_name] = now
+        finally:
+            self._dispatcher_inflight = False
+
     # --- main loop ---
     def tick(self, now: float) -> None:
         self._reap()
@@ -200,6 +303,11 @@ class Supervisor:
             self.log(f"deactivate: {name} not in allowlist (pid {pid})")
             self._kill_server(name, pid)
             self._deactivate_strikes.pop(name, None)
+
+        # After the spawn/recycle/deactivate pass: ensure a local-dispatcher
+        # cse_ is attached to <host>-dev. No-op if autospawn is off, the dev
+        # server isn't running, or a session is already attached.
+        self._ensure_dispatcher(now)
 
     def shutdown_all(self) -> None:
         self.log("shutdown: forwarding SIGTERM to all servers")

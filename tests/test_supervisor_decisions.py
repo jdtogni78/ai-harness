@@ -10,6 +10,7 @@ from remote_control.supervisor import (
     Supervisor,
     is_busy,
     main as supervisor_main,
+    should_dispatch_dispatcher,
     should_recycle,
     to_deactivate,
 )
@@ -31,6 +32,36 @@ class PureDecisionTest(unittest.TestCase):
         self.assertEqual(to_deactivate(["mm-a", "mm-b", "mm-c"], {"mm-b"}), ["mm-a", "mm-c"])
         self.assertEqual(to_deactivate([], {"mm-a"}), [])
         self.assertEqual(to_deactivate(["mm-a"], {"mm-a"}), [])
+
+    def test_should_dispatch_dispatcher(self):
+        # Happy path: autospawn on, server up, capacity 0, no inflight -> dispatch.
+        self.assertTrue(should_dispatch_dispatcher(
+            autospawn_enabled=True, dev_server_present=True,
+            capacity=0, inflight=False))
+        # Disabled.
+        self.assertFalse(should_dispatch_dispatcher(
+            autospawn_enabled=False, dev_server_present=True,
+            capacity=0, inflight=False))
+        # No dev server (not allowlisted on this host).
+        self.assertFalse(should_dispatch_dispatcher(
+            autospawn_enabled=True, dev_server_present=False,
+            capacity=0, inflight=False))
+        # A session is already attached (human opened one, or our previous
+        # dispatch succeeded) -- never double-dispatch.
+        self.assertFalse(should_dispatch_dispatcher(
+            autospawn_enabled=True, dev_server_present=True,
+            capacity=1, inflight=False))
+        # Capacity unread (-1 -- log hasn't emitted a Capacity line yet) ->
+        # wait. Skipping here is safe because the next tick will retry.
+        self.assertFalse(should_dispatch_dispatcher(
+            autospawn_enabled=True, dev_server_present=True,
+            capacity=-1, inflight=False))
+        # A dispatch is still in flight (defense against re-entry; the
+        # synchronous default makes this rare but guards against an injected
+        # dispatch that returns control early).
+        self.assertFalse(should_dispatch_dispatcher(
+            autospawn_enabled=True, dev_server_present=True,
+            capacity=0, inflight=True))
 
 
 class FakeProc:
@@ -364,6 +395,101 @@ class DeactivateHysteresisTest(unittest.TestCase):
         sup.tick(now=0)
         # Floored to 1 -> behaves like old code: stale gets killed on tick 1.
         self.assertIn(9999, proc.termed)
+
+
+class DispatcherAutospawnTest(unittest.TestCase):
+    """When `dev` is allowlisted and DISPATCHER_AUTOSPAWN=on, the supervisor's
+    tick must dispatch a local-dispatcher cse_ via `new-session` iff the
+    `<host>-dev` server has Capacity 0 (no session attached). It must NOT
+    dispatch when a session is already attached (Capacity >= 1) and must NOT
+    dispatch when autospawn is off."""
+
+    def _make(self, *, autospawn="1", capacity=None, host="mm",
+              dispatcher_present=True, allow="dev\n"):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        root = Path(self.tmp.name)
+        dev = root / "dev"
+        dev.mkdir()
+        active = root / "active-dirs.txt"
+        active.write_text(allow)
+        # Prompt file used by the dispatcher autospawn -- override via env so
+        # the supervisor doesn't need the in-repo default path to exist.
+        prompt = root / "dispatcher.md"
+        if dispatcher_present:
+            prompt.write_text("hello, dispatcher\n")
+        cfg = SupervisorConfig.from_env({
+            "REMOTE_CONTROL_DEV": str(dev),
+            "REMOTE_CONTROL_LOGDIR": str(root / "logs"),
+            "REMOTE_CONTROL_ACTIVE_FILE": str(active),
+            "REMOTE_CONTROL_HOST": host,
+            "GRACE_SECS": "1",
+            "DEACTIVATE_MIN_STRIKES": "1",
+            "DISPATCHER_AUTOSPAWN": autospawn,
+            "DISPATCHER_PROMPT_FILE": str(prompt),
+            "DISPATCHER_WAIT_TIMEOUT_SECS": "5",
+        })
+        proc = FakeProc()
+        # Pre-load capacity if the test wants the dev server to look "already
+        # attached" (cap>=1) before the tick.
+        if capacity is not None:
+            proc.caps[f"{host}-dev"] = capacity
+        logs = []
+        dispatched = []
+
+        def fake_dispatch(**kw):
+            dispatched.append(kw)
+            # Model success: the new cse_ holds a slot, so cap flips to 1.
+            proc.caps[f"{host}-dev"] = 1
+            return True
+
+        sup = Supervisor(
+            cfg, proc=proc, log=logs.append, sleep=lambda s: None,
+            dispatch=fake_dispatch,
+        )
+        return sup, proc, logs, dispatched, prompt
+
+    def test_dispatches_when_dev_present_and_idle(self):
+        sup, _proc, logs, dispatched, prompt = self._make(capacity=0)
+        sup.tick(now=0)
+        self.assertEqual(len(dispatched), 1)
+        self.assertEqual(dispatched[0]["cwd"], sup.cfg.dev)
+        self.assertEqual(dispatched[0]["prompt_file"], prompt)
+        self.assertEqual(dispatched[0]["wait_timeout_secs"], 5)
+        self.assertTrue(any("dispatcher: dispatching" in m for m in logs))
+
+    def test_does_not_dispatch_when_already_attached(self):
+        sup, _proc, _logs, dispatched, _ = self._make(capacity=1)
+        sup.tick(now=0)
+        self.assertEqual(dispatched, [])
+
+    def test_does_not_dispatch_when_autospawn_off(self):
+        sup, _proc, _logs, dispatched, _ = self._make(autospawn="0", capacity=0)
+        sup.tick(now=0)
+        self.assertEqual(dispatched, [])
+
+    def test_does_not_dispatch_when_dev_not_allowlisted(self):
+        # dev not in allowlist -> no <host>-dev server -> nothing to attach to.
+        sup, _proc, _logs, dispatched, _ = self._make(allow="", capacity=0)
+        sup.tick(now=0)
+        self.assertEqual(dispatched, [])
+
+    def test_second_tick_is_noop_after_successful_dispatch(self):
+        # The fake dispatch flips capacity to 1; the next tick must observe
+        # that and not re-dispatch.
+        sup, _proc, _logs, dispatched, _ = self._make(capacity=0)
+        sup.tick(now=0)
+        sup.tick(now=30)
+        self.assertEqual(len(dispatched), 1)
+
+    def test_missing_prompt_file_logs_and_skips(self):
+        # Operator misconfigured DISPATCHER_PROMPT_FILE -> log, don't crash,
+        # don't shell out. Next tick re-checks (so the operator can fix).
+        sup, _proc, logs, dispatched, _ = self._make(
+            capacity=0, dispatcher_present=False)
+        sup.tick(now=0)
+        self.assertEqual(dispatched, [])
+        self.assertTrue(any("prompt file missing" in m for m in logs))
 
 
 class SupervisorMainArgvTest(unittest.TestCase):

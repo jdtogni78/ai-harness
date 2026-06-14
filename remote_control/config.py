@@ -149,6 +149,15 @@ class SupervisorConfig:
     # zero. 0 (or negative) disables the sleep -- which is what every existing
     # test that injects ``sleep=lambda s: None`` already sees.
     spawn_stagger_secs: float
+    # Manager-only model: each host always has one live `cse_*` session on
+    # `<host>-dev` acting as the local dispatcher (see `~/dev/CLAUDE.md`).
+    # When on, the supervisor's tick checks Capacity of `<host>-dev` and, if
+    # there is no live session attached, dispatches one via
+    # `new-session --dir <dev> --prompt-file <dispatcher_prompt_file>`. Off
+    # by default during rollout -- flip to "on" per-host to enable.
+    dispatcher_autospawn: bool
+    dispatcher_prompt_file: Path
+    dispatcher_wait_timeout_secs: int
 
     @classmethod
     def from_env(cls, env: Optional[Mapping[str, str]] = None) -> "SupervisorConfig":
@@ -172,6 +181,12 @@ class SupervisorConfig:
             resume_ttl_hours=int(env.get("RESUME_TTL_HOURS", "24")),
             handoff_perm_mode=env.get("RESUME_ON_RESTART_PERM_MODE", "bypassPermissions"),
             spawn_stagger_secs=float(env.get("SPAWN_STAGGER_SECS", "1.0")),
+            dispatcher_autospawn=_truthy(env.get("DISPATCHER_AUTOSPAWN", "0")),
+            dispatcher_prompt_file=Path(env.get(
+                "DISPATCHER_PROMPT_FILE",
+                f"{REPO}/remote_control/prompts/dispatcher.md")),
+            dispatcher_wait_timeout_secs=int(env.get(
+                "DISPATCHER_WAIT_TIMEOUT_SECS", "45")),
         )
 
     @property
