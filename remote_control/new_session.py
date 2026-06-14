@@ -31,7 +31,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Callable, List, Mapping, Optional
+from typing import Any, Callable, List, Mapping, Optional, Tuple
 
 from .config import SupervisorConfig, UsageLimitConfig
 from .procutil import git_usable_worktree, spawn_env
@@ -54,10 +54,14 @@ USAGE = (
     "                       an already-running named server (e.g. `<host>-dev`)\n"
     "                       by harvesting the cse_* of the session it already\n"
     "                       pre-created (read from `<SERVER>.log` in the\n"
-    "                       supervisor's logdir), then set its [SUB] title and\n"
-    "                       submit the first turn into it. Raises that server's\n"
-    "                       Capacity 0->1 rather than starting an `oneoff-*`\n"
-    "                       server. Requires --prompt/--prompt-file. Used by the\n"
+    "                       supervisor's logdir). The pre-created session is not\n"
+    "                       immediately submittable, so we WAIT for it to report\n"
+    "                       active+connected (re-harvesting the latest log id in\n"
+    "                       case it was superseded) and RETRY the submit on HTTP\n"
+    "                       409 'not active', then set its [SUB] title. Raises\n"
+    "                       that server's Capacity 0->1 rather than starting an\n"
+    "                       `oneoff-*` server. Requires --prompt/--prompt-file;\n"
+    "                       --wait-timeout bounds the activation wait. Used by the\n"
     "                       supervisor's dispatcher autospawn so the dispatcher\n"
     "                       cse_ lands on the supervisor-owned <host>-dev server\n"
     "                       (the only allowlisted dev server) instead of a fresh\n"
@@ -231,6 +235,14 @@ def initial_subname_title(
     which case the caller skips the title-set; the watcher will still add a
     bare ``[NICK.host]`` once it can, just without the [SUB] tag).
 
+    Dev-ROOT fallback: when *cwd* IS the dev root itself (not any repo under
+    it), render a repo-less ``[DEV.<host>]`` prefix instead of returning None.
+    The supervisor's dispatcher injects with ``cwd == dev_root`` (e.g.
+    ``/Users/me/dev``), which is not a git repo, so the old repo-only logic
+    returned None and the ``[dispatcher]`` tag got silently skipped (the live
+    ``could not derive repo … skipping [dispatcher] title tag`` log). The
+    fallback gives that session a sensible ``[DEV.<host>][dispatcher]`` tag.
+
     Lazy-imports session_titles so new_session stays light when the
     subsession-title path isn't exercised (and so a circular import can't
     bite us through cli.py)."""
@@ -244,8 +256,6 @@ def initial_subname_title(
     cwd_s = str(Path(cwd).resolve())
     dev_s = str(Path(dev_root).resolve())
     repo = repo_from_worktree_path(cwd_s) or repo_from_cwd(cwd_s, dev_s)
-    if not repo:
-        return None
     try:
         file_text = Path(nicknames_file or NICKNAMES_FILE).read_text()
     except OSError:
@@ -253,6 +263,19 @@ def initial_subname_title(
     nmap = build_nickname_map(file_text,
                               os.environ.get("SESSION_TITLE_NICKNAMES", ""))
     template = title_format(file_text, os.environ.get("SESSION_TITLE_FORMAT", ""))
+    if not repo:
+        # Only the dev root itself gets the fallback; any other unresolvable
+        # cwd still returns None (unchanged behaviour for the spawn path).
+        if cwd_s != dev_s:
+            return None
+        # Fixed ``DEV`` nick (not derived from a repo basename), host_local=True
+        # (we ARE running here). repo="dev" only feeds the {repo} token; {nick}
+        # is forced to DEV so the prefix reads [DEV.<host>] regardless of map.
+        vals = session_values({"id": ""}, "dev", nmap,
+                              host=host, host_local=True, branch="")
+        vals["nick"] = "DEV"
+        token = render_prefix(template, vals)
+        return apply_prefix("auto-spawned", token, sub=subname)
     # No id yet (the title PUT itself doesn't need it; the ``{id}``/``{shortid}``
     # template tokens get an empty value), host_local=True (we ARE running here).
     vals = session_values({"id": ""}, repo, nmap,
@@ -416,6 +439,112 @@ def _submit_prompt(
     return 1
 
 
+# A freshly ``--create-session-in-dir`` pre-created session is NOT immediately
+# submittable: the API 409s ("Session is not active") until the dev server's
+# TUI actually attaches it. And the log's FIRST session_<id> link can be a
+# transient pre-create that gets SUPERSEDED by a later, different active session
+# (observed live: 015x… at byte 151 -> 01An… at byte 5.5MB, the latter being the
+# one that reached status=active/connection=connected). So the inject path must
+# (a) re-harvest the latest log id on each pass (catch the supersession), and
+# (b) poll session-state until active+connected, retrying the submit on 409.
+_ACTIVATION_POLL_SECS = 1.0       # gap between activation/409 retries
+_SUBMITTABLE_STATUS = "active"
+_SUBMITTABLE_CONN = "connected"
+
+
+def submit_active_with_retry(
+    *,
+    initial_sid: str,
+    message: str,
+    logpath: Path,
+    timeout_secs: float,
+    log,
+    submit: Optional[Callable[..., Any]] = None,
+    get_token: Optional[Callable[..., Any]] = None,
+    fetch_state: Optional[Callable[..., Any]] = None,
+    read_tail: Callable[[Path], bytes] = read_log_tail,
+    sleep: Optional[Callable[[float], None]] = None,
+    clock: Optional[Callable[[], float]] = None,
+    poll_secs: float = _ACTIVATION_POLL_SECS,
+) -> Tuple[int, str]:
+    """Submit *message* into the dev server's CURRENT active session, waiting
+    for it to become submittable and retrying on HTTP 409.
+
+    Loops until *timeout_secs* elapses:
+
+      1. Re-harvest the latest ``session_<id>`` from *logpath* (the server may
+         have superseded the pre-created id with a different active one).
+      2. ``GET /sessions/{id}`` -- only POST when ``status == active`` and
+         ``connection_status == connected``; otherwise wait and re-poll.
+      3. POST the turn. On 200 -> success. On 409 ("not active") -> the session
+         raced us / got superseded; wait and re-loop (re-harvesting the id).
+         On any other non-200 -> a real error; fail fast (don't burn the window
+         retrying an auth/5xx error).
+
+    Returns ``(rc, final_sid)`` where rc is 0 on success, 1 on timeout/failure.
+    A permanent not-active gives a clean rc=1 at the deadline -- never a hang.
+    """
+    from .usage_limit import monitor
+    submit = submit or monitor.submit_user_message
+    get_token = get_token or monitor.get_token
+    fetch_state = fetch_state or monitor.fetch_session_state
+    # Resolve clock/sleep at call time (not as def-time defaults) so a test can
+    # patch ``new_session.time`` and have the change take effect here.
+    sleep = sleep if sleep is not None else time.sleep
+    clock = clock if clock is not None else time.monotonic
+    cfg = UsageLimitConfig.from_env()
+    token = get_token(cfg, log)
+    if not token:
+        log("could not read OAuth token from keychain")
+        return 1, initial_sid
+
+    deadline = clock() + timeout_secs
+    sid = initial_sid
+    attempts = 0
+    while True:
+        # (1) Re-harvest: the active session id may differ from the one we first
+        # saw (the pre-created link gets superseded). Prefer the latest log id.
+        latest = extract_session_id(read_tail(logpath))
+        if latest and latest != sid:
+            log(f"inject: target session superseded {sid} -> {latest}")
+            sid = latest
+
+        # (2) Gate on submittable state. A None code == transport blip: treat as
+        # "unknown", fall through to attempting the submit (the POST itself is
+        # the authoritative check) rather than spinning silently.
+        code, status, conn = fetch_state(cfg, token, sid, log)
+        submittable = (code != 200) or (
+            status == _SUBMITTABLE_STATUS and conn == _SUBMITTABLE_CONN)
+        if not submittable:
+            if clock() >= deadline:
+                log(f"inject: TIMEOUT waiting for {sid} to become active "
+                    f"(last status={status!r} conn={conn!r}, {attempts} submit attempts)")
+                return 1, sid
+            sleep(poll_secs)
+            continue
+
+        # (3) Authoritative attempt.
+        attempts += 1
+        scode, body = submit(cfg, token, sid, message, log)
+        if scode == 200:
+            print(f"submitted {sid} ({len(message)} chars)")
+            return 0, sid
+        if scode == 409:
+            # Raced the activation, or the session got superseded between the
+            # state-check and the POST. Re-loop (re-harvest + re-poll).
+            if clock() >= deadline:
+                log(f"inject: TIMEOUT -- {sid} still 409 'not active' after "
+                    f"{attempts} attempts over {timeout_secs}s")
+                return 1, sid
+            log(f"inject: {sid} 409 (not active yet); retrying")
+            sleep(poll_secs)
+            continue
+        # Any other non-200 is a real error (auth/5xx/bad request) -- don't burn
+        # the whole window retrying it.
+        log(f"inject: FAILED {sid} (http={scode}) body={str(body)[:200]}")
+        return 1, sid
+
+
 def inject_into_server(
     *,
     server_name: str,
@@ -429,6 +558,7 @@ def inject_into_server(
     submit: Optional[Callable[..., Any]] = None,
     get_token: Optional[Callable[..., Any]] = None,
     set_title: Optional[Callable[..., Any]] = None,
+    fetch_state: Optional[Callable[..., Any]] = None,
 ) -> int:
     """Attach to an ALREADY-RUNNING named server instead of spawning a fresh
     ``oneoff-*`` server.
@@ -447,6 +577,16 @@ def inject_into_server(
     supervisor is gating on, so ``should_dispatch_dispatcher``'s ``cap==0``
     guard then correctly STOPS re-dispatching.
 
+    ACTIVATION (the 409 fix): the harvested log id is often the dev server's
+    *pre-created* session, which is NOT yet submittable -- a bare POST gets
+    HTTP 409 "Session is not active" -- and that pre-created id can be
+    SUPERSEDED by a later, different active session (the same id appears later
+    in the log). So instead of submitting the first harvested id once, we hand
+    off to ``submit_active_with_retry``: it re-harvests the latest log id, waits
+    for ``status=active``/``connection=connected``, and retries the POST on 409
+    until the turn is genuinely accepted (bounded by *wait_timeout*). It returns
+    success ONLY when the API 200s the submit.
+
     Returns 0 on success (prompt submitted), non-zero on any failure. Failures
     log and return -- the supervisor's tick loop must keep running.
     """
@@ -463,16 +603,25 @@ def inject_into_server(
         return 1
     print(f"inject: target server {server_name} session {sid}")
 
+    # Wait for an active+connected session and submit (retrying on 409). This
+    # resolves the FINAL session id (which may differ from the first-harvested
+    # one), so the title PUT below targets the same session the turn landed in.
+    rc, sid = submit_active_with_retry(
+        initial_sid=sid, message=prompt_body, logpath=logpath,
+        timeout_secs=wait_timeout, log=log,
+        submit=submit, get_token=get_token, fetch_state=fetch_state,
+    )
+    if rc != 0:
+        return rc
+
     if subname:
         _post_subname_title(sid, cwd, cfg.host, subname, cfg.dev, log,
                             set_title=set_title, get_token=get_token)
 
-    rc = _submit_prompt(sid, prompt_body, log, submit=submit, get_token=get_token)
-    if rc == 0:
-        # Emit the same `session : cse_...` sentinel a one-off spawn prints so
-        # callers (relaunch's stdout-grep, the supervisor's log) can tee the id.
-        print(f"  session: {sid}")
-    return rc
+    # Emit the same `session : cse_...` sentinel a one-off spawn prints so
+    # callers (relaunch's stdout-grep, the supervisor's log) can tee the id.
+    print(f"  session: {sid}")
+    return 0
 
 
 def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
@@ -481,7 +630,8 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
          waiter: Optional[Callable[..., Optional[str]]] = None,
          submit: Optional[Callable[..., Any]] = None,
          get_token: Optional[Callable[..., Any]] = None,
-         set_title: Optional[Callable[..., Any]] = None) -> int:
+         set_title: Optional[Callable[..., Any]] = None,
+         fetch_state: Optional[Callable[..., Any]] = None) -> int:
     popen = subprocess.Popen if popen is None else popen
     git_probe = git_usable_worktree if git_probe is None else git_probe
     env = os.environ if env is None else env
@@ -542,6 +692,7 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
             cwd=cwd, cfg=cfg, prompt_body=prompt_body, subname=inj_subname,
             wait_timeout=opts["wait_timeout"], log=log, waiter=waiter,
             submit=submit, get_token=get_token, set_title=set_title,
+            fetch_state=fetch_state,
         )
 
     name = opts["name"] or autogen_name(cfg.host, rng)
