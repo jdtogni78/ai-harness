@@ -456,7 +456,9 @@ class DispatcherAutospawnTest(unittest.TestCase):
         self.assertEqual(dispatched[0]["cwd"], sup.cfg.dev)
         self.assertEqual(dispatched[0]["prompt_file"], prompt)
         self.assertEqual(dispatched[0]["wait_timeout_secs"], 5)
-        self.assertTrue(any("dispatcher: dispatching" in m for m in logs))
+        # The dispatch targets the running <host>-dev server via inject mode.
+        self.assertEqual(dispatched[0]["inject_into"], f"{sup.cfg.host}-dev")
+        self.assertTrue(any("dispatcher: injecting cse_ into" in m for m in logs))
 
     def test_does_not_dispatch_when_already_attached(self):
         sup, _proc, _logs, dispatched, _ = self._make(capacity=1)
@@ -490,6 +492,173 @@ class DispatcherAutospawnTest(unittest.TestCase):
         sup.tick(now=0)
         self.assertEqual(dispatched, [])
         self.assertTrue(any("prompt file missing" in m for m in logs))
+
+
+class DispatcherInjectRunawayRegressionTest(unittest.TestCase):
+    """Regression for the dispatcher-autospawn RUNAWAY (one-shot storm).
+
+    The bug: ``_default_dispatch`` shelled out to ``new-session`` whose DEFAULT
+    behaviour spawned a brand-new ``oneoff-*`` server (capacity 1). The
+    dispatcher cse_ attached to THAT new server -- never to the running
+    ``<host>-dev`` server. So ``<host>-dev`` Capacity stayed 0/32, and
+    ``should_dispatch_dispatcher`` saw ``cap==0`` every tick and re-dispatched
+    forever (a per-tick storm of one-shot servers).
+
+    The old ``DispatcherAutospawnTest`` suite MOCKED ``_dispatch`` (and flipped
+    capacity to 1 by hand), so it never exercised the real ``new-session``
+    side-effect and PASSED despite the bug. This suite exercises the REAL
+    dispatch path -- ``new_session.inject_into_server`` -- against a fake dev
+    server log, asserting:
+
+      1. dispatch INJECTS into the running ``<host>-dev`` server (harvests its
+         pre-created session id, submits the first turn), raising its Capacity
+         to 1, and spawns NO ``oneoff-*`` server; and
+      2. the second tick is a no-op (no re-dispatch), both because Capacity is
+         now 1 AND because the defense-in-depth pid guard refuses to
+         re-dispatch into the same live dev server.
+
+    Hermetic: a temp logdir holds a hand-written ``<host>-dev.log`` carrying a
+    ``session_<id>`` link; the API submit / title PUT / token fetch are all
+    injected fakes -- no real ``claude`` spawn, no network.
+    """
+
+    def _make(self, *, host="mm", dev_cap=0):
+        from remote_control import new_session as ns
+
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        root = Path(self.tmp.name)
+        dev = root / "dev"
+        dev.mkdir()
+        logdir = root / "logs"
+        logdir.mkdir()
+        active = root / "active-dirs.txt"
+        active.write_text("dev\n")
+        prompt = root / "dispatcher.md"
+        prompt.write_text("you are the dispatcher\n")
+        cfg = SupervisorConfig.from_env({
+            "REMOTE_CONTROL_DEV": str(dev),
+            "REMOTE_CONTROL_LOGDIR": str(logdir),
+            "REMOTE_CONTROL_ACTIVE_FILE": str(active),
+            "REMOTE_CONTROL_HOST": host,
+            "GRACE_SECS": "1",
+            "DEACTIVATE_MIN_STRIKES": "1",
+            "DISPATCHER_AUTOSPAWN": "1",
+            "DISPATCHER_PROMPT_FILE": str(prompt),
+            "DISPATCHER_WAIT_TIMEOUT_SECS": "5",
+        })
+        proc = FakeProc()
+        dev_name = f"{host}-dev"
+        # Model the running dev server: a live pid + a log that already carries
+        # the pre-created session's OSC-8 link (what --create-session-in-dir
+        # makes the dev server emit), and Capacity 0 (the pre-created session
+        # has had no turn yet -- exactly the cap==0 the supervisor gates on).
+        proc.pids[dev_name] = 5000
+        proc._alive.add(5000)
+        proc.caps[dev_name] = dev_cap
+        (logdir / f"{dev_name}.log").write_text(
+            "Capacity: 0/32\n"
+            "https://claude.ai/code/session_DEVDISPATCH?from=cli\n"
+        )
+
+        submitted = []
+        titled = []
+
+        def fake_submit(_cfg, _token, sid, message, _log):
+            submitted.append((sid, message))
+            # The submitted turn makes the pre-created session live -> the dev
+            # server's Capacity flips to 1 (what the real cloud does).
+            proc.caps[dev_name] = 1
+            return 200, {"ok": True}
+
+        def fake_set_title(_cfg, _token, _sid, _title):
+            titled.append(_title)
+            return 200, {"ok": True}
+
+        def fake_get_token(_cfg, _log):
+            return "tok"
+
+        # The REAL dispatch path: _default_dispatch normally execs a subprocess;
+        # here we route through new_session.inject_into_server in-process (the
+        # exact function the subprocess would run) with the API seams faked, so
+        # the test exercises the genuine inject logic without a claude spawn.
+        def real_inject_dispatch(*, claude_bin, cwd, prompt_file,
+                                 wait_timeout_secs, log, inject_into):
+            rc = ns.inject_into_server(
+                server_name=inject_into, cwd=cwd, cfg=cfg,
+                prompt_body=prompt_file.read_text(), subname="dispatcher",
+                wait_timeout=wait_timeout_secs, log=log,
+                submit=fake_submit, set_title=fake_set_title,
+                get_token=fake_get_token,
+            )
+            return rc == 0
+
+        logs = []
+        sup = Supervisor(
+            cfg, proc=proc, log=logs.append, sleep=lambda s: None,
+            dispatch=real_inject_dispatch,
+        )
+        return sup, proc, logs, submitted, titled, dev_name
+
+    def test_inject_raises_dev_capacity_and_spawns_no_oneoff(self):
+        sup, proc, _logs, submitted, titled, dev_name = self._make(dev_cap=0)
+        sup.tick(now=0)
+        # The dispatcher turn was submitted into the DEV server's pre-created
+        # session id (harvested from its log) -- NOT a fresh oneoff session.
+        self.assertEqual(len(submitted), 1)
+        self.assertEqual(submitted[0][0], "cse_DEVDISPATCH")
+        self.assertIn("dispatcher", submitted[0][1])
+        # Dev server Capacity is now occupied (the whole point of the fix).
+        self.assertEqual(proc.caps[dev_name], 1)
+        # NO oneoff-* server was started: the only running server is <host>-dev.
+        self.assertEqual([n for n in proc.pids if n.startswith("oneoff-")], [])
+        self.assertEqual(set(proc.running_servers("mm")), {dev_name})
+        # The defense-in-depth pid was recorded against the live dev server.
+        self.assertEqual(sup._dispatched_dev_pid, 5000)
+        self.assertTrue(any("injecting cse_ into" in m for m in _logs))
+
+    def test_second_tick_is_noop_no_redispatch(self):
+        # The runaway symptom: a second tick re-dispatches. After the fix the
+        # second tick must NOT submit again -- Capacity is now 1, and even if it
+        # weren't, the pid guard blocks a re-dispatch into the same live server.
+        sup, proc, _logs, submitted, _titled, _dev = self._make(dev_cap=0)
+        sup.tick(now=0)
+        sup.tick(now=30)
+        self.assertEqual(len(submitted), 1)
+
+    def test_bad_capacity_read_does_not_storm(self):
+        # Defense-in-depth (B): even if a later capacity read transiently reports
+        # 0 (cloud/log lag) while the SAME dev server process is alive, the pid
+        # guard refuses to re-dispatch -- no storm.
+        sup, proc, logs, submitted, _titled, dev_name = self._make(dev_cap=0)
+        sup.tick(now=0)
+        self.assertEqual(len(submitted), 1)
+        # Simulate a bad read: capacity drops back to 0 though the dev server
+        # (pid 5000) is still the same live process.
+        proc.caps[dev_name] = 0
+        sup.tick(now=60)
+        self.assertEqual(len(submitted), 1)  # still no re-dispatch
+        self.assertTrue(any("already dispatched into" in m for m in logs))
+
+    def test_redispatch_after_dev_server_replaced(self):
+        # Legitimate re-dispatch: if the dev server is actually recycled (new
+        # pid) its pre-created session is gone, so a fresh inject is correct.
+        sup, proc, _logs, submitted, _titled, dev_name = self._make(dev_cap=0)
+        sup.tick(now=0)
+        self.assertEqual(len(submitted), 1)
+        # Recycle: new pid, fresh empty-capacity log with a new pre-created sid.
+        proc.pids[dev_name] = 6000
+        proc._alive.discard(5000)
+        proc._alive.add(6000)
+        proc.caps[dev_name] = 0
+        (sup.cfg.logdir / f"{dev_name}.log").write_text(
+            "Capacity: 0/32\n"
+            "https://claude.ai/code/session_NEWDISPATCH?from=cli\n"
+        )
+        sup.tick(now=90)
+        self.assertEqual(len(submitted), 2)
+        self.assertEqual(submitted[1][0], "cse_NEWDISPATCH")
+        self.assertEqual(sup._dispatched_dev_pid, 6000)
 
 
 class SupervisorMainArgvTest(unittest.TestCase):

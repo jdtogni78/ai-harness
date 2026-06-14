@@ -117,12 +117,29 @@ def spawn_argv(server: Server, cfg: SupervisorConfig) -> List[str]:
     perm-gate hook (project_perm_gate.md, #23) still vets every tool call --
     it's the host's actual safety layer regardless of ``--permission-mode``.
     Attached human-driven inner sessions on these servers also inherit
-    ``bypassPermissions``; the gate continues to gate risky ops."""
+    ``bypassPermissions``; the gate continues to gate risky ops.
+
+    Session-in-dir policy:
+      * Ordinary servers come up EMPTY (``--no-create-session-in-dir``): a
+        session appears only when a human/agent opens one, so the supervisor's
+        idle-recycle can reclaim a server nobody is using.
+      * The ``<host>-dev`` server (when ``dispatcher_autospawn`` is on) comes up
+        WITH a pre-created session (``--create-session-in-dir``) so the
+        supervisor's dispatcher autospawn has a real session id to inject the
+        dispatcher first-turn into (see ``new_session.inject_into_server``).
+        Without this the dev server would have no session for the dispatcher to
+        attach to, and the old code worked around that by spawning a separate
+        ``oneoff-*`` server -- the runaway bug this fixes.
+    """
+    create_in_dir = (
+        cfg.dispatcher_autospawn
+        and server.name == f"{cfg.host}-dev"
+    )
     return [
         str(cfg.claude_bin), "remote-control",
         "--name", server.name, "--spawn", server.spawn_mode,
         "--permission-mode", "bypassPermissions",
-        "--no-create-session-in-dir",
+        "--create-session-in-dir" if create_in_dir else "--no-create-session-in-dir",
     ]
 
 

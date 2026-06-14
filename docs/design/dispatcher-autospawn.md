@@ -1,8 +1,40 @@
 # Design: supervisor auto-spawn of the local-dispatcher session
 
-**Status:** proposal — needs review before implementation.
+**Status:** implemented; amended after the Stage-3 runaway fix (see
+"Amendment: inject into `<host>-dev`, never spawn a one-off" below).
 **Owner:** this thread.
 **Companion:** Stage 1 changes (active-dirs cleanup + `~/dev/CLAUDE.md`).
+
+> **Amendment (runaway fix).** The original "Dispatch action" below routed
+> through `new-session`'s DEFAULT behaviour, which spawns a fresh `oneoff-*`
+> server (capacity 1). The dispatcher cse_ attached to THAT new server — never
+> to the running `<host>-dev` server — so `<host>-dev` Capacity stayed 0/32 and
+> the supervisor re-dispatched **every tick** (a per-tick one-shot storm,
+> observed live: 6 cycles before manual revert). `claude remote-control` has no
+> "attach to an already-running named server" primitive, so the fix is:
+>
+> 1. **`new-session --inject-into <SERVER>`** — a mode that does NOT spawn a
+>    server. It reads `<SERVER>.log` (the supervisor's logdir), harvests the
+>    cse_ of the session that server has **already pre-created**, sets its
+>    `[dispatcher]` title, and submits the first turn into it — raising the
+>    EXISTING server's Capacity 0→1. (`remote_control/new_session.py
+>    :inject_into_server`.)
+> 2. **The `<host>-dev` server is spawned with `--create-session-in-dir`** (only
+>    dev, only when `DISPATCHER_AUTOSPAWN` is on) so it comes up WITH a
+>    pre-created session for the inject to harvest. Every other supervised
+>    server keeps `--no-create-session-in-dir` (comes up empty, idle-recyclable).
+>    (`remote_control/procutil.py :spawn_argv`.)
+> 3. **Defense-in-depth:** the supervisor records the `<host>-dev` server **pid**
+>    it last dispatched into (`Supervisor._dispatched_dev_pid`) and refuses to
+>    re-dispatch while that same process is alive — so a single bad Capacity read
+>    can't restart the storm. The pid resets when the dev server is recycled
+>    (new pid → its session is gone → a fresh inject is legitimate).
+>
+> Net effect: dispatching now occupies the slot the supervisor gates on
+> (`should_dispatch_dispatcher`'s `cap==0`), so the second tick is correctly a
+> no-op. This matches the "only dev is allowlisted" design intent. The
+> "Dispatch action" and "Idempotency" sections below describe the original
+> (buggy) flow and are kept for history; the amendment supersedes them.
 
 ## Problem
 
