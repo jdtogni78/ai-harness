@@ -4,6 +4,8 @@ here so ``supervisor.py`` can be driven with a fake in tests.
 """
 from __future__ import annotations
 
+import glob
+import json
 import os
 import re
 import signal
@@ -203,16 +205,133 @@ def spawn_env(cfg: SupervisorConfig, base_env: Mapping[str, str]) -> Dict[str, s
     return env
 
 
+# ``claude remote-control`` keeps a LOCAL per-dir pointer at
+# ``~/.claude/projects/<dir-slug>/bridge-pointer.json``. On (re)start its
+# bridge-init reads this pointer and, if the recorded pid is NOT running,
+# ``source == "standalone"``, AND the pointer is younger than a compile-time
+# ``BRIDGE_POINTER_TTL_MS`` (4h, no flag/env to disable), REUSES the preserved
+# (often archived) ``environmentId`` instead of minting a fresh one -- so the
+# server comes up Capacity 0/32 emitting NO new ``session_<id>`` link for the
+# dispatcher to harvest, and recycling doesn't help (the pointer stays <4h old).
+# Deleting the pointer just before (re)spawn forces the default fresh-UUID path
+# (fresh env + fresh pre-created session + a new ``session_<id>`` link). The CLI
+# rewrites the pointer after it registers, so the delete is non-destructive
+# (worst case: one new cloud env minted). The pointer JSON has NO dir/cwd field
+# (only sessionId/environmentId/source/pid/procStart), so the match key is the
+# dir slug, derived by replacing every non-alphanumeric char with "-".
+_BRIDGE_POINTER_NAME = "bridge-pointer.json"
+
+
+def _dir_slug(directory: Path) -> str:
+    """The ``~/.claude/projects/<slug>`` slug for *directory*: its absolute path
+    with every non-alphanumeric char replaced by ``-``. Pure. Mirrors the
+    ``claude`` CLI's own slugging (e.g. ``/Users/x/dev`` -> ``-Users-x-dev``)."""
+    return re.sub(r"[^A-Za-z0-9]", "-", str(Path(directory).resolve()))
+
+
+def clear_bridge_pointer(directory: Path,
+                         home: Optional[Path] = None,
+                         log=None) -> Optional[Path]:
+    """Delete the ``bridge-pointer.json`` for *directory* so the next
+    ``claude remote-control`` (re)spawn mints a fresh env/session instead of
+    reusing a preserved (archived) one (see module note above).
+
+    Match strategy (most-robust-available): the pointer JSON carries no dir/cwd
+    field, so we GLOB ``<projects-root>/*/bridge-pointer.json`` and select the
+    one whose containing dir matches the slug for *directory*. (If a future CLI
+    adds a ``directory``/``cwd``/``dir`` field we prefer matching on that and
+    keep the slug as the fallback.) *home*/*projects-root* are injectable for
+    tests so this never touches a real pointer in a hermetic run.
+
+    Best-effort: a missing pointer, an unreadable/garbage pointer, or any OSError
+    is a non-fatal no-op (logged if *log* is given). Never raises. Returns the
+    path deleted, or None if nothing matched/was removed.
+    """
+    home = Path(home) if home is not None else Path.home()
+    projects_root = home / ".claude" / "projects"
+    slug = _dir_slug(directory)
+    target_dir = projects_root / slug
+
+    def _emit(msg: str) -> None:
+        if log is not None:
+            try:
+                log(msg)
+            except Exception:
+                pass
+
+    try:
+        candidates = glob.glob(str(projects_root / "*" / _BRIDGE_POINTER_NAME))
+    except OSError as exc:
+        _emit(f"clear_bridge_pointer: glob failed under {projects_root}: {exc}")
+        return None
+
+    chosen: Optional[Path] = None
+    for cand in candidates:
+        cand_path = Path(cand)
+        # Prefer a dir field if the CLI ever records one; match its resolved
+        # path against *directory*.
+        try:
+            with cand_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            data = None
+        if isinstance(data, dict):
+            rec_dir = data.get("directory") or data.get("cwd") or data.get("dir")
+            if rec_dir:
+                try:
+                    if Path(rec_dir).resolve() == Path(directory).resolve():
+                        chosen = cand_path
+                        break
+                except OSError:
+                    pass
+        # Slug fallback: the containing dir name equals the dir slug.
+        if cand_path.parent.name == slug:
+            chosen = cand_path
+            # Don't break: a dir-field match (above) is preferred, but none of
+            # the remaining candidates can dir-field-match *this* directory more
+            # specifically than its own slug, so this is the answer.
+            break
+
+    # If the glob found nothing but the slug path exists (e.g. odd glob env),
+    # fall back to the deterministic slug path directly.
+    if chosen is None:
+        slug_pointer = target_dir / _BRIDGE_POINTER_NAME
+        if slug_pointer.exists():
+            chosen = slug_pointer
+
+    if chosen is None:
+        _emit(f"clear_bridge_pointer: no pointer for {directory} (slug {slug})")
+        return None
+
+    try:
+        chosen.unlink()
+        _emit(f"clear_bridge_pointer: removed {chosen}")
+        return chosen
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        _emit(f"clear_bridge_pointer: failed to remove {chosen}: {exc}")
+        return None
+
+
 def spawn(server: Server, cfg: SupervisorConfig) -> Optional[subprocess.Popen]:
     """Start a ``claude remote-control`` server, logging to ``<name>.log``.
 
     The child is left in the supervisor's process group (NOT a new session) so
     launchd's group SIGTERM at logout/reboot reaches it and the supervisor can
     forward TERM for a clean cloud deregister.
+
+    For the ``<host>-dev`` server (when ``dispatcher_autospawn`` is on) we first
+    delete its ``bridge-pointer.json`` (see ``clear_bridge_pointer``): otherwise
+    the CLI's bridge-init reuses a preserved/archived env on (re)spawn, coming up
+    Capacity 0/32 with no fresh ``session_<id>`` link for the dispatcher to
+    harvest. Scoped strictly to ``<host>-dev``; no other dir's pointer is touched.
     """
     directory = Path(server.directory)
     if not directory.is_dir():
         return None
+    if cfg.dispatcher_autospawn and server.name == f"{cfg.host}-dev":
+        clear_bridge_pointer(directory)
     logpath = Path(cfg.logdir) / f"{server.name}.log"
     logpath.parent.mkdir(parents=True, exist_ok=True)
     logf = open(logpath, "ab")
