@@ -494,6 +494,108 @@ class DispatcherAutospawnTest(unittest.TestCase):
         self.assertTrue(any("prompt file missing" in m for m in logs))
 
 
+class DispatcherFailureBackoffTest(unittest.TestCase):
+    """Failure back-off: a FAILED dispatch (archived id / timeout) must NOT
+    re-dispatch into the same dev-server process every tick (the slow-loop bug
+    from iteration 2). The dev pid is latched on failure too, so a re-dispatch
+    only happens once the dev server recycles. A DEAD-SESSION outcome
+    (poisoned log) additionally RECYCLES the dev server so a fresh, submittable
+    session replaces the preserved/archived one."""
+
+    def _make(self, *, dispatch, host="mm", dev_cap=0):
+        from remote_control.supervisor import Supervisor
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        dev = root / "dev"; dev.mkdir()
+        active = root / "active-dirs.txt"; active.write_text("dev\n")
+        prompt = root / "dispatcher.md"; prompt.write_text("go\n")
+        cfg = SupervisorConfig.from_env({
+            "REMOTE_CONTROL_DEV": str(dev),
+            "REMOTE_CONTROL_LOGDIR": str(root / "logs"),
+            "REMOTE_CONTROL_ACTIVE_FILE": str(active),
+            "REMOTE_CONTROL_HOST": host,
+            "GRACE_SECS": "1",
+            "DISPATCHER_AUTOSPAWN": "1",
+            "DISPATCHER_PROMPT_FILE": str(prompt),
+        })
+        proc = FakeProc()
+        dev_name = f"{host}-dev"
+        # Pre-place a running dev server with Capacity 0 (no session attached).
+        proc.pids[dev_name] = 5000
+        proc._alive.add(5000)
+        proc.caps[dev_name] = dev_cap
+        logs = []
+        calls = []
+
+        def wrapped(**kw):
+            calls.append(kw)
+            return dispatch(len(calls))
+
+        sup = Supervisor(cfg, proc=proc, log=logs.append,
+                         sleep=lambda s: None, dispatch=wrapped)
+        return sup, proc, logs, calls, dev_name
+
+    def test_generic_failure_latches_pid_no_per_tick_storm(self):
+        from remote_control.supervisor import DISPATCH_FAIL
+        sup, proc, logs, calls, dev_name = self._make(
+            dispatch=lambda n: DISPATCH_FAIL)
+        # Three ticks, dev server stays alive at cap 0 the whole time.
+        sup._ensure_dispatcher(now=0)
+        sup._ensure_dispatcher(now=30)
+        sup._ensure_dispatcher(now=60)
+        # Exactly ONE dispatch despite three cap==0 ticks -- the failure latched
+        # the dev pid, so we don't storm. (Pre-fix: one dispatch per tick.)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(sup._dispatched_dev_pid, 5000)
+        self.assertTrue(any("latching" in m for m in logs))
+
+    def test_failure_latch_clears_when_dev_server_recycles(self):
+        from remote_control.supervisor import DISPATCH_FAIL
+        sup, proc, logs, calls, dev_name = self._make(
+            dispatch=lambda n: DISPATCH_FAIL)
+        sup._ensure_dispatcher(now=0)
+        self.assertEqual(len(calls), 1)
+        # Simulate the dev server recycling (new pid). The latch must clear so a
+        # fresh server run gets a new attempt -- not permanently silenced.
+        proc.pids[dev_name] = 7000
+        proc._alive.add(7000)
+        sup._ensure_dispatcher(now=90)
+        self.assertEqual(len(calls), 2)
+
+    def test_dead_session_recycles_dev_server_and_latches(self):
+        from remote_control.supervisor import DISPATCH_DEAD_SESSION
+        sup, proc, logs, calls, dev_name = self._make(
+            dispatch=lambda n: DISPATCH_DEAD_SESSION)
+        old_pid = proc.pids[dev_name]
+        sup._ensure_dispatcher(now=0)
+        self.assertEqual(len(calls), 1)
+        # The poisoned dev server was recycled: old pid TERM'd, a fresh server
+        # spawned (so the log gets a new run-marker + a fresh session).
+        self.assertIn(old_pid, proc.termed)
+        self.assertIn(dev_name, [s.name for s in proc.spawned])
+        # The new dev server has a different pid -> the latch (set to old pid)
+        # won't block the next tick's attempt against the fresh server.
+        self.assertNotEqual(proc.pids[dev_name], old_pid)
+
+    def test_no_recycle_storm_dead_then_quiet(self):
+        # Dead-session on the first attempt recycles; the SECOND attempt (fresh
+        # server) returns generic FAIL (e.g. the app reconnected with no new
+        # session link -> no harvestable id). That must latch QUIET, not recycle
+        # again -- so a genuinely stuck state can't recycle-loop forever.
+        from remote_control.supervisor import (
+            DISPATCH_DEAD_SESSION, DISPATCH_FAIL)
+        outcomes = {1: DISPATCH_DEAD_SESSION, 2: DISPATCH_FAIL}
+        sup, proc, logs, calls, dev_name = self._make(
+            dispatch=lambda n: outcomes.get(n, DISPATCH_FAIL))
+        sup._ensure_dispatcher(now=0)     # dead -> recycle
+        recycles_after_first = len(proc.termed)
+        sup._ensure_dispatcher(now=30)    # fresh server, generic fail -> latch
+        sup._ensure_dispatcher(now=60)    # latched -> no dispatch, no recycle
+        self.assertEqual(len(calls), 2)               # only two attempts total
+        self.assertEqual(len(proc.termed), recycles_after_first)  # no 2nd recycle
+
+
 class DispatcherInjectRunawayRegressionTest(unittest.TestCase):
     """Regression for the dispatcher-autospawn RUNAWAY (one-shot storm).
 
