@@ -751,6 +751,27 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
         inj_subname: Optional[str] = None
         if not opts["no_subname"]:
             inj_subname = opts["subname"] or default_subname(opts["inject_into"])
+        if opts["dry_run"]:
+            # Harvest WHAT we WOULD inject into without doing it: same log path
+            # and waiter the live path uses, but no submit / no title PUT. The
+            # harvested cse_ is best-effort -- if the log isn't there yet we
+            # still print everything else (server, prompt, intended title) so
+            # the operator can see the planned action.
+            logpath = Path(cfg.logdir) / f"{opts['inject_into']}.log"
+            harvested = waiter(logpath, 0.0) if logpath.is_file() else None
+            print("new-session: DRY-RUN inject (drop --dry-run to submit)")
+            print(f"  target : {opts['inject_into']}")
+            print(f"  log    : {logpath}")
+            print(f"  session: {harvested or '(none harvested — server log absent or empty)'}")
+            if inj_subname:
+                title = initial_subname_title(
+                    cwd, cfg.host, inj_subname, cfg.dev) if harvested else None
+                print(f"  subname: {inj_subname}")
+                if title:
+                    print(f"  title  : {title!r}")
+            preview = prompt_body.strip().splitlines()[0][:80]
+            print(f"  prompt : {len(prompt_body)} chars; first line: {preview!r}")
+            return 0
         return inject_into_server(
             server_name=opts["inject_into"],
             cwd=cwd, cfg=cfg, prompt_body=prompt_body, subname=inj_subname,

@@ -964,6 +964,77 @@ class InjectActivationTest(unittest.TestCase):
         self.assertIn("[dispatcher]", titled["title"])
 
 
+class InjectDryRunTest(unittest.TestCase):
+    """--inject-into combined with --dry-run must print the planned action and
+    submit/retitle nothing -- the live bug was the inject branch returning
+    before the dry-run guard, so `--dry-run` clobbered the dev session for
+    real (issue #93)."""
+
+    def test_inject_dry_run_submits_nothing_and_titles_nothing(self):
+        submitted: list = []
+        titled: list = []
+
+        def fake_submit(cfg, token, sid, message, log):
+            submitted.append((sid, message))
+            return (200, {})
+
+        def fake_set_title(cfg, token, sid, title):
+            titled.append((sid, title))
+            return (200, {})
+
+        with tempfile.TemporaryDirectory() as d:
+            logdir = Path(d) / "logs"
+            logdir.mkdir()
+            # Pre-seed the dev server's log so the waiter has a real cse_ to
+            # surface in the dry-run output (mirrors the live inject path).
+            (logdir / "mini-dev.log").write_bytes(b"session_01Harvested\n")
+            env = _env(d, extra={"REMOTE_CONTROL_LOGDIR": str(logdir)})
+            buf = io.StringIO()
+            with mock.patch.dict(os.environ, env, clear=False), \
+                 mock.patch("sys.stdout", buf):
+                rc = new_session.main(
+                    ["--dir", d, "--inject-into", "mini-dev",
+                     "--prompt", "do the dispatch", "--dry-run"],
+                    popen=_FakePopen(), git_probe=lambda p: True,
+                    waiter=lambda lp, to, **_: "cse_01Harvested",
+                    submit=fake_submit, set_title=fake_set_title,
+                    get_token=lambda cfg, log: "TOKEN")
+        self.assertEqual(rc, 0)
+        # The whole point of the fix: no submit, no title PUT.
+        self.assertEqual(submitted, [])
+        self.assertEqual(titled, [])
+        # The plan was reported.
+        out = buf.getvalue()
+        self.assertIn("DRY-RUN inject", out)
+        self.assertIn("mini-dev", out)
+        self.assertIn("cse_01Harvested", out)
+        self.assertIn("prompt :", out)
+
+    def test_inject_dry_run_without_harvestable_log_still_succeeds(self):
+        # The server log isn't there yet (e.g. dev server not yet up): dry-run
+        # still prints what it WOULD do and submits nothing. Regression guard
+        # against an attempt to read a missing log path in the dry-run branch.
+        submitted: list = []
+        with tempfile.TemporaryDirectory() as d:
+            logdir = Path(d) / "logs"
+            logdir.mkdir()  # exists, but no <server>.log inside
+            env = _env(d, extra={"REMOTE_CONTROL_LOGDIR": str(logdir)})
+            buf = io.StringIO()
+            with mock.patch.dict(os.environ, env, clear=False), \
+                 mock.patch("sys.stdout", buf):
+                rc = new_session.main(
+                    ["--dir", d, "--inject-into", "mini-dev",
+                     "--prompt", "hi", "--dry-run"],
+                    popen=_FakePopen(), git_probe=lambda p: True,
+                    waiter=lambda lp, to, **_: None,
+                    submit=lambda *a, **kw: (submitted.append(a) or (200, {})),
+                    set_title=lambda *a, **kw: (200, {}),
+                    get_token=lambda cfg, log: "TOKEN")
+        self.assertEqual(rc, 0)
+        self.assertEqual(submitted, [])
+        self.assertIn("DRY-RUN inject", buf.getvalue())
+
+
 class FetchSessionStateTest(unittest.TestCase):
     """fetch_session_state must surface status + connection_status (the two
     fields that distinguish a submittable session from a pre-created one that
