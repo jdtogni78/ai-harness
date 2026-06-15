@@ -195,6 +195,9 @@ class SupervisorConfig:
 
     @property
     def oneoffs_dir(self) -> Path:
+        # Dirname stays ``oneoffs/`` after the #92 ``oneoff-`` -> ``local-``
+        # server-name rename so existing on-disk checkpoints from in-flight
+        # legacy servers continue to be picked up by the rehydrate sweep.
         return self.state_dir / "oneoffs"
 
     @property

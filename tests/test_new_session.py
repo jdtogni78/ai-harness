@@ -21,24 +21,31 @@ class AutogenNameTest(unittest.TestCase):
         # (config.host_nickname) is the same value the titles watcher uses for
         # the `[NICK.host]` title prefix.
         name = autogen_name("mini", rng=lambda n: "deadbeef")
-        self.assertEqual(name, "oneoff-mini-deadbeef")
+        self.assertEqual(name, "local-mini-deadbeef")
         self.assertFalse(name.startswith("mm-"))
 
     def test_uses_passed_rng(self):
         self.assertEqual(autogen_name("note", rng=lambda n: "abc"),
-                         "oneoff-note-abc")
+                         "local-note-abc")
 
 
 class NameIsSafeTest(unittest.TestCase):
-    def test_oneoff_ok(self):
-        self.assertIsNone(name_is_safe("oneoff-deadbeef", "mini"))
+    def test_local_ok(self):
+        # The current autogen prefix (#92).
+        self.assertIsNone(name_is_safe("local-deadbeef", "mini"))
 
-    def test_oneoff_with_nick_segment_ok(self):
-        # `oneoff-<nick>-<8hex>` (the new autogen shape) must NOT trip the
-        # `<host>-` rejection -- the name starts with `oneoff-`, the nick is
+    def test_local_with_nick_segment_ok(self):
+        # `local-<nick>-<8hex>` (the autogen shape) must NOT trip the
+        # `<host>-` rejection -- the name starts with `local-`, the nick is
         # just an embedded segment for cross-host disambiguation.
+        self.assertIsNone(name_is_safe("local-mini-deadbeef", "mini"))
+        self.assertIsNone(name_is_safe("local-m5-deadbeef", "m5"))
+
+    def test_legacy_oneoff_still_ok(self):
+        # Back-compat (#92): legacy ``oneoff-*`` names still pass the guard --
+        # in-flight servers spawned before the rename keep working.
+        self.assertIsNone(name_is_safe("oneoff-deadbeef", "mini"))
         self.assertIsNone(name_is_safe("oneoff-mini-deadbeef", "mini"))
-        self.assertIsNone(name_is_safe("oneoff-m5-deadbeef", "m5"))
 
     def test_mm_rejected(self):
         err = name_is_safe("mm-evil", "mini")
@@ -321,7 +328,7 @@ class MainTest(unittest.TestCase):
         self.assertEqual(cmd[0], sys.executable)
         self.assertEqual(cmd[1], "remote-control")
         # Autogen name embeds the host-nick (env REMOTE_CONTROL_HOST=mini).
-        self.assertIn("oneoff-mini-deadbeef", cmd)
+        self.assertIn("local-mini-deadbeef", cmd)
         self.assertEqual(cmd[cmd.index("--capacity") + 1], "1")
         self.assertEqual(cmd[cmd.index("--spawn") + 1], "worktree")
         self.assertEqual(kw["cwd"], str(Path(d).resolve()))
@@ -631,14 +638,23 @@ class WaitAndPromptTest(unittest.TestCase):
 
 
 class SubnameTest(unittest.TestCase):
-    def test_default_subname_strips_oneoff_prefix(self):
+    def test_default_subname_strips_local_prefix(self):
+        # Current autogen prefix (#92).
+        self.assertEqual(default_subname("local-deadbeef"), "deadbeef")
+        self.assertEqual(default_subname("local-ff-emails"), "ff-emails")
+
+    def test_default_subname_strips_legacy_oneoff_prefix(self):
+        # Back-compat (#92): legacy ``oneoff-*`` server names still get their
+        # prefix stripped, so subsession tags from in-flight legacy servers
+        # remain stable across the rename.
         self.assertEqual(default_subname("oneoff-deadbeef"), "deadbeef")
         self.assertEqual(default_subname("oneoff-ff-emails"), "ff-emails")
 
-    def test_default_subname_unchanged_when_no_oneoff_prefix(self):
+    def test_default_subname_unchanged_when_no_known_prefix(self):
         self.assertEqual(default_subname("custom-name"), "custom-name")
 
     def test_default_subname_empty_returns_none(self):
+        self.assertIsNone(default_subname("local-"))
         self.assertIsNone(default_subname("oneoff-"))
 
     def test_initial_subname_title_under_dev_root(self):

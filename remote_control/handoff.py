@@ -537,7 +537,7 @@ def spawn_and_seed_handoff(
     log: Callable[[str], None],
     wait_timeout: float = DEFAULT_WAIT_TIMEOUT_SECS,
 ) -> Optional[str]:
-    """The real spawn function: launch a fresh ``oneoff-<host>-<8hex>``
+    """The real spawn function: launch a fresh ``local-<host>-<8hex>``
     server in ``candidate.run_dir``, wait for its cse_* to register, and
     submit *brief* as the first user turn.
 

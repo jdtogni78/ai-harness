@@ -161,7 +161,7 @@ class OneoffCheckpoint(NamedTuple):
     after ``started_at``) rather than requiring the checkpoint to be updated
     mid-life.
     """
-    name: str            # server name, e.g. ``oneoff-mini-deadbeef``
+    name: str            # server name, e.g. ``local-mini-deadbeef`` (or legacy ``oneoff-mini-deadbeef``)
     dir: str             # the cwd the one-off was spawned in
     pid: int
     started_at: str      # ISO-8601 UTC

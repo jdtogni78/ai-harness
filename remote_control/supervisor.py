@@ -101,7 +101,7 @@ def _default_dispatch(
 
     NOTE (runaway-bug fix): this uses ``--inject-into`` so the dispatcher cse_
     lands on the EXISTING ``<host>-dev`` server (raising its Capacity 0->1),
-    NOT a freshly-spawned ``oneoff-*`` server. The old path spawned a one-shot
+    NOT a freshly-spawned ``local-*`` server. The old path spawned a one-shot
     server whose session never touched ``<host>-dev``, so its Capacity stayed 0
     and the supervisor re-dispatched every tick -- a per-tick one-shot storm.
     """
@@ -244,7 +244,7 @@ class Supervisor:
 
     def _ensure_dispatcher(self, now: float) -> None:
         """If autospawn is on and ``<host>-dev`` has no live cse_, inject one
-        INTO the running dev server (not a fresh ``oneoff-*`` server).
+        INTO the running dev server (not a fresh ``local-*`` server).
 
         Called once per tick *after* the spawn/recycle pass, so this tick has
         already (re)started the server if needed. The dispatch call is

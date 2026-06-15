@@ -712,8 +712,13 @@ class DispatcherInjectRunawayRegressionTest(unittest.TestCase):
         self.assertIn("dispatcher", submitted[0][1])
         # Dev server Capacity is now occupied (the whole point of the fix).
         self.assertEqual(proc.caps[dev_name], 1)
-        # NO oneoff-* server was started: the only running server is <host>-dev.
-        self.assertEqual([n for n in proc.pids if n.startswith("oneoff-")], [])
+        # NO local-* (or legacy oneoff-*) server was started: the only running
+        # server is <host>-dev.
+        self.assertEqual(
+            [n for n in proc.pids
+             if n.startswith("local-") or n.startswith("oneoff-")],
+            [],
+        )
         self.assertEqual(set(proc.running_servers("mm")), {dev_name})
         # The defense-in-depth pid was recorded against the live dev server.
         self.assertEqual(sup._dispatched_dev_pid, 5000)

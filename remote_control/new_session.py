@@ -4,13 +4,16 @@
 Same shape as the launchd supervisor's per-dir servers, but:
 
   * ``--capacity 1`` so the server self-exits when its single session ends.
-  * Name prefix ``oneoff-`` (not ``mm-`` and not ``<host>-``) so neither
+  * Name prefix ``local-`` (not ``mm-`` and not ``<host>-``) so neither
     ``procutil._RUNNING_RE`` nor the supervisor's adopt logic can ever pick
     this server up -- the supervisor's regex scans ``<host>-<basename>`` only.
+    The historical prefix was ``oneoff-``; the rehydrate sweep + default
+    subname strip still recognize ``oneoff-`` so in-flight legacy servers and
+    on-disk checkpoints continue to work during the transition.
   * ``--create-session-in-dir`` (the CLI default) is left on, so a session
     row appears in the Claude app picker immediately.
 
-The autogen name is ``oneoff-<nick>-<8hex>``, where ``<nick>`` is this
+The autogen name is ``local-<nick>-<8hex>``, where ``<nick>`` is this
 machine's short host-nick (the same value the titles watcher uses to render
 the ``[NICK.host]`` title prefix; see ``config.host_nickname``). The nick
 segment keeps picker rows + log filenames disambiguated across parallel
@@ -60,13 +63,13 @@ USAGE = (
     "                       case it was superseded) and RETRY the submit on HTTP\n"
     "                       409 'not active', then set its [SUB] title. Raises\n"
     "                       that server's Capacity 0->1 rather than starting an\n"
-    "                       `oneoff-*` server. Requires --prompt/--prompt-file;\n"
+    "                       `local-*` server. Requires --prompt/--prompt-file;\n"
     "                       --wait-timeout bounds the activation wait. Used by the\n"
     "                       supervisor's dispatcher autospawn so the dispatcher\n"
     "                       cse_ lands on the supervisor-owned <host>-dev server\n"
     "                       (the only allowlisted dev server) instead of a fresh\n"
     "                       one-shot. --name/--spawn/--reply-to are ignored.\n"
-    "    --name             server name (default: oneoff-<nick>-<8hex>, where\n"
+    "    --name             server name (default: local-<nick>-<8hex>, where\n"
     "                       <nick> is this machine's host-nick); refuses any\n"
     "                       name starting with 'mm-' or '<host>-' (supervisor\n"
     "                       would otherwise reap or adopt it)\n"
@@ -94,7 +97,7 @@ USAGE = (
     "                       watcher preserves the [SLUG] tag across re-renders\n"
     "                       (see session_titles.extract_sub_token). Implies\n"
     "                       --wait. Default: auto-derive from the server name\n"
-    "                       (strip `oneoff-` prefix); pass --no-subname to skip.\n"
+    "                       (strip `local-`/`oneoff-` prefix); pass --no-subname to skip.\n"
     "    --no-subname       skip setting the [SUB] tag on the inner session\n"
     "    --dry-run          print the command + cwd + log path; don't spawn"
 )
@@ -133,13 +136,17 @@ _RUN_MARKER_RE = re.compile(re.escape(_RUN_MARKER_PREFIX) + rb"[0-9A-Za-z._-]+")
 # Pure helpers
 # --------------------------------------------------------------------------- #
 def autogen_name(host: str, rng: Optional[Callable[[int], str]] = None) -> str:
-    """``oneoff-<host>-<8hex>``. *host* is the short host-nick from
+    """``local-<host>-<8hex>``. *host* is the short host-nick from
     ``config.host_nickname`` (the same value the titles watcher uses to render
     the ``[NICK.host]`` title prefix), so picker rows + log filenames stay
     disambiguated across parallel hosts without re-embedding the full
-    hostname."""
+    hostname.
+
+    Historical: the prefix was ``oneoff-`` before #92. Existing in-flight
+    ``oneoff-*`` servers + on-disk checkpoints are still recognized by the
+    rehydrate sweep and ``default_subname`` so the transition is graceful."""
     gen = rng or (lambda n: secrets.token_hex(n // 2))
-    return f"oneoff-{host}-{gen(8)}"
+    return f"local-{host}-{gen(8)}"
 
 
 def pick_spawn_mode(directory: Path, git_probe: Callable[[Path], bool]) -> str:
@@ -239,10 +246,16 @@ def wait_for_session_id(
 
 def default_subname(server_name: str) -> Optional[str]:
     """The default subname tag for a spawned subsession: the server name with
-    its ``oneoff-`` prefix stripped (``oneoff-deadbeef`` -> ``deadbeef``;
-    ``oneoff-ff-emails`` -> ``ff-emails``). Returns None if stripping leaves
-    nothing usable, in which case the caller skips the title-set step."""
-    tail = server_name[len("oneoff-"):] if server_name.startswith("oneoff-") else server_name
+    its ``local-`` (or legacy ``oneoff-``) prefix stripped
+    (``local-deadbeef`` -> ``deadbeef``; ``oneoff-ff-emails`` -> ``ff-emails``).
+    Returns None if stripping leaves nothing usable, in which case the caller
+    skips the title-set step."""
+    for prefix in ("local-", "oneoff-"):
+        if server_name.startswith(prefix):
+            tail = server_name[len(prefix):]
+            break
+    else:
+        tail = server_name
     tail = tail.strip()
     return tail or None
 
@@ -625,7 +638,7 @@ def inject_into_server(
     fetch_state: Optional[Callable[..., Any]] = None,
 ) -> int:
     """Attach to an ALREADY-RUNNING named server instead of spawning a fresh
-    ``oneoff-*`` server.
+    ``local-*`` server.
 
     The supervisor's ``<host>-dev`` server comes up with a *pre-created* session
     (``--create-session-in-dir``), which writes the same ``session_<id>`` OSC-8
@@ -634,7 +647,7 @@ def inject_into_server(
     the EXISTING ``<host>-dev`` server's Capacity 0->1, with no second server.
 
     This is the fix for the dispatcher runaway: the old ``new-session`` default
-    spawned a brand-new ``oneoff-*`` server (capacity 1) whose cse_ attached to
+    spawned a brand-new ``local-*`` server (capacity 1) whose cse_ attached to
     THAT server, leaving ``<host>-dev`` at Capacity 0 forever -- so the
     supervisor re-dispatched every tick (a one-shot storm). By injecting into
     the running dev server, the dispatch actually occupies the slot the
@@ -738,7 +751,7 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
         return 2
 
     # --inject-into: attach to an already-running named server (the supervisor's
-    # <host>-dev) instead of spawning a fresh oneoff-* server. Short-circuits the
+    # <host>-dev) instead of spawning a fresh local-* server. Short-circuits the
     # whole spawn path -- we never start a `claude remote-control`, we just
     # harvest the dev server's pre-created session id and submit into it.
     if opts["inject_into"]:
@@ -879,7 +892,9 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
     # Drop a checkpoint so the supervisor sweep can fork our transcript for the
     # /resume picker if our process dies before clean exit (reboot, OOM, etc.).
     # The checkpoint lives at ~/.ai-harness/oneoffs/<name>.json -- the sweep
-    # reads from the same SupervisorConfig.state_dir.
+    # reads from the same SupervisorConfig.state_dir. The dirname stays
+    # ``oneoffs/`` post-#92 rename for back-compat with legacy checkpoints;
+    # only the server NAME prefix changed (``oneoff-`` -> ``local-``).
     try:
         from datetime import datetime, timezone
         from .rehydrate import write_oneoff_checkpoint
