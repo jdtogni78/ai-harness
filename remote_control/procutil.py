@@ -151,7 +151,7 @@ def spawn_argv(server: Server, cfg: SupervisorConfig) -> List[str]:
         dispatcher first-turn into (see ``new_session.inject_into_server``).
         Without this the dev server would have no session for the dispatcher to
         attach to, and the old code worked around that by spawning a separate
-        ``oneoff-*`` server -- the runaway bug this fixes.
+        ``local-*`` server -- the runaway bug this fixes.
     """
     create_in_dir = (
         cfg.dispatcher_autospawn
