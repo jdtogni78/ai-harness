@@ -271,6 +271,71 @@ class ComputeRelaunchTitleTest(unittest.TestCase):
             source_title="[NICK.host] ", spawned_title="x"))
 
 
+class ExtractSpawnedCseTest(unittest.TestCase):
+    """Regression: relaunch must recognise the actual new-session sentinel.
+
+    new-session prints ``  session: cse_...`` (leading indent, no space
+    before the colon) on both the inject and spawn paths. relaunch used to
+    grep for ``session :`` (space before the colon) and reported a false
+    "spawn failed" even though the new bridge was alive (#94).
+    """
+
+    # Representative tail of a real new-session spawn (see new_session.py line
+    # 895): startup notices, then the indented `  session: cse_...` line.
+    _SPAWN_STDOUT = (
+        "new-session: launched (pid 12345)\n"
+        "new-session: waiting for inner session to register (timeout 60s)\n"
+        "  session: cse_01HZSPAWNED\n"
+    )
+
+    # Representative inject-path output (new_session.py line 685 / 687):
+    # `inject: ...` line followed by the indented `  session: cse_...`.
+    _INJECT_STDOUT = (
+        "inject: target server oneoff-mini-deadbeef session cse_01HZINJECTED\n"
+        "  session: cse_01HZINJECTED\n"
+    )
+
+    def test_parses_spawn_path_stdout(self):
+        self.assertEqual(
+            relaunch._extract_spawned_cse(self._SPAWN_STDOUT),
+            "cse_01HZSPAWNED",
+        )
+
+    def test_parses_inject_path_stdout(self):
+        self.assertEqual(
+            relaunch._extract_spawned_cse(self._INJECT_STDOUT),
+            "cse_01HZINJECTED",
+        )
+
+    def test_parses_legacy_session_space_colon_form(self):
+        # Earlier docstring + comments described `session : cse_...` with a
+        # space before the colon. Accept that too, so a future emitter swap
+        # in either direction doesn't break the consumer again.
+        self.assertEqual(
+            relaunch._extract_spawned_cse("session : cse_01LEGACY\n"),
+            "cse_01LEGACY",
+        )
+
+    def test_returns_none_when_sentinel_missing(self):
+        self.assertIsNone(
+            relaunch._extract_spawned_cse(
+                "new-session: TIMEOUT waiting 60s for the inner session\n"))
+
+    def test_returns_none_on_empty_stdout(self):
+        self.assertIsNone(relaunch._extract_spawned_cse(""))
+
+    def test_ignores_unrelated_session_word_in_other_lines(self):
+        # A noise line that merely contains "session" somewhere must NOT be
+        # treated as the sentinel; only the leading `session:` form counts.
+        noisy = (
+            "new-session: launched (pid 42)\n"
+            "  inner session not ready yet\n"
+            "  session: cse_01HZSPAWNED\n"
+        )
+        self.assertEqual(
+            relaunch._extract_spawned_cse(noisy), "cse_01HZSPAWNED")
+
+
 class MainHappyPathTest(unittest.TestCase):
     """End-to-end main() with all I/O injected. Verifies that on first run we:
     spawn -> retitle -> write the handoff record; on second run we skip."""

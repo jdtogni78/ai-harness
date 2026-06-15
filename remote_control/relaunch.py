@@ -348,6 +348,24 @@ def _default_state_dir(env: Mapping[str, str]) -> Path:
 # --------------------------------------------------------------------------- #
 # Spawn -- defaults to new_session.main but injectable for tests
 # --------------------------------------------------------------------------- #
+# Sentinel new_session emits on a successful spawn. Historically the inject
+# path printed ``session : cse_...`` (space before the colon) and the spawn
+# path printed ``  session: cse_...`` (leading indent, no space before the
+# colon). Matching either form keeps relaunch's success-detection robust to
+# new_session changing its emitter -- the consumer adapts, not the producer.
+_SPAWNED_CSE_LINE_RE = re.compile(r"^\s*session\s*:\s*(cse_\S+)")
+
+
+def _extract_spawned_cse(stdout: str) -> Optional[str]:
+    """Return the first ``cse_*`` id printed on a ``session[ ]:`` sentinel
+    line in *stdout*, or ``None`` if no such line is present."""
+    for line in stdout.splitlines():
+        m = _SPAWNED_CSE_LINE_RE.match(line)
+        if m:
+            return m.group(1)
+    return None
+
+
 def default_spawn(
     *, cwd: str, brief: str, subname: str, wait_timeout: float, log,
 ) -> Optional[str]:
@@ -360,9 +378,9 @@ def default_spawn(
     listings and risk shell-quoting trouble for callers who script around it.
 
     Returns the new ``cse_*`` on success, or None on any failure.
-    new_session writes its ``session : cse_...`` line to stdout on success;
-    we tee it via a sentinel-grep on the captured stdout so this function
-    can return it without a second API call."""
+    new_session writes a ``session: cse_...`` line to stdout on success;
+    :func:`_extract_spawned_cse` recovers it so this function can return
+    without a second API call."""
     import io
     from contextlib import redirect_stdout
     from . import new_session
@@ -389,11 +407,10 @@ def default_spawn(
         if rc != 0:
             log(f"new-session exited rc={rc}; see stderr above")
             return None
-        for line in out.splitlines():
-            line = line.strip()
-            if line.startswith("session :"):
-                return line.split(":", 1)[1].strip()
-        log("new-session reported success but no `session : cse_...` line found")
+        cse = _extract_spawned_cse(out)
+        if cse:
+            return cse
+        log("new-session reported success but no `session: cse_...` line found")
         return None
     finally:
         try:
