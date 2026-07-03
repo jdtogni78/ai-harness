@@ -19,6 +19,8 @@ picked up by both tools.
 | `close-work`          | Wrap up a thread: review vs `main`, sync the GH Project ticket, release the claim, deliver or hand off. |
 | `lease-env`           | Lease a shared **preview** env from your app's pool (slot names per `scripts/pool/config.example.yaml`). |
 | `test-env`            | Lease an isolated-DB **test** slot from your app's test pool (slot names per `scripts/pool/config.example.yaml`). |
+| `new-session`         | Spawn a picker-visible worker session; `brief-template.md` is the canonical shape for a worker's first-turn brief, including the "Sibling workers" section. |
+| `manage`              | Coordinate parallel worker sessions: tracking, handshake, and the worker-roster practice that feeds each worker's "Sibling workers" section. |
 
 `session-triage/scripts/session_scan.sh`, `resume-work/scripts/resume_brief.sh`,
 and `start-work/scripts/agent_claims.sh` are the real scripts (no external

@@ -151,6 +151,30 @@ worker's id — all from one CLI call. Compare to the four-step manual flow
 (spawn, wait for registration, scrape `sessions list` for the id, submit
 the message), each step of which has its own failure mode.
 
+### Multi-worker dispatches: keep siblings in each other's context
+
+When a manager spawns more than one worker toward the same overall goal,
+each worker's brief must say who else is working on it. Without this,
+parallel workers duplicate work, contradict each other's decisions, or
+re-litigate something a sibling already settled. Use
+[`brief-template.md`](brief-template.md) — it has a mandatory "Sibling
+workers" section (subname + `cse_*` + one-line responsibility per live
+sibling) and a "Settled decisions" section for anything a sibling already
+decided that the new worker must not recompute differently. See
+[[manage]]'s worker-roster practice for how the manager tracks the list
+that feeds this section.
+
+**Worker-side expectations** (state these in the brief, or point the
+worker at the template):
+- Read the "Sibling workers" section before starting. If your task starts
+  to overlap a listed sibling's scope, stop and report the overlap to the
+  manager via `send-to-session` instead of silently resolving it yourself.
+- When reporting back, state assumptions a sibling might depend on, and
+  include a short "state of my work" (done / in-progress / decisions made)
+  — this keeps the manager's roster accurate even if you later disconnect,
+  which also makes any future `/takeover` or `/relaunch` brief far more
+  useful.
+
 For a short literal prompt, use `--prompt "..."` instead of
 `--prompt-file`. For multi-line prompts, prefer the file form — the shell
 quoting on a multi-line `--prompt` argument is fragile.

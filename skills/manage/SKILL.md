@@ -172,6 +172,39 @@ is rejected — see "Confirmation rules" below).
 If `count==0`, the helpers still emit `[MGR-<ord>] <task> (0 workers)` so
 the boss can tell an idle manager from a non-manager session at a glance.
 
+## Worker roster: keeping siblings in each other's context
+
+Workers spawned toward the same overall goal need to know about each
+other — otherwise two workers duplicate work, contradict each other's
+decisions, or re-litigate something a sibling already settled (e.g. two
+workers computing the same ratio two different ways). The manager is the
+only party positioned to prevent this, since each worker only sees its own
+brief.
+
+- **Track the roster in this session's todo list**, one todo per live
+  worker (subname, `cse_*`, one-line responsibility), kept until a
+  terminal event (reported-done / closed / forgotten) — the same rule
+  used elsewhere for child workers. `workers.sh list` is the durable
+  record; the todo list is the fast-access view you actually read while
+  drafting a new brief.
+- **Every new worker's brief gets a "Sibling workers" section** listing
+  every other *live* worker (subname + responsibility + `cse_*`) and any
+  "Settled decisions" a sibling already made that overlaps the new
+  worker's area. Use [`new-session/brief-template.md`](../new-session/brief-template.md)
+  — don't hand-roll the shape each time.
+- **Mid-flight forwarding to an existing worker** (a `send-to-session`
+  push, not a fresh brief): name which sibling produced the information
+  and whether it supersedes something the worker already assumed, e.g.
+  `"cse_<sibling> (subname: <x>) just settled on <decision> — this
+  supersedes <assumption>."` Don't just paste the fact with no
+  attribution; the worker needs to know whether to trust it over its own
+  read of the task.
+- **When a worker reports a decision affecting siblings, relay it.**
+  Don't assume other workers will discover it themselves — proactively
+  `send-to-session` it to each affected live sibling, and fold it into
+  that worker's "Settled decisions" for any *future* brief in this
+  dispatch.
+
 ## State: where the manager remembers its workers
 
 - **File**: `~/.ai-harness/manager/<manager_cse_id>.jsonl` (the manager's own
@@ -376,7 +409,11 @@ For one approved unit classified as **full session** in **Play: plan**:
    gh project item-add <N> --owner <you> --url <issue-url>
    ```
    Apply the right domain label(s) (see [[start-work]]'s Labels section).
-3. **Write the worker's first-turn brief** to a temp file. Two templates:
+3. **Write the worker's first-turn brief** to a temp file, following
+   [`new-session/brief-template.md`](../new-session/brief-template.md) —
+   in particular, fill in "Sibling workers" from the current roster
+   (todo list / `workers.sh list`) before spawning, even for the
+   ticket-based / raw-prompt skeletons below. Two skeletons:
 
    **Ticket-based** (most cases):
    ```
@@ -388,6 +425,23 @@ For one approved unit classified as **full session** in **Play: plan**:
    (your manager) via /send-to-session listing what changed, what was
    tested, and any blockers — I need to confirm with the boss before
    you tear down.
+
+   ## Sibling workers
+
+   <one line per other live worker on this same goal: subname, cse_*, one-line
+   responsibility. "None — you are the only worker on this goal right now." is
+   a valid value, but say it explicitly.>
+
+   ## Settled decisions
+
+   <anything a sibling (or I) already decided in your task's area — don't
+   re-litigate or recompute these differently.>
+
+   If your task starts to overlap a sibling's scope listed above, STOP and
+   report the overlap to me via /send-to-session instead of resolving it
+   yourself. When you report back, include assumptions a sibling might
+   depend on, and a short "state of my work" (done / in-progress / decisions
+   made) so my roster stays accurate even if you later disconnect.
 
    ## Routing rule — DO NOT ask the user directly
 
@@ -414,8 +468,14 @@ For one approved unit classified as **full session** in **Play: plan**:
    ```
    <plain instructions>
 
-   When done, reply to me via /send-to-session with what you found. Do
-   not /close-work without my OK.
+   Sibling workers: <one line per other live worker on this same goal, or
+   "none right now">. Settled decisions: <anything already decided in this
+   area — don't recompute it>. If your task overlaps a sibling's scope,
+   report the overlap to me instead of resolving it yourself.
+
+   When done, reply to me via /send-to-session with what you found, plus
+   any assumptions a sibling might depend on. Do not /close-work without
+   my OK.
 
    Routing rule: send ALL questions / clarifications to me via
    /send-to-session — do NOT use AskUserQuestion or ask the boss in this

@@ -39,6 +39,7 @@ belong here.
 | [GD-0006](#gd-0006--shared-app-one-env-pools-code-in-ai-harness-state-per-host) | 2026-05 | Accepted | Shared AppOne env pools: code vendored in ai-harness, runtime state per-host |
 | [GD-0007](#gd-0007--single-operator-one-ssh-identity-reused-everywhere) | 2026-05 | Accepted | Single-operator setup: one SSH identity reused across hosts/GitHub/DB |
 | [GD-0008](#gd-0008--secrets-stay-out-of-git-as-the-default-posture-not-yet-uniform) | 2026-05 | Accepted | Secrets-out-of-git is the intended default posture (uniform adoption is in progress) |
+| [GD-0009](#gd-0009--manager-tracked-worker-roster-shared-into-every-sibling-brief) | 2026-07 | Accepted | Manager keeps a live worker roster and shares it into every sibling worker's brief |
 
 ---
 
@@ -189,3 +190,30 @@ belong here.
   scan. Track per-repo adoption rather than assuming it.
 - **Source:** AppOne `ED-0001`/`ED-0002`, `docs/security/`; this workspace's
   secret-rotation history.
+
+## GD-0009 — Manager-tracked worker roster, shared into every sibling brief
+
+- **Date:** 2026-07 · **Status:** Accepted
+- **Context:** A manager spawning several workers toward one goal (per
+  [[manage]]) previously gave each worker ONLY its own brief. Workers had no
+  visibility into sibling workers' scope or decisions already made, so
+  parallel workers could duplicate work or contradict each other (e.g. two
+  workers computing the same ratio two different ways).
+- **Decision:** The manager keeps a live **worker roster** (this session's
+  todo list, one todo per live worker — subname, `cse_*`, one-line
+  responsibility — backed by the durable `workers.sh` state log) and
+  transcribes it into every new worker's brief as a mandatory "Sibling
+  workers" section, plus a "Settled decisions" section for anything a
+  sibling already decided that the new worker must not recompute. Mid-flight
+  `send-to-session` pushes into an existing worker attribute the source
+  sibling and say whether it supersedes an assumption. Workers report
+  "state of my work" + assumptions siblings might depend on when they
+  report back, and stop + report (rather than silently resolve) any overlap
+  with a sibling's listed scope.
+- **Consequences:** Every full-session worker brief now carries roster
+  bookkeeping overhead (the manager must keep the todo list current); a
+  stale roster produces a stale "Sibling workers" section, so the manager
+  must update it on every dispatch/close/forget, not just at dispatch time.
+- **Source:** `ai-harness/skills/manage/SKILL.md` ("Worker roster" section);
+  `ai-harness/skills/new-session/brief-template.md`;
+  `ai-harness/skills/new-session/SKILL.md` ("Multi-worker dispatches").
