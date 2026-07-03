@@ -922,7 +922,7 @@ USAGE = (
     "usage: python3 -m remote_control titles [list|apply] [--dev DIR] "
     "[--projects-dir DIR] [--nicknames-file PATH] [--map repo=NICK,...] "
     "[--only REPO] [--all]\n"
-    "       python3 -m remote_control titles set [--self|--id CSE_ID] [--cwd DIR] [--sub SUB]... \"<description>\"\n"
+    "       python3 -m remote_control titles set [--self|--id CSE_ID] [--cwd DIR] [--sub SUB]... [--nick NICK] \"<description>\"\n"
     "       python3 -m remote_control titles watch [--interval SECS]\n"
     "  list  (default): show the planned [NICK] title prefixes (no writes)\n"
     "  apply         : PUT the changed titles\n"
@@ -949,6 +949,10 @@ USAGE = (
     "                  --cwd DIR: override repo derivation from DIR (the\n"
     "                  manage skill passes the manager's own cwd so a session\n"
     "                  outside any indexed bridge layout still gets [NICK]).\n"
+    "                  --nick NICK: use NICK verbatim as the bracket prefix,\n"
+    "                  skipping repo derivation entirely -- the escape hatch\n"
+    "                  for other-host bridge sessions with no local worktree/\n"
+    "                  transcript/log for the repo resolver to key off.\n"
     "  --projects-dir DIR : Claude Code transcript root (default ~/.claude/\n"
     "    projects). Repo is derived from a session's transcript-dir name when\n"
     "    its bridge worktree has been deleted but the transcript folder remains.\n"
@@ -967,7 +971,7 @@ def _parse_args(argv: List[str]) -> dict:
             "map": "", "only": None, "self": False, "id": None, "desc": "",
             "projects": PROJECTS_DIR, "logdir": LOGDIR, "all": False,
             "force_host": False, "sub": None, "subs": [], "cwd": None,
-            "interval": 0}
+            "nick": None, "interval": 0}
     desc: List[str] = []
     i = 0
     while i < len(argv):
@@ -1004,6 +1008,8 @@ def _parse_args(argv: List[str]) -> dict:
             opts["sub"] = argv[i]
         elif a == "--cwd":
             i += 1; opts["cwd"] = argv[i]
+        elif a == "--nick":
+            i += 1; opts["nick"] = argv[i]
         elif a in ("-h", "--help"):
             opts["cmd"] = "help"
         elif not a.startswith("-"):
@@ -1046,6 +1052,22 @@ def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
             return 2
         repo = repo_from_worktree_path(cwd)
         host_local = True  # --self: we ARE running inside it, on this host
+    # ``--nick NICK`` is an explicit escape hatch: skip all repo/host
+    # derivation entirely and use NICK verbatim as the bracket prefix. Exists
+    # because repo resolution (config.sources[].url / worktree index / cse
+    # log tail) has no signal at all for an other-host bridge session --
+    # there is no local worktree, no local transcript dir, and no local log
+    # to scan -- so `set --id <other-host-sid>` would otherwise always fall
+    # back to a bare, unprefixed title.
+    if opts.get("nick"):
+        subs = list(opts.get("subs") or ([] if not opts.get("sub") else [opts["sub"]]))
+        title = apply_prefix(desc, opts["nick"], subs=subs)
+        code, body = set_title(cfg, token, sid, title)
+        if code == 200:
+            print(f"set {sid} -> {title!r}")
+            return 0
+        log(f"FAILED {sid} http={code} body={str(body)[:160]}")
+        return 1
     # ``--cwd PATH`` is the explicit override the manage skill uses: a manager
     # session running outside any indexed bridge layout still gets a project
     # nickname by passing the dir it conceptually belongs to (typically the

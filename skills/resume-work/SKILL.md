@@ -59,7 +59,13 @@ transcript + its worktree to safely continue the task here.
    cloud sandbox. This is the at-a-glance "is someone already on this?" check
    that complements the per-ticket liveness gate in step 2: if the work you'd
    resume is already a live session here (or `other host`), prefer pointing the
-   user there over duplicating it ([[feedback_parallel_sessions]]). Then run
+   user there over duplicating it ([[feedback_parallel_sessions]]). If the
+   session in question is `disconnected` rather than merely interrupted (a
+   picker row with a warning triangle), run `python3 -m remote_control
+   takeover` first — see [[takeover]] — to batch-classify and handle every
+   disconnected/stale session at once (relaunching real work, archiving dead
+   ends), then come back here with `resume-work` for the specific one you
+   want to continue interactively. Then run
    `resume_brief.sh list` for the per-repo interrupted-session table and show it.
    **Always let the user choose** which session/worktree to resume — don't
    auto-pick. If the user already named a specific feature/complaint or UUID, you
