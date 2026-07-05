@@ -379,9 +379,19 @@ cmd_retitle_worker() {
   brief="$(echo "$rec" | jq -r '.brief // empty')"
   [[ -n "$wdir" ]] || die "retitle-worker: $worker has no dir recorded"
   [[ -n "$wk" ]]   || die "retitle-worker: $worker has no worker_ord (re-register against the new register?)"
-  [[ -n "$ticket" ]] || die "retitle-worker: $worker has no ticket recorded"
   [[ -n "$override_brief" ]] && brief="$override_brief"
   [[ -n "$brief" ]] || brief="$worker"
+  if [[ -z "$ticket" ]]; then
+    # Degrade gracefully: render without the [#<ticket>] segment rather than
+    # hard-failing, but keep the one-worker-one-ticket policy violation visible.
+    echo "workers.sh: warning: $worker has no ticket recorded -- retitling without [#<ticket>]" >&2
+    ( cd "$AI_HARNESS_DIR" && \
+      python3 -m remote_control titles set \
+        --id "$worker" --cwd "$wdir" \
+        --sub "MGR${ord}-W${wk}" \
+        "$brief" )
+    return 0
+  fi
   ( cd "$AI_HARNESS_DIR" && \
     python3 -m remote_control titles set \
       --id "$worker" --cwd "$wdir" \
