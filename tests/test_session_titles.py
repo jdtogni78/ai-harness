@@ -16,6 +16,7 @@ from remote_control.session_titles import (
     is_host_local,
     live_session_entries,
     merged_repo_index,
+    nick_base,
     nickname_for,
     normalize_host_segment,
     parse_cmd_session_id,
@@ -276,6 +277,82 @@ class PrefixTest(unittest.TestCase):
         sub = extract_sub_token(dup)
         self.assertEqual(apply_prefix(dup, "AH.mini", sub=sub),
                          "[AH.mini][mgr-board14] auto-spawned")
+
+    # -- Prefix-stacking regression (nick-base matching) ------------------- #
+    # The watcher recognizes a leading NICK bracket by its BASE (segment
+    # before the host separator), not by exact string match, so a nick
+    # whose host segment differs from the current pass's token
+    # (``DEV`` vs ``DEV.m5``) still collapses into the single leading slot
+    # instead of surviving as a bogus sub and getting a fresh nick stacked
+    # on top of it.
+
+    def test_nick_base_splits_off_host_segment(self):
+        self.assertEqual(nick_base("DEV.m5"), "DEV")
+        self.assertEqual(nick_base("DEV"), "DEV")
+        self.assertEqual(nick_base("CRC.mini.feature-x"), "CRC")
+        # sub tokens never split to a bare nick (no host separator in them)
+        self.assertEqual(nick_base("MGR-2"), "MGR-2")
+        self.assertEqual(nick_base("MGR2-W1"), "MGR2-W1")
+        self.assertEqual(nick_base("#123"), "#123")
+
+    def test_extract_sub_tokens_drops_host_variant_nick(self):
+        # A stale ``[DEV]`` (host segment stripped by a racing pass) in front
+        # of the current ``DEV.m5`` token is a nick occurrence, not a sub.
+        self.assertEqual(
+            extract_sub_tokens("[DEV][DEV.m5][MGR-2] body", nick="DEV.m5"),
+            ["MGR-2"])
+        self.assertEqual(
+            extract_sub_tokens("[DEV.m5][DEV][DEV.m5][MGR-2] body", nick="DEV"),
+            ["MGR-2"])
+        # genuine subs whose base differs from the nick are preserved
+        self.assertEqual(
+            extract_sub_tokens("[DEV.m5][FE.m5][FIN.m5][MGR-2] body",
+                               nick="DEV.m5"),
+            ["FE.m5", "FIN.m5", "MGR-2"])
+
+    def test_host_flap_does_not_accrete_nick_brackets(self):
+        # The unbounded-stacking bug: a watcher whose host-local detection
+        # flaps (token ``DEV.m5`` one pass, ``DEV`` the next) used to prepend a
+        # fresh nick every pass forever. It must instead stabilize on a single
+        # leading nick bracket.
+        def watch(title, token):
+            subs = extract_sub_tokens(title, nick=token)
+            return apply_prefix(title, token, subs=subs)
+
+        title = "[DEV.m5][MGR-2] body"
+        for token in ("DEV", "DEV.m5", "DEV", "DEV.m5"):
+            title = watch(title, token)
+        self.assertEqual(title, "[DEV.m5][MGR-2] body")
+        # one more pass is a no-op
+        self.assertEqual(watch(title, "DEV.m5"), "[DEV.m5][MGR-2] body")
+
+    def test_fe_nick_override_stack_is_idempotent(self):
+        # The manager's live repro: a ``--nick FE.m5`` title re-rendered by a
+        # watcher that derives ``DEV.m5``. The first pass prepends one nick
+        # (FE.m5/FIN.m5 are operator-set subs the watcher can't know are
+        # stale); every subsequent pass is byte-identical -- a single leading
+        # nick, no further stacking.
+        def watch(title):
+            subs = extract_sub_tokens(title, nick="DEV.m5")
+            return apply_prefix(title, "DEV.m5", subs=subs)
+
+        set_title = "[FE.m5][FIN.m5][MGR-2] Monarch import (1 worker)"
+        once = watch(set_title)
+        self.assertEqual(
+            once, "[DEV.m5][FE.m5][FIN.m5][MGR-2] Monarch import (1 worker)")
+        self.assertEqual(watch(once), once)
+
+    def test_plan_renames_collapses_flapped_nick(self):
+        # End-to-end through plan_renames: a host-local bridge session whose
+        # title carries a stale bare-nick front bracket normalizes to one
+        # ``[NICK.host]`` prefix, preserving the manager sub.
+        sessions = [{"id": "cse_bridge",
+                     "title": "[DEV][DEV.mini][MGR-2] body",
+                     "config": {}}]
+        plan = {r.id: r for r in plan_renames(
+            sessions, {"cse_bridge": "dev"},
+            build_nickname_map(), host="mini")}
+        self.assertEqual(plan["cse_bridge"].new_title, "[DEV.mini][MGR-2] body")
 
 
 class RepoDerivationTest(unittest.TestCase):

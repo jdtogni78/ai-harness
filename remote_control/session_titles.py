@@ -319,21 +319,44 @@ def _leading_brackets(title: str) -> List[str]:
     return brackets
 
 
+def nick_base(token: str) -> str:
+    """The bare nickname segment of a rendered prefix token: everything before
+    the first host/branch separator. ``DEV.m5`` -> ``DEV``; ``DEV`` -> ``DEV``;
+    ``CRC.mini.feature-x`` -> ``CRC``.
+
+    A leading bracket is recognized as a (possibly re-rendered) NICK occurrence
+    by its base, NOT by exact string match, because the host/branch segment
+    FLAPS between watcher passes: host-local detection races (a bridge worktree
+    momentarily invisible to the indexer) so one pass renders ``DEV.m5`` and the
+    next ``DEV``. Under exact-match those two look like a nick and an unrelated
+    sub, so the stale one is preserved and a fresh nick is prepended -- the
+    UNBOUNDED stacking (``[DEV.m5]`` -> ``[DEV][DEV.m5]`` -> ``[DEV.m5][DEV]
+    [DEV.m5]`` -> ...). Matching on the base collapses every host variant of the
+    nick into the single leading slot, so re-apply is a true no-op."""
+    parts = [p for p in _PREFIX_SEP_RE.split(token or "") if p]
+    return parts[0] if parts else (token or "")
+
+
 def extract_sub_tokens(title: str, nick: Optional[str] = None) -> List[str]:
     """All sub-bracket tokens in a chained ``[NICK][S1][S2] desc`` prefix, in
     order, or ``[]`` if there are none. With *nick* supplied (the canonical
-    rendered NICK token for this session), every leading bracket equal to
-    *nick* is treated as a stacked NICK-dup and dropped; the remainder are
-    real subs. Without *nick*, falls back to the legacy single-sub heuristic
-    (assume the first N-1 leading brackets are stacked NICK dups, return the
-    LAST one) so :func:`extract_sub_token` and the existing
-    new-session ``--subname`` round-trip stay byte-identical."""
+    rendered NICK token for this session), every leading bracket whose
+    :func:`nick_base` equals the nick's base is treated as a stacked NICK
+    occurrence and dropped -- so every host variant of the nick (``DEV``,
+    ``DEV.m5``, ``DEV.mini``) collapses into the single leading slot rather than
+    surviving as a bogus sub. The remainder are real subs (``MGR-2``,
+    ``MGR2-W1``, ``#123``, ...), whose bases never coincide with a repo nick.
+    Without *nick*, falls back to the legacy single-sub heuristic (assume the
+    first N-1 leading brackets are stacked NICK dups, return the LAST one) so
+    :func:`extract_sub_token` and the existing new-session ``--subname``
+    round-trip stay byte-identical."""
     brackets = _leading_brackets(title)
     if len(brackets) < 2:
         return []
     if nick is not None:
+        base = nick_base(nick)
         i = 0
-        while i < len(brackets) and brackets[i] == nick:
+        while i < len(brackets) and nick_base(brackets[i]) == base:
             i += 1
         return brackets[i:]
     return [brackets[-1]]
