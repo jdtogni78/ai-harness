@@ -1,0 +1,5 @@
+# Core runtime is pure stdlib — the probe CLI needs NOTHING here.
+# These are only for the extras noted:
+
+mcp>=1.0.0         # MCP server (python -m status_mcp.server) only
+jsonschema>=4.0    # `--validate` schema-conformance check only

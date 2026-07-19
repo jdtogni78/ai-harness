@@ -1,0 +1,252 @@
+{
+  "schema_version": "1.0",
+  "project": "familyfund",
+  "generated_at": "2026-07-18T22:05:22Z",
+  "availability": {
+    "tickets": "live",
+    "tests": "unavailable",
+    "deploy": "live",
+    "visual_review": "live",
+    "decisions": "live"
+  },
+  "tickets": {
+    "total": 9,
+    "todo": 6,
+    "in_progress": 0,
+    "done": 3,
+    "blocked": 0,
+    "items": [
+      {
+        "id": "3",
+        "title": "FamilyFund demo videos — finalize admin/trading-config + backlog",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/FamilyFund/issues/3",
+        "repo": "jdtogni78/FamilyFund"
+      },
+      {
+        "id": "4",
+        "title": "Rename credit-line URLs to share-loans — extend Share Loan rename below the UI label",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/FamilyFund/issues/4",
+        "repo": "jdtogni78/FamilyFund"
+      },
+      {
+        "id": "5",
+        "title": "Rename UI label 'Loan Share' → 'Share Loan' (label-only)",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/FamilyFund/issues/5",
+        "repo": "jdtogni78/FamilyFund"
+      },
+      {
+        "id": "6",
+        "title": "Re-render borrowing demo against new Share Loan labels + /loan-shares/ URLs",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/FamilyFund/issues/6",
+        "repo": "jdtogni78/FamilyFund"
+      },
+      {
+        "id": "7",
+        "title": "[test] Dusk: openLineViaUi() missing ?as=admin → CreditLineBorrowingFlow 403",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/FamilyFund/issues/7",
+        "repo": "jdtogni78/FamilyFund"
+      },
+      {
+        "id": "8",
+        "title": "[ops] Rename Console/Kernel.php credit_lines.* schedule names → loan_shares.*",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/FamilyFund/issues/8",
+        "repo": "jdtogni78/FamilyFund"
+      },
+      {
+        "id": "9",
+        "title": "[acl] Rename credit-lines.* Spatie permission strings → loan-shares.*",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/FamilyFund/issues/9",
+        "repo": "jdtogni78/FamilyFund"
+      },
+      {
+        "id": "10",
+        "title": "[tooling] Rename credit-lines:* Artisan command signatures → loan-shares:*",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/FamilyFund/issues/10",
+        "repo": "jdtogni78/FamilyFund"
+      },
+      {
+        "id": "11",
+        "title": "[ci+test] Fresh-worktree .env bootstrap + AclMatrix golden missing configSettings entry",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/FamilyFund/issues/11",
+        "repo": "jdtogni78/FamilyFund"
+      }
+    ],
+    "source": "gh project item-list 1 (repo=jdtogni78/FamilyFund)"
+  },
+  "tests": {
+    "available": false,
+    "count": null,
+    "passing": null,
+    "failing": null,
+    "skipped": null,
+    "coverage_pct": null,
+    "last_run": null,
+    "source": null
+  },
+  "deploy": {
+    "last_deployed_at": "2026-06-14T20:29:52Z",
+    "env": "familyfund",
+    "commit": "04539d3cc1",
+    "status": "ok",
+    "duration_s": 17.0,
+    "target": "familyfund",
+    "source": "dev/dstrader-docker/local/deploy_logs/INDEX.md"
+  },
+  "visual_review": {
+    "done": true,
+    "artifacts": [
+      {
+        "name": "account.demo.yaml",
+        "kind": "demo_script",
+        "path": "/Users/dtogni/dev/FamilyFund/demos/account.demo.yaml",
+        "when": "2026-06-05T00:30:37Z"
+      },
+      {
+        "name": "admin.demo.yaml",
+        "kind": "demo_script",
+        "path": "/Users/dtogni/dev/FamilyFund/demos/admin.demo.yaml",
+        "when": "2026-06-05T00:30:37Z"
+      },
+      {
+        "name": "funds-accounts.demo.yaml",
+        "kind": "demo_script",
+        "path": "/Users/dtogni/dev/FamilyFund/demos/funds-accounts.demo.yaml",
+        "when": "2026-06-05T00:30:37Z"
+      },
+      {
+        "name": "funds.demo.yaml",
+        "kind": "demo_script",
+        "path": "/Users/dtogni/dev/FamilyFund/demos/funds.demo.yaml",
+        "when": "2026-06-05T00:30:37Z"
+      },
+      {
+        "name": "loan-shares.demo.yaml",
+        "kind": "demo_script",
+        "path": "/Users/dtogni/dev/FamilyFund/demos/loan-shares.demo.yaml",
+        "when": "2026-06-05T00:30:37Z"
+      },
+      {
+        "name": "portfolios-rebalancing.demo.yaml",
+        "kind": "demo_script",
+        "path": "/Users/dtogni/dev/FamilyFund/demos/portfolios-rebalancing.demo.yaml",
+        "when": "2026-06-05T00:30:37Z"
+      },
+      {
+        "name": "roles-access.demo.yaml",
+        "kind": "demo_script",
+        "path": "/Users/dtogni/dev/FamilyFund/demos/roles-access.demo.yaml",
+        "when": "2026-06-05T00:30:37Z"
+      },
+      {
+        "name": "time-travel-reports.demo.yaml",
+        "kind": "demo_script",
+        "path": "/Users/dtogni/dev/FamilyFund/demos/time-travel-reports.demo.yaml",
+        "when": "2026-06-05T00:30:37Z"
+      },
+      {
+        "name": "trading-config.demo.yaml",
+        "kind": "demo_script",
+        "path": "/Users/dtogni/dev/FamilyFund/demos/trading-config.demo.yaml",
+        "when": "2026-06-05T00:30:37Z"
+      },
+      {
+        "name": "transactions-matching.demo.yaml",
+        "kind": "demo_script",
+        "path": "/Users/dtogni/dev/FamilyFund/demos/transactions-matching.demo.yaml",
+        "when": "2026-06-05T00:30:37Z"
+      }
+    ],
+    "source": "/Users/dtogni/dev/FamilyFund/demos"
+  },
+  "decisions": [
+    {
+      "when": "2026-06-03T19:18:03Z",
+      "summary": "Merge: docs(demos): re-sync borrowing demos for #4 P1 + #5 renames (#6)",
+      "source": "merge-commit",
+      "ref": "04539d3c"
+    },
+    {
+      "when": "2026-06-03T07:04:22Z",
+      "summary": "Merge: rename /credit-lines/* URLs → /loan-shares/* (#4 Phase 1)",
+      "source": "merge-commit",
+      "ref": "dd159411"
+    },
+    {
+      "when": "2026-06-03T06:03:39Z",
+      "summary": "Merge: rename UI label 'Loan Share' → 'Share Loan' (#5)",
+      "source": "merge-commit",
+      "ref": "237aa229"
+    },
+    {
+      "when": "2026-06-01T04:57:11Z",
+      "summary": "Merge: fix /configSettings 500 via config_settings schema repair migration + feature test",
+      "source": "merge-commit",
+      "ref": "da3c67e5"
+    },
+    {
+      "when": "2026-05-29T17:53:05Z",
+      "summary": "Merge pull request #90 from jdtogni78/ticket-90-fix-broken-doc-refs",
+      "source": "merge-commit",
+      "ref": "7bfe648f"
+    },
+    {
+      "when": "2026-05-29T16:18:48Z",
+      "summary": "Merge pull request #85 from jdtogni78/ticket-65-mb-pr-template",
+      "source": "merge-commit",
+      "ref": "2844fe5d"
+    },
+    {
+      "when": "2026-05-29T16:18:43Z",
+      "summary": "Merge pull request #86 from jdtogni78/ticket-66-mb-integrations",
+      "source": "merge-commit",
+      "ref": "89df74c0"
+    },
+    {
+      "when": "2026-05-29T15:57:29Z",
+      "summary": "Merge pull request #84 from jdtogni78/mb-64-subsys-money",
+      "source": "merge-commit",
+      "ref": "bae33e2f"
+    },
+    {
+      "when": "2026-05-29T15:57:24Z",
+      "summary": "Merge pull request #83 from jdtogni78/ticket-63-mb-decisions",
+      "source": "merge-commit",
+      "ref": "06bde71d"
+    },
+    {
+      "when": "2026-05-29T15:32:05Z",
+      "summary": "Merge pull request #71 from jdtogni78/mb-56-scaffold",
+      "source": "merge-commit",
+      "ref": "cfb9a83c"
+    },
+    {
+      "when": "2026-05-29T14:39:51Z",
+      "summary": "Merge pull request #74 from jdtogni78/mb-59-ops",
+      "source": "merge-commit",
+      "ref": "251be4b5"
+    },
+    {
+      "when": "2026-05-29T14:39:25Z",
+      "summary": "Merge pull request #78 from jdtogni78/ticket-40-salvage-configsetting-admin",
+      "source": "merge-commit",
+      "ref": "004664b6"
+    }
+  ],
+  "open_questions": [
+    "No test artifacts were found — has the suite been run recently?"
+  ],
+  "warnings": [
+    "tickets: 9 board draft note(s) not attributable to a repo (excluded from counts)",
+    "tests: no surefire reports or coverage found (suite not run?)",
+    "visual_review: demo scripts/explainers present but no rendered video (.mp4)"
+  ]
+}

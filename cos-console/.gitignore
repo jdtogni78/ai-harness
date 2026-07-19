@@ -1,0 +1,33 @@
+# cos-console — relocated exploration (epic #99). Single .gitignore for the
+# whole subtree; nested per-component ignores were dropped in the relocation.
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+dev-dist/
+
+# Secrets — NEVER commit. Only .env.example is tracked.
+.env
+*.env
+!.env.example
+
+# Voice models (whisper/Piper, ~200MB) — regenerate via each component's setup
+models/*.bin
+models/*.onnx
+
+# narrate-demo render scratch (regenerable intermediates)
+demos/out/.narrate/
+**/.narrate/
+
+# misc
+*.log
+*.wav
+.DS_Store

@@ -1,0 +1,440 @@
+{
+  "schema_version": "1.0",
+  "project": "dstrader",
+  "generated_at": "2026-07-18T18:54:16Z",
+  "availability": {
+    "tickets": "live",
+    "tests": "unavailable",
+    "deploy": "live",
+    "visual_review": "live",
+    "decisions": "live"
+  },
+  "tickets": {
+    "total": 41,
+    "todo": 15,
+    "in_progress": 0,
+    "done": 26,
+    "blocked": 0,
+    "items": [
+      {
+        "id": "1",
+        "title": "[epic] dstrader go-public — master tracker",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/1",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "3",
+        "title": "[security][preprod] Scrub IB usernames + password-reuse note in TestUtils.java",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/3",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "10",
+        "title": "[HUMAN-ONLY] create dstrader-public + first public sync",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/10",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "5",
+        "title": "[legal][preprod] Add MIT LICENSE",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/5",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "6",
+        "title": "[docs][preprod] Rewrite README.md — drop private board links + describe the project",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/6",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "8",
+        "title": "[security][preprod] Document mail.properties provenance + link dstrader-secrets runbooks",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/8",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "4",
+        "title": "[chore][preprod] Remove DSTrader.jar built artifact from tracked tree",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/4",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "11",
+        "title": "[security] enable CodeQL (Java) on dstrader-public (after first sync)",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/11",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "2",
+        "title": "[security][preprod] Scrub /Users/dtogni paths from tracked files (or relocate runbooks to dstrader-secrets)",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/2",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "9",
+        "title": "[ops][prod] Verify cron trading run after dstrader Java goes public",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/9",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "7",
+        "title": "[security][preprod] Full git-history gitleaks audit (mirror dstrader-docker HISTORY-AUDIT)",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/7",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "12",
+        "title": "[docs][preprod] Add SECURITY.md (GitHub private vuln reporting)",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/12",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "13",
+        "title": "[docs][preprod] Add CONTRIBUTING.md",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/13",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "14",
+        "title": "[docs][preprod] Add CODE_OF_CONDUCT.md (Contributor Covenant)",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/14",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "15",
+        "title": "[docs][preprod] Add .github/ISSUE_TEMPLATE + PR template",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/15",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "16",
+        "title": "[security][preprod][HUMAN-ONLY] Repo swap: rebuild as dstrader-public from scrubbed/squashed history",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/16",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "19",
+        "title": "[security][preprod] Execute path (a) — git filter-repo cleanup of audit residuals (HUMAN-ONLY, follow-up to #7)",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/19",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "20",
+        "title": "track: pre-flip API hardening — surface silent failures at the FF API boundary",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/20",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "21",
+        "title": "[security][preprod] audit GH Actions secrets + deploy keys + webhook URLs before public flip",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/21",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "22",
+        "title": "[security][preprod] enable branch protection on main before public flip",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/22",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "23",
+        "title": "[docs] memory-bank: scaffold docs/ + write AGENTS.md root index",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/23",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "24",
+        "title": "[docs] memory-bank: ARCHITECTURE.md (C4 context + container view)",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/24",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "25",
+        "title": "[docs] memory-bank: DATABASE.md",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/25",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "26",
+        "title": "[docs] memory-bank: OPERATIONS.md",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/26",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "27",
+        "title": "[docs] memory-bank: DEVELOPMENT.md",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/27",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "28",
+        "title": "[docs] memory-bank: SECURITY.md",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/28",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "29",
+        "title": "[docs] memory-bank: DOMAIN_GLOSSARY.md (trading terms + acronyms)",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/29",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "30",
+        "title": "[docs] memory-bank: INTEGRATIONS.md",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/30",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "31",
+        "title": "[docs] memory-bank: DECISIONS.md (ADR index)",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/31",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "32",
+        "title": "[docs] memory-bank: subsystem — trading-engine + holiday-sync",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/32",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "33",
+        "title": "[docs] memory-bank: add doc-sync checklist to PR template + CONTRIBUTING",
+        "state": "Done",
+        "url": "https://github.com/jdtogni78/dstrader/issues/33",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "50",
+        "title": "[bug] memory-bank surfaced: dead `fillOrCancel` method in SimpleRebalanceStrategyEx",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/50",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "51",
+        "title": "[bug] memory-bank surfaced: `tws_live_port = 7497` constant name is misleading (it is IB paper)",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/51",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "52",
+        "title": "[bug] memory-bank surfaced: `sendGet*` HTTP paths silently swallow non-2xx unlike `sendPost`",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/52",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "53",
+        "title": "[bug] memory-bank surfaced: `mail.properties.template` missing `mail.smtp.host` / `mail.smtp.port`",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/53",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "54",
+        "title": "[bug] memory-bank surfaced: stale root `log4j2.xml` shadows the canonical `src/main/resources/log4j2.xml`",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/54",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "55",
+        "title": "docs: refresh dstrader#1 master-tracker body to reflect #10/#22/#11 as done post-go-public",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/55",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "56",
+        "title": "chore(dstrader-secrets): reconcile unpushed local main commit 47958dd from prior session",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/56",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "57",
+        "title": "chore(dstrader-public): decide ruleset bypass_actors policy (current: nobody can bypass)",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/57",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "58",
+        "title": "chore(dstrader-public): verify CodeQL first-scan results (run id 26731235054, java-kotlin)",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/58",
+        "repo": "jdtogni78/dstrader"
+      },
+      {
+        "id": "59",
+        "title": "chore(dstrader-public): optional Step-5 v5 review of post-cleanup public surface",
+        "state": "Todo",
+        "url": "https://github.com/jdtogni78/dstrader/issues/59",
+        "repo": "jdtogni78/dstrader"
+      }
+    ],
+    "source": "gh project item-list 1 (repo=jdtogni78/dstrader)"
+  },
+  "tests": {
+    "available": false,
+    "count": null,
+    "passing": null,
+    "failing": null,
+    "skipped": null,
+    "coverage_pct": null,
+    "last_run": null,
+    "source": null
+  },
+  "deploy": {
+    "last_deployed_at": "2026-07-17T21:28:54Z",
+    "env": "dstrader-docker",
+    "commit": "2f4bf29b53",
+    "status": "ok",
+    "duration_s": 2.0,
+    "target": "dstrader-docker",
+    "source": "dev/dstrader-docker/local/deploy_logs/INDEX.md"
+  },
+  "visual_review": {
+    "done": true,
+    "artifacts": [
+      {
+        "name": "investment-strategy-explainer.html",
+        "kind": "explainer",
+        "path": "/Users/dtogni/dev/dstrader/demos/investment-strategy-explainer.html",
+        "when": "2026-06-04T22:41:13Z"
+      },
+      {
+        "name": "investment-strategy.demo.yaml",
+        "kind": "demo_script",
+        "path": "/Users/dtogni/dev/dstrader/demos/investment-strategy.demo.yaml",
+        "when": "2026-06-04T22:41:13Z"
+      },
+      {
+        "name": "rebalancing-explainer.html",
+        "kind": "explainer",
+        "path": "/Users/dtogni/dev/dstrader/demos/rebalancing-explainer.html",
+        "when": "2026-06-04T22:41:13Z"
+      },
+      {
+        "name": "rebalancing-strategy.demo.yaml",
+        "kind": "demo_script",
+        "path": "/Users/dtogni/dev/dstrader/demos/rebalancing-strategy.demo.yaml",
+        "when": "2026-06-04T22:41:13Z"
+      }
+    ],
+    "source": "/Users/dtogni/dev/dstrader/demos"
+  },
+  "decisions": [
+    {
+      "when": "2026-06-16T00:58:53Z",
+      "summary": "Merge branch '66-eod-screenshot-anomaly' — EOD TWS screenshot + anomaly email (#66)",
+      "source": "merge-commit",
+      "ref": "7e6fc0e"
+    },
+    {
+      "when": "2026-05-29T16:57:51Z",
+      "summary": "Merge pull request #49 from jdtogni78/ticket-32-mb-subsys-trading-refile",
+      "source": "merge-commit",
+      "ref": "deefe43"
+    },
+    {
+      "when": "2026-05-29T16:18:53Z",
+      "summary": "Merge pull request #47 from jdtogni78/ticket-31-mb-decisions",
+      "source": "merge-commit",
+      "ref": "f907336"
+    },
+    {
+      "when": "2026-05-29T15:57:37Z",
+      "summary": "Merge pull request #46 from jdtogni78/ticket-30-mb-integrations",
+      "source": "merge-commit",
+      "ref": "19cfa25"
+    },
+    {
+      "when": "2026-05-29T15:57:33Z",
+      "summary": "Merge pull request #45 from jdtogni78/ticket-28-mb-security",
+      "source": "merge-commit",
+      "ref": "0f32b97"
+    },
+    {
+      "when": "2026-05-29T07:32:03Z",
+      "summary": "Merge pull request #38 from jdtogni78/mb-25-db",
+      "source": "merge-commit",
+      "ref": "7a91e5e"
+    },
+    {
+      "when": "2026-05-29T07:29:29Z",
+      "summary": "Merge pull request #43 from jdtogni78/mb-33-pr-template",
+      "source": "merge-commit",
+      "ref": "af2aa4b"
+    },
+    {
+      "when": "2026-05-29T07:29:26Z",
+      "summary": "Merge pull request #42 from jdtogni78/mb-29-glossary",
+      "source": "merge-commit",
+      "ref": "179ddd3"
+    },
+    {
+      "when": "2026-05-29T07:29:21Z",
+      "summary": "Merge pull request #40 from jdtogni78/mb-27-dev",
+      "source": "merge-commit",
+      "ref": "7c968e4"
+    },
+    {
+      "when": "2026-05-29T07:29:18Z",
+      "summary": "Merge pull request #39 from jdtogni78/mb-26-ops",
+      "source": "merge-commit",
+      "ref": "3af4391"
+    },
+    {
+      "when": "2026-05-29T07:29:14Z",
+      "summary": "Merge pull request #37 from jdtogni78/mb-24-arch",
+      "source": "merge-commit",
+      "ref": "1c5808b"
+    },
+    {
+      "when": "2026-05-29T07:29:10Z",
+      "summary": "Merge pull request #36 from jdtogni78/mb-23-scaffold",
+      "source": "merge-commit",
+      "ref": "58a2f87"
+    }
+  ],
+  "open_questions": [
+    "No test artifacts were found — has the suite been run recently?"
+  ],
+  "warnings": [
+    "tickets: 9 board draft note(s) not attributable to a repo (excluded from counts)",
+    "tests: no surefire reports or coverage found (suite not run?)",
+    "visual_review: demo scripts/explainers present but no rendered video (.mp4)"
+  ]
+}

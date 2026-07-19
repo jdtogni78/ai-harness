@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>dstrader — status deck (POC)</title>
+<style>
+  :root{
+    --bg:#0e1117; --panel:#161b22; --panel2:#1c232d; --ink:#e6edf3; --muted:#8b949e;
+    --line:#30363d; --accent:#4c9be8;
+    --done:#3fb950; --todo:#d29922; --prog:#4c9be8; --blocked:#f85149; --nodata:#6e7681;
+    --shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  #stage{height:100dvh;display:flex;align-items:center;justify-content:center;padding:clamp(12px,4vw,48px)}
+  .slide{display:none;width:min(960px,100%);max-height:100%;overflow:auto}
+  .slide.on{display:block;animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .kicker{color:var(--accent);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:12px;margin:0 0 6px}
+  h1{font-size:clamp(26px,5vw,44px);margin:.1em 0 .3em;line-height:1.1}
+  h2{font-size:clamp(20px,3.6vw,30px);margin:0 0 .6em}
+  .sub{color:var(--muted);margin:0 0 1.4em}
+  .grid{display:grid;gap:14px}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
+  .tile .n{font-size:clamp(28px,6vw,44px);font-weight:700;line-height:1}
+  .tile .l{color:var(--muted);font-size:13px;margin-top:6px}
+  .tile.na .n{color:var(--nodata)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow)}
+  .row{display:flex;gap:22px;flex-wrap:wrap;align-items:center}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-top:10px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+  ul.clean{list-style:none;padding:0;margin:.4em 0}
+  ul.clean li{padding:9px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline}
+  ul.clean li:last-child{border-bottom:0}
+  .pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .ok{color:var(--done);border-color:rgba(63,185,80,.4)}
+  .nodata-panel{border:2px dashed var(--nodata);border-radius:16px;padding:26px;
+    background:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(110,118,129,.08) 10px,rgba(110,118,129,.08) 20px)}
+  .nodata-panel .big{font-size:22px;font-weight:700;color:var(--nodata)}
+  .narr{margin-top:22px;color:var(--muted);font-size:14px;border-left:3px solid var(--accent);
+    padding:8px 0 8px 14px;background:linear-gradient(90deg,rgba(76,155,232,.08),transparent)}
+  .narr b{color:var(--accent);font-weight:600}
+  /* fixed chrome */
+  #bar{position:fixed;left:0;right:0;bottom:0;height:4px;background:var(--panel2)}
+  #fill{height:100%;background:var(--accent);width:0;transition:width .3s}
+  #dots{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:8px}
+  #dots button{width:9px;height:9px;border-radius:50%;border:0;background:var(--nodata);cursor:pointer;padding:0}
+  #dots button.on{background:var(--accent);transform:scale(1.3)}
+  #hint{position:fixed;top:14px;right:16px;color:var(--muted);font-size:12px}
+  .val{font-variant-numeric:tabular-nums}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div id="hint">← → / space · tap edges · <span id="pos"></span></div>
+<div id="stage"></div>
+<div id="dots"></div>
+<div id="bar"><div id="fill"></div></div>
+
+<script>
+// ---- REAL data from: python3 -m status_mcp.probe dstrader  (2026-07-18) ----
+const R = {
+  project:"dstrader", generated_at:"2026-07-18T21:15Z",
+  availability:{tickets:"live",tests:"unavailable",deploy:"live",visual_review:"live",decisions:"live"},
+  tickets:{total:41,done:26,todo:15,in_progress:0,blocked:0},
+  tests:{available:false},
+  deploy:{when:"2026-07-17 21:28Z",env:"dstrader-docker",commit:"2f4bf29b53",status:"ok",dur:"2.0s"},
+  visual:{done:true,artifacts:[
+    {n:"investment-strategy-explainer.html",k:"explainer"},
+    {n:"rebalancing-explainer.html",k:"explainer"},
+    {n:"investment-strategy.demo.yaml",k:"demo script"},
+    {n:"rebalancing-strategy.demo.yaml",k:"demo script"}]},
+  decisions:{n:12,sample:[
+    "EOD TWS screenshot + anomaly detection (#66)",
+    "PR #49 — trading subsystem refactor",
+    "PR #47 — decisions module",
+    "PR #46 — integrations",
+    "PR #45 — security"]},
+  open_questions:["No test artifacts were found — has the suite been run recently?"]
+};
+
+// stacked bar svg for ticket states
+function ticketBar(t){
+  const segs=[["done",t.done,"var(--done)"],["todo",t.todo,"var(--todo)"],
+    ["in_progress",t.in_progress,"var(--prog)"],["blocked",t.blocked,"var(--blocked)"]]
+    .filter(s=>s[1]>0);
+  const W=880,H=54; let x=0, r="";
+  for(const [name,v,c] of segs){ const w=v/t.total*W;
+    r+=`<rect x="${x}" y="0" width="${w-2}" height="${H}" rx="6" fill="${c}"></rect>`+
+       (w>44?`<text x="${x+ (w-2)/2}" y="${H/2+5}" text-anchor="middle" font-size="16" font-weight="700" fill="#0e1117">${v}</text>`:"");
+    x+=w; }
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="ticket states">${r}</svg>`;
+}
+
+const dot=(c)=>`<span class="dot" style="background:${c}"></span>`;
+
+const slides = [
+  // 0 — title / KPIs
+  `<p class="kicker">Chief-of-Staff · status readout</p>
+   <h1>dstrader — where things stand</h1>
+   <p class="sub">Generated ${R.generated_at} · sourced live from the harness, no code read</p>
+   <div class="grid kpis">
+     <div class="tile"><div class="n val">${R.tickets.done}/${R.tickets.total}</div><div class="l">tickets done</div></div>
+     <div class="tile na"><div class="n">n/a</div><div class="l">tests — no data</div></div>
+     <div class="tile"><div class="n" style="color:var(--done)">OK</div><div class="l">last deploy</div></div>
+     <div class="tile"><div class="n val">${R.decisions.n}</div><div class="l">recent decisions</div></div>
+   </div>
+   <div class="narr">🔊 <b>narration:</b> "Here's dstrader. Twenty-six of forty-one tickets done, none in progress. Last deploy looks healthy. I don't have test data though — flag that."</div>`,
+
+  // 1 — tickets
+  `<p class="kicker">Delivery</p><h2>Tickets — ${R.tickets.done} done, ${R.tickets.todo} to do</h2>
+   <div class="card">${ticketBar(R.tickets)}
+     <div class="legend">
+       ${dot('var(--done)')}done ${R.tickets.done}
+       ${dot('var(--todo)')}todo ${R.tickets.todo}
+       ${dot('var(--prog)')}in&nbsp;progress ${R.tickets.in_progress}
+       ${dot('var(--blocked)')}blocked ${R.tickets.blocked}
+     </div>
+   </div>
+   <div class="narr">🔊 <b>narration:</b> "The go-public epic is most of this — security and docs preprod work is done; what's left is CodeQL and the prod cron verify."</div>`,
+
+  // 2 — tests (anti-fabrication)
+  `<p class="kicker">Quality</p><h2>Tests</h2>
+   <div class="nodata-panel">
+     <div class="big">NO DATA — this is NOT zero</div>
+     <p class="sub" style="margin:.6em 0 0">No surefire/JaCoCo artifacts found. The suite hasn't been run (or didn't emit reports). The console will <b>not</b> invent a passing rate.</p>
+   </div>
+   <div class="narr">🔊 <b>narration:</b> "I can't answer 'how many tests pass' — there's no test data. That's an open item, not a green light." <i>(the availability guardrail, spoken)</i></div>`,
+
+  // 3 — deploy
+  `<p class="kicker">Operations</p><h2>Last deploy <span class="pill ok">${R.deploy.status}</span></h2>
+   <div class="card row">
+     <div><div class="l" style="color:var(--muted);font-size:13px">when</div><div style="font-size:20px">${R.deploy.when}</div></div>
+     <div><div class="l" style="color:var(--muted);font-size:13px">environment</div><div style="font-size:20px">${R.deploy.env}</div></div>
+     <div><div class="l" style="color:var(--muted);font-size:13px">commit</div><div style="font-size:20px" class="val">${R.deploy.commit}</div></div>
+     <div><div class="l" style="color:var(--muted);font-size:13px">duration</div><div style="font-size:20px">${R.deploy.dur}</div></div>
+   </div>
+   <div class="narr">🔊 <b>narration:</b> "Shipped yesterday to dstrader-docker, commit 2f4bf29b, healthy, took two seconds."</div>`,
+
+  // 4 — visual review
+  `<p class="kicker">Review</p><h2>Visual review — ${R.visual.artifacts.length} artifacts</h2>
+   <div class="card"><ul class="clean">
+     ${R.visual.artifacts.map(a=>`<li><span class="pill">${a.k}</span> <span>${a.n}</span></li>`).join("")}
+   </ul></div>
+   <div class="narr">🔊 <b>narration:</b> "Two explainer pages and two demo scripts exist — but no rendered walkthrough video yet. Want me to generate one?"</div>`,
+
+  // 5 — decisions
+  `<p class="kicker">Trail</p><h2>${R.decisions.n} recent decisions</h2>
+   <div class="card"><ul class="clean">
+     ${R.decisions.sample.map(d=>`<li>${d}</li>`).join("")}
+     <li style="color:var(--muted)">…and ${R.decisions.n - R.decisions.sample.length} more</li>
+   </ul></div>
+   <div class="narr">🔊 <b>narration:</b> "Mined from merge commits. Deeper close-work reasoning isn't wired yet — that's a known gap."</div>`,
+
+  // 6 — open questions / close
+  `<p class="kicker">For you</p><h2>Open question</h2>
+   <div class="card" style="border-color:rgba(210,153,34,.4)">
+     ${R.open_questions.map(q=>`<div style="font-size:20px">⚠︎ ${q}</div>`).join("")}
+   </div>
+   <p class="sub" style="margin-top:22px">This whole deck is one self-contained <code>.html</code> — generated from <code>status_mcp.probe dstrader</code>, no build step, opens on your phone.</p>
+   <div class="narr">🔊 <b>narration:</b> "One thing needs you: has the suite been run recently? Everything else is on track. Want the deploy details or the ticket list?"</div>`
+];
+
+let i=0; const stage=document.getElementById('stage'), dots=document.getElementById('dots');
+stage.innerHTML = slides.map((s,n)=>`<section class="slide" data-n="${n}">${s}</section>`).join("");
+dots.innerHTML = slides.map((_,n)=>`<button aria-label="slide ${n+1}" onclick="go(${n})"></button>`).join("");
+const secs=[...document.querySelectorAll('.slide')], dbtn=[...dots.children];
+function go(n){ i=Math.max(0,Math.min(slides.length-1,n));
+  secs.forEach((s,k)=>s.classList.toggle('on',k===i));
+  dbtn.forEach((b,k)=>b.classList.toggle('on',k===i));
+  document.getElementById('fill').style.width=((i+1)/slides.length*100)+'%';
+  document.getElementById('pos').textContent=`${i+1}/${slides.length}`;
+}
+// This go(n) is exactly what a voice-brain would call over a websocket ("show_slide")
+window.go=go;
+addEventListener('keydown',e=>{ if(['ArrowRight',' '].includes(e.key))go(i+1);
+  else if(e.key==='ArrowLeft')go(i-1); });
+addEventListener('click',e=>{ if(e.target.closest('#dots'))return;
+  go(e.clientX < innerWidth/2 ? i-1 : i+1); });
+go(0);
+</script>
+</body>
+</html>

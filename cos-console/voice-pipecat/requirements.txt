@@ -1,0 +1,26 @@
+# Live voice loop (Approach A). The keyless dry-run needs NONE of these —
+# `python -m voice_pipecat --dry-run` runs on the stdlib alone.
+#
+# Pipecat moves service import paths between releases; this code targets the
+# 1.5.x line (verified against 1.5.0 on Python 3.13). The 1.0 release replaced
+# OpenAILLMContext + create_context_aggregator with the universal LLMContext +
+# LLMContextAggregatorPair, and moved VAD to a pipeline VADProcessor. If an
+# import in bot.py/tts_say.py breaks after an upgrade, that's why.
+#
+# Extras pulled in:
+#   anthropic  -> Claude brain (AnthropicLLMService)
+#   deepgram   -> streaming STT (optional; falls back to whisper)
+#   whisper    -> local faster-whisper STT (keyless fallback)
+#   cartesia   -> streaming TTS (optional)
+#   elevenlabs -> streaming TTS (optional)
+#   silero     -> VAD for barge-in
+#   local      -> LocalAudioTransport (mic/speaker via PyAudio)
+pipecat-ai[anthropic,deepgram,whisper,cartesia,elevenlabs,silero,local]>=1.5,<2
+
+# Used directly by the headless real-Claude dry-run (also pulled in by the
+# anthropic extra above; listed so `--dry-run` with a key works standalone).
+anthropic>=0.40
+
+# Optional: nicer .env loading. config.py has a dependency-free fallback, so
+# this is not required.
+python-dotenv>=1.0

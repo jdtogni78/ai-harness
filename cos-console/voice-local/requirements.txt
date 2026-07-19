@@ -1,0 +1,13 @@
+# Brain (the one network hop)
+anthropic>=0.40.0
+python-dotenv>=1.0.0
+
+# Audio capture + math (mic path). sounddevice needs portaudio: brew install portaudio
+sounddevice>=0.4.6
+numpy>=1.24
+
+# TTS: Piper (fast, fully local). Installs a `piper` CLI + onnxruntime.
+piper-tts>=1.2.0
+
+# STT is whisper.cpp (brew install whisper-cpp) — a binary, not a pip dep.
+# The macOS `say` command is a zero-install local TTS fallback.

@@ -1,0 +1,13 @@
+# Live speech-to-speech path
+websockets>=13.0
+sounddevice>=0.4.6      # PortAudio bindings for mic/speaker (needs: brew install portaudio)
+numpy>=1.24
+
+# Claude-as-tool reasoning handoff
+anthropic>=0.40.0
+
+# Config
+python-dotenv>=1.0
+
+# NOTE: the dry-run path (`python main.py dryrun`) needs NONE of the above —
+# it uses only the stdlib. Install these only for the live mic/speaker path.

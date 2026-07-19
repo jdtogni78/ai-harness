@@ -1,0 +1,32 @@
+{
+  "name": "cos-console-surface",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "cos-console Wave 2 — server-driven React PWA slide surface for StatusReport",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,web -c green,cyan \"npm run server\" \"npm run web\"",
+    "server": "node server/index.js",
+    "web": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173",
+    "drive": "node server/drive.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mermaid": "^11.2.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.7",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "vite": "^5.4.8",
+    "vite-plugin-pwa": "^0.20.5"
+  }
+}

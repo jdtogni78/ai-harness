@@ -1,0 +1,159 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cos-console.local/status_report.schema.json",
+  "title": "StatusReport",
+  "description": "The single contract every cos-console voice POC consumes via get_project_status(project). Owned by W0 (data-plane). Additive/back-compatible with the PROJECT.md v0 stub: every v0 field is preserved; new fields are optional so voice-worker stubs stay valid.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project",
+    "generated_at",
+    "availability",
+    "tickets",
+    "tests",
+    "deploy",
+    "visual_review",
+    "decisions",
+    "open_questions"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Semver of this contract. Bump minor for additive fields, major for breaking changes.",
+      "const": "1.0"
+    },
+    "project": {
+      "type": "string",
+      "description": "Logical project key (e.g. 'dstrader'), matches the --project arg / registry key."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC ISO8601 timestamp of when this report was assembled."
+    },
+    "availability": {
+      "type": "object",
+      "description": "Per-section data provenance so the voice layer can hedge honestly ('I don't have deploy data') instead of reading fabricated zeros as fact. Keyed by section name.",
+      "additionalProperties": false,
+      "required": ["tickets", "tests", "deploy", "visual_review", "decisions"],
+      "properties": {
+        "tickets": {"$ref": "#/definitions/availabilityState"},
+        "tests": {"$ref": "#/definitions/availabilityState"},
+        "deploy": {"$ref": "#/definitions/availabilityState"},
+        "visual_review": {"$ref": "#/definitions/availabilityState"},
+        "decisions": {"$ref": "#/definitions/availabilityState"}
+      }
+    },
+    "tickets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["todo", "in_progress", "done", "blocked", "items"],
+      "properties": {
+        "total": {"type": ["integer", "null"], "minimum": 0},
+        "todo": {"type": "integer", "minimum": 0},
+        "in_progress": {"type": "integer", "minimum": 0},
+        "done": {"type": "integer", "minimum": 0},
+        "blocked": {"type": "integer", "minimum": 0},
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "title", "state", "url"],
+            "properties": {
+              "id": {"type": "string", "description": "Issue number as string, or 'draft' for board draft notes."},
+              "title": {"type": "string"},
+              "state": {"type": "string", "description": "Board status: Todo | In Progress | Done | Blocked | (raw board value)."},
+              "url": {"type": "string"},
+              "repo": {"type": ["string", "null"], "description": "owner/repo the issue lives in, or null for draft notes."}
+            }
+          }
+        },
+        "source": {"type": "string", "description": "How these were collected (e.g. 'gh project item-list 1')."}
+      }
+    },
+    "tests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "passing", "failing", "coverage_pct", "last_run"],
+      "properties": {
+        "available": {"type": "boolean", "description": "false => no test artifacts found; count/passing/failing are null, NOT zero."},
+        "count": {"type": ["integer", "null"], "minimum": 0},
+        "passing": {"type": ["integer", "null"], "minimum": 0},
+        "failing": {"type": ["integer", "null"], "minimum": 0},
+        "skipped": {"type": ["integer", "null"], "minimum": 0},
+        "coverage_pct": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "last_run": {"type": ["string", "null"], "format": "date-time"},
+        "source": {"type": ["string", "null"], "description": "Artifact path/tool the numbers came from (e.g. surefire-reports, jacoco.csv)."}
+      }
+    },
+    "deploy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["last_deployed_at", "env", "commit", "status"],
+      "properties": {
+        "last_deployed_at": {"type": ["string", "null"], "format": "date-time"},
+        "env": {"type": "string", "description": "Deploy target/env, or '' if unknown."},
+        "commit": {"type": "string", "description": "Deployed HEAD sha, or '' if unknown."},
+        "status": {"type": "string", "enum": ["ok", "failed", "unknown"]},
+        "duration_s": {"type": ["number", "null"], "minimum": 0},
+        "target": {"type": ["string", "null"], "description": "Raw deploy target name in the log (e.g. 'dstrader-docker')."},
+        "source": {"type": ["string", "null"], "description": "Deploy-log path parsed."}
+      }
+    },
+    "visual_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["done", "artifacts"],
+      "properties": {
+        "done": {"type": "boolean"},
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "kind", "path"],
+            "properties": {
+              "name": {"type": "string"},
+              "kind": {"type": "string", "enum": ["video", "demo_script", "explainer", "screenshot", "other"]},
+              "path": {"type": "string"},
+              "when": {"type": ["string", "null"], "format": "date-time"}
+            }
+          }
+        },
+        "source": {"type": ["string", "null"]}
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["when", "summary", "source"],
+        "properties": {
+          "when": {"type": ["string", "null"], "format": "date-time"},
+          "summary": {"type": "string"},
+          "source": {"type": "string", "description": "Where it was mined from: 'merge-commit' | 'close-work' | 'handoff'."},
+          "ref": {"type": ["string", "null"], "description": "Commit sha, PR #, or brief path."}
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Non-fatal collection issues (auth missing, path not found, partial data).",
+      "items": {"type": "string"}
+    }
+  },
+  "definitions": {
+    "availabilityState": {
+      "type": "string",
+      "enum": ["live", "partial", "unavailable"],
+      "description": "live = real data collected; partial = some collected, some missing; unavailable = nothing reachable (values are nulls/zeros-as-empty, do not assert them as fact)."
+    }
+  }
+}
