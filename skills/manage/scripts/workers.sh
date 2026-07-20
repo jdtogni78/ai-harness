@@ -16,8 +16,7 @@
 #   path                         (print state file path)
 #   mgr-id                       (allocate / read this manager's host-scoped ordinal)
 #   mgr-cwd                      (read the cwd snapshotted on mgr-id's first call)
-#   mgr-epic get|set <N>|clear   (read/store this manager's epic tracking ticket)
-#   retitle  "<task>" [--epic N] (compose `titles set` for the manager title)
+#   retitle  "<task>"            (compose `titles set` for the manager title)
 #   retitle-worker <wid> [brief] (compose `titles set` for one worker title)
 #   migrate-titles [--apply]     (rewrite legacy [MGR-N] manager titles; --apply
 #                                 to PUT, else dry-run plan)
@@ -342,60 +341,19 @@ cmd_mgr_cwd() {
   echo "$existing" | jq -r '.cwd'
 }
 
-# Read this manager's stored epic/tracking ticket (latest mgr_epic event in the
-# per-manager state log), or empty string if none set. Bare digits, no '#'.
-_mgr_epic() {
-  require_jq
-  local file
-  file="$(state_path)" || return $?
-  [[ -s "$file" ]] || { printf ''; return 0; }
-  jq -rs '[ .[] | select(.event == "mgr_epic") ] | (last // {}) | .epic // ""' "$file"
-}
-
-# get | set <N> | clear this manager's epic ticket (the [#<epic>] bracket in the
-# manager title). Stored as an append-only mgr_epic event; last one wins.
-cmd_mgr_epic() {
-  require_jq
-  local action="${1:-get}"; shift || true
-  case "$action" in
-    get)
-      _mgr_epic
-      ;;
-    set)
-      [[ $# -ge 1 ]] || die "mgr-epic set: need <ticket-number>"
-      local epic="${1#\#}"
-      [[ "$epic" =~ ^[0-9]+$ ]] || die "mgr-epic set: <N> must be a number (got: '$1')"
-      local rec
-      rec="$(jq -nc --arg ev "mgr_epic" --arg e "$epic" --arg ts "$(now_utc)" \
-        '{event:$ev, epic:$e, ts:$ts}')"
-      append_event "$rec"
-      printf 'manager epic set to #%s\n' "$epic"
-      ;;
-    clear)
-      local rec
-      rec="$(jq -nc --arg ev "mgr_epic" --arg e "" --arg ts "$(now_utc)" \
-        '{event:$ev, epic:$e, ts:$ts}')"
-      append_event "$rec"
-      printf 'manager epic cleared\n'
-      ;;
-    *) die "mgr-epic: unknown action '$action' (get|set|clear)" ;;
-  esac
-}
-
 # Compose & invoke `titles set` for the manager's own title. Emits the chained
-#   [NICK.host][MGR-<ord>][#<epic>] <task> (N worker[s])
-# form. The nickname is derived from the manager session's OWN identity
+#   [NICK.host][MGR-<ord>] <task> (N worker[s])
+# form. A manager session never carries a ticket number — the `[#<ticket>]`
+# bracket belongs to WORKER titles only (see cmd_retitle_worker).
+# The nickname is derived from the manager session's OWN identity
 # (`titles set --id <mgr>`, same repo-resolution the titles-watcher uses) — NOT
 # from a --cwd override, which would derive the nick from wherever retitle
 # happened to run (e.g. [AH] from ~/dev/ai-harness) and get flipped back by the
-# watcher on its next pass (title churn, #105). The [#<epic>] bracket is emitted
-# only when an epic is stored (mgr-epic set / --epic N); omitted cleanly
-# otherwise for back-compat.
+# watcher on its next pass (title churn, #105).
 cmd_retitle() {
-  local task="" epic_arg=""
+  local task=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --epic) epic_arg="${2:-}"; shift 2 ;;
       *)
         if [[ -z "$task" ]]; then task="$1"; shift
         else die "retitle: unexpected extra arg: $1"; fi ;;
@@ -403,21 +361,16 @@ cmd_retitle() {
   done
   [[ -n "$task" ]] || die "retitle: need <task-description>"
   require_jq
-  local mgr ord count plural epic
+  local mgr ord count plural
   mgr="$(resolve_manager_id)" || return $?
   # Auto-allocate the ordinal on first retitle if mgr-id was never called.
   ord="$(cmd_mgr_id)" || return $?
-  # --epic N stores the epic in one shot (equivalent to `mgr-epic set N` first).
-  [[ -n "$epic_arg" ]] && cmd_mgr_epic set "$epic_arg" >/dev/null
-  epic="$(_mgr_epic)"
   count="$(cmd_list --json | jq 'length')"
   plural="s"; [[ "$count" == "1" ]] && plural=""
-  local -a subs=( --sub "MGR-${ord}" )
-  [[ -n "$epic" ]] && subs+=( --sub "#${epic}" )
   ( cd "$AI_HARNESS_DIR" && \
     python3 -m remote_control titles set \
       --id "$mgr" \
-      "${subs[@]}" \
+      --sub "MGR-${ord}" \
       "${task} (${count} worker${plural})" )
 }
 
@@ -520,8 +473,7 @@ Subcommands:
   loop-disarm                  (clear the loop-armed marker)
   mgr-id                       (allocate / read this manager's host-scoped ordinal)
   mgr-cwd                      (read the cwd snapshotted on first mgr-id call)
-  mgr-epic get|set <N>|clear   (read/store this manager's epic tracking ticket)
-  retitle "<task>" [--epic N]  (titles set --id <mgr> --sub MGR-<ord> [--sub #<epic>] "...")
+  retitle "<task>"             (titles set --id <mgr> --sub MGR-<ord> "...")
   retitle-worker <wid> [brief] (titles set --sub MGR<ord>-W<k> --sub #<ticket> ...)
   migrate-titles [--apply]     (rewrite legacy [MGR-N] manager title; dry-run by default)
 
@@ -541,7 +493,6 @@ main() {
     forget)          cmd_forget          "$@" ;;
     mgr-id)          cmd_mgr_id          "$@" ;;
     mgr-cwd)         cmd_mgr_cwd         "$@" ;;
-    mgr-epic)        cmd_mgr_epic        "$@" ;;
     retitle)         cmd_retitle         "$@" ;;
     retitle-worker)  cmd_retitle_worker  "$@" ;;
     migrate-titles)  cmd_migrate_titles  "$@" ;;

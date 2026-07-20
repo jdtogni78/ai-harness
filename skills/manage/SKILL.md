@@ -114,19 +114,16 @@ by `workers.sh` helpers that wrap `python3 -m remote_control titles set`
 with the right brackets. The watcher preserves the chained `[NICK.host][...]`
 segments across re-renders.
 
-**Manager**: `[NICK.host][MGR-<ord>][#<epic>] <task> (N worker[s])` — `<ord>`
+**Manager**: `[NICK.host][MGR-<ord>] <task> (N worker[s])` — `<ord>`
 is a stable per-host ordinal allocated on the manager's first `mgr-id` call
 (persisted in `~/.ai-harness/manager/ordinals.jsonl`), so two managers
 running concurrently on the same host get distinct `[MGR-1]` / `[MGR-2]`
-brackets that don't shift if one closes. `[#<epic>]` is the manager's
-**epic / tracking ticket** — the umbrella issue this whole dispatch rolls up
-to (the workers' own `[#<ticket>]` brackets point at their per-unit
-children). It's **optional**: set it with `retitle --epic <N>` (or
-`workers.sh mgr-epic set <N>`) and it's emitted on every subsequent retitle;
-leave it unset and the bracket is omitted cleanly. Example:
+brackets that don't shift if one closes. A manager title carries **no ticket
+number, ever** — `[#<ticket>]` belongs to worker titles only, pointing at the
+per-unit issue each worker was spawned to work. Example:
 
 ```
-[AH.mini][MGR-1][#42] titles 85+88 (1 worker)
+[AH.mini][MGR-1] titles 85+88 (1 worker)
 ```
 
 **Where the manager nick comes from (and why it's stable).** The manager
@@ -163,7 +160,7 @@ the common case under the dispatcher model (see `~/dev/CLAUDE.md`). A
 local-dispatcher manager is anchored at `~/dev` (nick `DEV`) or coordinates
 from `ai-harness` (`AH`), while its workers run in whatever repo the task
 belongs to — e.g. five workers in `cos-console` (`COS`). So the picker shows a
-manager `[DEV.m5][MGR-8][#99] …` sitting *above* workers titled
+manager `[DEV.m5][MGR-8] …` sitting *above* workers titled
 `[COS.m5][MGR8-Wk][#10x] …`; the nicks differ **on purpose** and the two
 clusters won't group under one prefix. That's expected — the `[MGR-8]` /
 `[MGR8-Wk]` chain is what ties them together, not the repo nick.
@@ -195,15 +192,8 @@ Helpers (vendored in `skills/manage/scripts/workers.sh`):
 ```bash
 WSH=~/.claude/skills/manage/scripts/workers.sh
 
-# Manager title — count, plural, the [MGR-<ord>] and (optional) [#<epic>]
-# brackets are derived. --epic sets the epic ticket in one shot (sticky).
+# Manager title — count, plural, and the [MGR-<ord>] bracket are derived.
 "$WSH" retitle "<task description>"
-"$WSH" retitle "<task description>" --epic <epic-issue#>
-
-# Manager epic ticket, managed independently of retitle if you prefer.
-"$WSH" mgr-epic set <N>          # store (leading '#' optional)
-"$WSH" mgr-epic get              # print current, or empty if unset
-"$WSH" mgr-epic clear            # drop the [#<epic>] bracket
 
 # Worker title — pulls dir, worker_ord, and ticket from the state log.
 "$WSH" retitle-worker <worker_cse_id> ["<optional brief override>"]
@@ -215,15 +205,12 @@ WSH=~/.claude/skills/manage/scripts/workers.sh
 
 `retitle` auto-allocates the manager ordinal on first call (it shells
 through to `mgr-id`), so a play can call `retitle` directly without a
-separate `mgr-id` warm-up. The epic is **sticky**: once set (via `--epic` or
-`mgr-epic set`), every later `retitle` re-emits the `[#<epic>]` bracket until
-you `mgr-epic clear` it. `retitle-worker` requires the worker to have been
+separate `mgr-id` warm-up. `retitle-worker` requires the worker to have been
 `register`ed with `--ticket N` first (registration without a ticket is
 rejected — see "Confirmation rules" below).
 
-If `count==0`, the helpers still emit `[MGR-<ord>] <task> (0 workers)` (plus
-`[#<epic>]` when set) so the boss can tell an idle manager from a non-manager
-session at a glance.
+If `count==0`, the helpers still emit `[MGR-<ord>] <task> (0 workers)` so the
+boss can tell an idle manager from a non-manager session at a glance.
 
 ## Worker roster: keeping siblings in each other's context
 
@@ -574,8 +561,7 @@ For one approved unit classified as **full session** in **Play: plan**:
    --sub …` (worker nick tracks its repo); `retitle` shells to `titles set
    --id <mgr> --sub …` with **no** `--cwd` (manager nick from session
    identity, so it survives the watcher). See "Session title convention"
-   above for the rendered shape, the optional `--epic`, and the cross-repo
-   case.
+   above for the rendered shape and the cross-repo case.
 8. **Arm the monitoring loop, if not already armed.** The loop is what
    wakes the manager every ~20 minutes to check for silently-dead workers
    (see **Play: tick**). Idempotent — safe to "arm" on every dispatch; the

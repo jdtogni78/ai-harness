@@ -94,8 +94,8 @@ class RetitleWorkerTest(unittest.TestCase):
 
 
 class RetitleManagerTest(unittest.TestCase):
-    """Manager `retitle`: nick from session identity (no --cwd, #105) plus the
-    optional [#<epic>] bracket."""
+    """Manager `retitle`: nick from session identity (no --cwd, #105) and never
+    a ticket bracket (#109 — managers carry no ticket #)."""
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -115,9 +115,9 @@ class RetitleManagerTest(unittest.TestCase):
             ["bash", str(WORKERS_SH), *args],
             env=self.env, capture_output=True, text=True)
 
-    def test_no_epic_omits_bracket_and_cwd(self):
-        # Back-compat: no epic stored -> no [#<epic>] sub, and crucially NO
-        # --cwd (nick must come from `--id <mgr>` session identity, not the
+    def test_no_ticket_bracket_and_no_cwd(self):
+        # A manager title never carries a [#<ticket>] sub (#109), and crucially
+        # no --cwd (nick must come from `--id <mgr>` session identity, not the
         # dir retitle happened to run in -- the #105 churn fix).
         res = self._run("retitle", "manage the thing")
         self.assertEqual(res.returncode, 0, res.stderr)
@@ -129,27 +129,15 @@ class RetitleManagerTest(unittest.TestCase):
         self.assertNotIn("--cwd", argv)
         self.assertNotIn("#", " ".join(argv))
 
-    def test_epic_flag_emits_bracket_and_persists(self):
-        res = self._run("retitle", "manage the thing", "--epic", "99")
-        self.assertEqual(res.returncode, 0, res.stderr)
-        argv = json.loads(res.stdout)
-        self.assertEqual(argv, [
-            "titles", "set", "--id", "cse_test_mgr",
-            "--sub", "MGR-1", "--sub", "#99", "manage the thing (0 workers)",
-        ])
-        # Epic is sticky: a later plain retitle still emits it.
-        res2 = self._run("retitle", "manage the thing")
-        argv2 = json.loads(res2.stdout)
-        self.assertIn("#99", argv2)
-
-    def test_mgr_epic_get_set_clear(self):
-        self.assertEqual(self._run("mgr-epic", "get").stdout.strip(), "")
-        self._run("mgr-epic", "set", "#100")  # leading '#' is stripped
-        self.assertEqual(self._run("mgr-epic", "get").stdout.strip(), "100")
-        self._run("mgr-epic", "clear")
-        self.assertEqual(self._run("mgr-epic", "get").stdout.strip(), "")
-        bad = self._run("mgr-epic", "set", "abc")
-        self.assertNotEqual(bad.returncode, 0)
+    def test_epic_feature_is_gone(self):
+        # #109 reversed the #105 manager-epic bracket: neither the `mgr-epic`
+        # subcommand nor `retitle --epic` exists any more, and no code path
+        # can put a `[#` bracket on a manager title.
+        self.assertNotEqual(self._run("mgr-epic", "get").returncode, 0)
+        self.assertNotEqual(
+            self._run("retitle", "manage the thing", "--epic", "99").returncode, 0)
+        argv = json.loads(self._run("retitle", "manage the thing").stdout)
+        self.assertNotIn("#", " ".join(argv))
 
 
 if __name__ == "__main__":
