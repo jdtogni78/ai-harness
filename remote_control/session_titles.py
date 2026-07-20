@@ -953,8 +953,9 @@ def apply_prefixes(
     if only:
         want = only.lower()
         plan = [r for r in plan if (r.repo or "").lower() == want]
+    locked = read_title_locks(cfg)  # `set --raw` sessions: leave title verbatim
     ok = fail = 0
-    for r in (r for r in plan if r.changed):
+    for r in (r for r in plan if r.changed and r.id not in locked):
         code, _ = set_title(cfg, token, r.id, r.new_title)
         if code == 200:
             ok += 1
@@ -1019,7 +1020,7 @@ def _parse_args(argv: List[str]) -> dict:
             "map": "", "only": None, "self": False, "id": None, "desc": "",
             "projects": PROJECTS_DIR, "logdir": LOGDIR, "all": False,
             "force_host": False, "sub": None, "subs": [], "cwd": None,
-            "nick": None, "interval": 0}
+            "nick": None, "interval": 0, "raw": False}
     desc: List[str] = []
     i = 0
     while i < len(argv):
@@ -1048,6 +1049,9 @@ def _parse_args(argv: List[str]) -> dict:
             i += 1; opts["id"] = argv[i]
         elif a == "--force-host":
             opts["force_host"] = True
+        elif a in ("--raw", "--exact"):
+            # set the title verbatim: no [NICK] prefix, no bracket stripping
+            opts["raw"] = True
         elif a == "--sub":
             i += 1
             # Repeatable: each --sub appends one bracket. Legacy callers that
@@ -1100,6 +1104,20 @@ def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
             return 2
         repo = repo_from_worktree_path(cwd)
         host_local = True  # --self: we ARE running inside it, on this host
+    # ``--raw``/``--exact``: force the title to the given text verbatim -- no
+    # [NICK] prefix, no bracket stripping, no repo/host derivation. For callers
+    # who want an exact title (e.g. preserving a manager label the prefix
+    # machinery would otherwise strip). NOTE: the ``titles watch`` daemon will
+    # re-apply the [NICK] prefix on its next pass unless it is also stopped.
+    if opts.get("raw"):
+        _set_title_lock(cfg, sid, True)  # persist against the watcher/apply passes
+        code, body = set_title(cfg, token, sid, desc)
+        if code == 200:
+            print(f"set {sid} -> {desc!r} (raw, locked)")
+            return 0
+        log(f"FAILED {sid} http={code} body={str(body)[:160]}")
+        return 1
+    _set_title_lock(cfg, sid, False)  # a normal set hands control back to the watcher
     # ``--nick NICK`` is an explicit escape hatch: skip all repo/host
     # derivation entirely and use NICK verbatim as the bracket prefix. Exists
     # because repo resolution (config.sources[].url / worktree index / cse
@@ -1190,6 +1208,49 @@ def _titles_watcher_lock_file(cfg: UsageLimitConfig) -> Path:
 def _titles_watcher_log_file(cfg: UsageLimitConfig) -> Path:
     """Log file for the ``titles watch`` daemon."""
     return cfg.logdir / "titles-monitor.log"
+
+
+def _title_locks_file(cfg: Optional[UsageLimitConfig]) -> Path:
+    """Session ids whose title is force-set (``set --raw``) and must be left
+    verbatim -- the watcher/apply passes skip these so the exact title sticks
+    instead of being re-prefixed. One ``cse_`` id per line."""
+    return cfg.logdir / "title-locks.txt"
+
+
+def read_title_locks(cfg: Optional[UsageLimitConfig]) -> set:
+    """Set of session ids currently locked to a verbatim title (empty if none)."""
+    if cfg is None:
+        return set()
+    try:
+        text = _title_locks_file(cfg).read_text()
+    except (FileNotFoundError, OSError):
+        return set()
+    return {ln.strip() for ln in text.splitlines() if ln.strip()
+            and not ln.strip().startswith("#")}
+
+
+def _set_title_lock(cfg: Optional[UsageLimitConfig], sid: str,
+                    locked: bool) -> None:
+    """Add (``locked=True``) or remove (``locked=False``) ``sid`` from the lock
+    list. Best-effort; never raises into the caller.
+
+    ``cfg`` is ``None`` when there is no resolved config (notably under test,
+    and for callers that drive ``_run_set`` without one). There is nowhere to
+    persist a lock then, so this is a no-op -- matching ``read_title_locks``,
+    which reports "no locks" for the same case."""
+    if cfg is None:
+        return
+    try:
+        ids = read_title_locks(cfg)
+        if locked:
+            ids.add(sid)
+        else:
+            ids.discard(sid)
+        f = _title_locks_file(cfg)
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text("".join(f"{i}\n" for i in sorted(ids)))
+    except OSError:
+        pass
 
 
 def _run_watch(cfg: UsageLimitConfig, log, interval: int,

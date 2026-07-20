@@ -1414,5 +1414,153 @@ class NormalizeHostSegmentTest(unittest.TestCase):
         self.assertEqual(v["host"], "")
 
 
+class RawTitlePinTest(unittest.TestCase):
+    """``titles set --raw`` / ``--exact``: pin a title verbatim.
+
+    An explicit, user-driven escape hatch -- no ``[NICK]`` prefix, no bracket
+    stripping, no repo/host derivation. Because the watcher re-prefixes titles
+    every pass, a verbatim set only *stays* verbatim if it also persists a
+    lock that the apply pass honours; both halves are tested here."""
+
+    def _cfg(self, tmp):
+        prev = os.environ.get("REMOTE_CONTROL_LOGDIR")
+        os.environ["REMOTE_CONTROL_LOGDIR"] = tmp
+        try:
+            from remote_control.config import UsageLimitConfig
+            return UsageLimitConfig.from_env()
+        finally:
+            if prev is None:
+                os.environ.pop("REMOTE_CONTROL_LOGDIR", None)
+            else:
+                os.environ["REMOTE_CONTROL_LOGDIR"] = prev
+
+    def _run(self, cfg, opts, sessions):
+        """Drive ``_run_set`` with the network stubbed, returning the title it
+        would have PUT. Mirrors RunSetRepoFallbackTest's harness, but threads a
+        real ``cfg`` through so the lock file has somewhere to live."""
+        from remote_control import session_titles as st
+
+        captured = {}
+
+        def fake_set(cfg_, token, sid, title):
+            captured["sid"], captured["title"] = sid, title
+            return 200, {}
+
+        orig_list, orig_set = st.monitor.list_sessions, st.set_title
+        st.monitor.list_sessions = lambda cfg_, token, log: sessions
+        st.set_title = fake_set
+        try:
+            base = {"dev": "/nonexistent", "file": "/nonexistent", "map": "",
+                    "self": False, "id": None, "desc": "",
+                    "projects": "/nonexistent", "raw": False}
+            base.update(opts)
+            rc = st._run_set(cfg, "tok", base, log=lambda m: None)
+        finally:
+            st.monitor.list_sessions, st.set_title = orig_list, orig_set
+        return rc, captured
+
+    # A session whose repo DOES resolve -- so a normal set demonstrably adds a
+    # prefix, and --raw suppressing it is a real difference, not a no-op.
+    SESSION = {"id": "cse_cloud", "config": {"sources": [
+        {"url": "https://github.com/me/AppOne.git"}]}}
+
+    def test_raw_sets_title_verbatim_and_locks(self):
+        from remote_control import session_titles as st
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = self._cfg(tmp)
+            # Baseline: without --raw this same session gets the [AO] prefix.
+            _, plain = self._run(
+                cfg, {"id": "cse_cloud", "desc": "#7 do thing"}, [self.SESSION])
+            self.assertEqual(plain["title"], "[AO] #7 do thing")
+
+            rc, cap = self._run(
+                cfg, {"id": "cse_cloud", "desc": "[MGR-2] pinned", "raw": True},
+                [self.SESSION])
+            self.assertEqual(rc, 0)
+            # Verbatim: the [MGR-2] bracket survives and no [AO] is prepended.
+            self.assertEqual(cap["title"], "[MGR-2] pinned")
+            self.assertIn("cse_cloud", st.read_title_locks(cfg))
+
+    def test_exact_is_an_alias_for_raw(self):
+        from remote_control import session_titles as st
+
+        self.assertTrue(st._parse_args(["--raw"])["raw"])
+        self.assertTrue(st._parse_args(["--exact"])["raw"])
+        self.assertFalse(st._parse_args([])["raw"])
+
+    def test_apply_prefixes_skips_locked_sessions(self):
+        """The point of the lock: the periodic apply pass must leave a pinned
+        title alone while still renaming everything else."""
+        from remote_control import session_titles as st
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = self._cfg(tmp)
+            st._set_title_lock(cfg, "cse_locked", True)
+
+            # `changed` is derived: new_title != old_title and nickname set.
+            plan = [
+                st.Rename(id="cse_locked", repo="ai-harness", nickname="AH",
+                          old_title="x", new_title="[AH] x"),
+                st.Rename(id="cse_free", repo="ai-harness", nickname="AH",
+                          old_title="y", new_title="[AH] y"),
+            ]
+            self.assertTrue(all(r.changed for r in plan))
+
+            sent = []
+            orig_list = st.monitor.list_sessions
+            orig_plan = st.plan_renames
+            orig_set = st.set_title
+            st.monitor.list_sessions = lambda c, t, log: [
+                {"id": r.id} for r in plan]
+            st.plan_renames = lambda *a, **kw: plan
+            st.set_title = lambda c, t, sid, title: (
+                sent.append(sid), (200, {}))[1]
+            try:
+                ok, fail = st.apply_prefixes(cfg, "tok", log=lambda m: None)
+            finally:
+                st.monitor.list_sessions = orig_list
+                st.plan_renames = orig_plan
+                st.set_title = orig_set
+            self.assertEqual(sent, ["cse_free"])
+            self.assertEqual((ok, fail), (1, 0))
+
+    def test_normal_set_releases_the_lock(self):
+        """A plain ``titles set`` hands the session back to the watcher --
+        otherwise a one-off --raw would pin the title permanently."""
+        from remote_control import session_titles as st
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = self._cfg(tmp)
+            self._run(cfg, {"id": "cse_cloud", "desc": "pinned", "raw": True},
+                      [self.SESSION])
+            self.assertIn("cse_cloud", st.read_title_locks(cfg))
+
+            self._run(cfg, {"id": "cse_cloud", "desc": "#7 back to normal"},
+                      [self.SESSION])
+            self.assertNotIn("cse_cloud", st.read_title_locks(cfg))
+
+    def test_lock_helpers_tolerate_no_config(self):
+        """Regression: ``_set_title_lock`` used to raise AttributeError on a
+        ``None`` cfg (no logdir to write to), breaking every ``_run_set`` test
+        that passes one. There is nowhere to persist a lock -- it must no-op,
+        matching ``read_title_locks``."""
+        from remote_control import session_titles as st
+
+        self.assertEqual(st.read_title_locks(None), set())
+        st._set_title_lock(None, "cse_x", True)    # must not raise
+        st._set_title_lock(None, "cse_x", False)   # must not raise
+
+    def test_missing_lock_file_reads_as_no_locks(self):
+        from remote_control import session_titles as st
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(st.read_title_locks(self._cfg(tmp)), set())
+
+
 if __name__ == "__main__":
     unittest.main()
