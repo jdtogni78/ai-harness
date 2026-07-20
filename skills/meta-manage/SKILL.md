@@ -136,6 +136,16 @@ OK), and `--reply-to <self>` so it reports up to you. For a system-wide
 initiative with no single repo, anchor the manager at `~/dev` (or the most
 relevant repo) and scope it via the brief.
 
+**Bake in a first-turn self-title directive.** A spawned manager comes up as
+the generic `[NICK.host][<name>] auto-spawned` and stays that way until
+something retitles it — the watcher won't invent a `[MGR-N]`. So the brief's
+FIRST instruction must be: self-title before anything else, via
+`~/.claude/skills/manage/scripts/workers.sh retitle "<task>"` (auto-allocates
+the `[MGR-N]` ordinal). If the manager is anchored *outside* a bridge worktree
+(e.g. at `~/dev`), `--self` won't resolve — tell it to use
+`titles set --id <its-own-cse_id> --nick <NICK.host> --sub MGR-<n> "<task>"`
+instead (find its cse via `titles list`). See `docs/session-naming-model.md`.
+
 ### 6. HANDLE BROKEN SESSIONS — verify ground truth first
 
 - **`409 session_not_active`** — the target is busy or unreachable. Retry when

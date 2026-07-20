@@ -338,8 +338,23 @@ def nick_base(token: str) -> str:
     return parts[0] if parts else (token or "")
 
 
+def _has_host_suffix(token: str, host: str) -> bool:
+    """True if *token* renders as ``<base>.<host>`` (or any separator variant) --
+    i.e. its LAST segment is *host*. Only NICK brackets ever carry the
+    ``{host}`` suffix (``apply_prefix`` emits subs BARE), so a host-suffixed
+    leading bracket is always a stacked prior-pass nick render, never a real
+    sub. Used to collapse a LEGACY/AUTO-DERIVED stale nick (``DIV.m5`` on a repo
+    that now auto-derives ``DP``) that ``nick_base(bracket) in known`` misses
+    because the stale base is neither the current nick nor a *configured* one."""
+    if not host:
+        return False
+    parts = [p for p in _PREFIX_SEP_RE.split(token or "") if p]
+    return len(parts) >= 2 and parts[-1] == host
+
+
 def extract_sub_tokens(title: str, nick: Optional[str] = None,
-                       nicks: Optional[Iterable[str]] = None) -> List[str]:
+                       nicks: Optional[Iterable[str]] = None,
+                       host: str = "") -> List[str]:
     """All sub-bracket tokens in a chained ``[NICK][S1][S2] desc`` prefix, in
     order, or ``[]`` if there are none. With *nick* supplied (the canonical
     rendered NICK token for this session), every leading bracket whose
@@ -368,6 +383,18 @@ def extract_sub_tokens(title: str, nick: Optional[str] = None,
     leading nick slot, and real subs (which never collide with a repo nick)
     survive intact.
 
+    *host* (the monitor's host nickname) covers the LEGACY / AUTO-DERIVED stale
+    nick: a repo whose auto-derived nick CHANGED (``divorce-prep`` once rendered
+    ``DIV``, now ``DP``) leaves a ``[DIV.m5]`` bracket whose base is neither the
+    current nick nor a *configured* one, so the ``known`` set misses it and it
+    survives as a bogus sub -- a pre-existing double the daemon can't self-heal
+    (only a manual titles-set would). But ``apply_prefix`` emits subs BARE and
+    only ever suffixes the NICK bracket with ``{host}``, so ANY leading bracket
+    rendered as ``<base>.<host>`` (last segment == *host*) is provably a stacked
+    prior-pass nick, whatever its base. Dropping those lets a fresh stacked
+    title self-heal on the next DAEMON cycle. A ``<base>.<other-host>`` bracket
+    is left intact (a cross-host claim; ``existing_prefix_host`` owns that flap).
+
     Without *nick*, falls back to the legacy single-sub heuristic (assume the
     first N-1 leading brackets are stacked NICK dups, return the LAST one) so
     :func:`extract_sub_token` and the existing new-session ``--subname``
@@ -377,11 +404,18 @@ def extract_sub_tokens(title: str, nick: Optional[str] = None,
         return []
     if nick is not None:
         # The current nick is always droppable; the rest of the configured
-        # nicks cover the flapped-to-a-different-nick case.
+        # nicks cover the flapped-to-a-different-nick case. *host* covers the
+        # LEGACY/AUTO-DERIVED stale nick: a leading bracket rendered with our
+        # host suffix (``DIV.m5``) is a stacked prior-pass nick regardless of
+        # whether its base is configured, since only nick brackets carry the
+        # host suffix -- so it collapses too, letting the daemon self-heal a
+        # double a manual titles-set would otherwise be needed for.
         known = {nick_base(n) for n in (nicks or ()) if n}
         known.add(nick_base(nick))
         i = 0
-        while i < len(brackets) and nick_base(brackets[i]) in known:
+        while i < len(brackets) and (
+            nick_base(brackets[i]) in known or _has_host_suffix(brackets[i], host)
+        ):
             i += 1
         return brackets[i:]
     return [brackets[-1]]
@@ -617,7 +651,7 @@ def plan_renames(
         # source is the title it's looking at right now -- so re-extract every
         # pass and re-emit. Pass the rendered NICK so dup-NICK leading brackets
         # are dropped and any real subs (one OR multiple) survive intact.
-        subs = extract_sub_tokens(old, nick=token, nicks=nmap.values())
+        subs = extract_sub_tokens(old, nick=token, nicks=nmap.values(), host=host)
         plan.append(Rename(sid, repo, token, old,
                            apply_prefix(old, token, subs=subs)))
     return plan
