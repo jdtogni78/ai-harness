@@ -195,8 +195,26 @@ const builders = [
     }},
 ];
 
+// ---- generic report mode --------------------------------------------------
+// The same chrome (CSS + nav below) renders TWO kinds of deck:
+//   * StatusReport   -> the `builders` above (project status).
+//   * Generic report -> `R.slides`, a list of pre-rendered {widget, kicker,
+//     title|heading, subtitle, html, narration} slides. This is what the
+//     `report` skill emits for a manager-activity recap, so it reuses this
+//     renderer instead of duplicating it. Slide `html` uses the SAME widget
+//     classes (.tile/.card/.clean/.nodata-panel) for a consistent look.
+function renderGeneric(s){
+  const kicker = s.kicker ? `<p class="kicker">${s.kicker}</p>` : "";
+  const head = s.title ? `<h1>${s.title}</h1>`
+             : s.heading ? `<h2>${s.heading}</h2>` : "";
+  const sub  = s.subtitle ? `<p class="sub">${s.subtitle}</p>` : "";
+  return `${kicker}${head}${sub}${s.html||""}${narr(s.narration)}`;
+}
+
 // ---- render + navigation (hash-driven so narrate-demo's `goto #n` advances) --
-const slides = builders.map(b=>b.render());
+const slides = (Array.isArray(R.slides) && R.slides.length)
+  ? R.slides.map(renderGeneric)
+  : builders.map(b=>b.render());
 let i=0; const stage=document.getElementById('stage'), dots=document.getElementById('dots');
 stage.innerHTML = slides.map((s,n)=>`<section class="slide" data-n="${n}">${s}</section>`).join("");
 dots.innerHTML = slides.map((_,n)=>`<button aria-label="slide ${n+1}" onclick="go(${n})"></button>`).join("");

@@ -21,6 +21,7 @@ picked up by both tools.
 | `test-env`            | Lease an isolated-DB **test** slot from your app's test pool (slot names per `scripts/pool/config.example.yaml`). |
 | `new-session`         | Spawn a picker-visible worker session; `brief-template.md` is the canonical shape for a worker's first-turn brief, including the "Sibling workers" section. |
 | `manage`              | Coordinate parallel worker sessions: tracking, handshake, and the worker-roster practice that feeds each worker's "Sibling workers" section. |
+| `report`              | Reporter the manager delegates to: recap a manager's worker activity (changes + testing + tickets + decisions) as an HTML deck (reusing `cos-console` deck.generate) + markdown; incremental `--since-last` by default. |
 
 `session-triage/scripts/session_scan.sh`, `resume-work/scripts/resume_brief.sh`,
 and `start-work/scripts/agent_claims.sh` are the real scripts (no external
