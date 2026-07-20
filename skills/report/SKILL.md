@@ -57,9 +57,18 @@ report the delta without moving the marker (dry-run).
   notes, close reason).
 - **Per-worker CHANGES** — commit/merge SHA parsed from the close reason, plus
   `git show --stat` when the worker dir (or ai-harness main) is reachable.
-- **TESTING evidence** — mined from worker notes. **Anti-fabrication:** a worker
-  with no testing keyword is reported as **"no tests run"** on its own line and
-  in a NO-DATA panel — never omitted, never shown as a fabricated `0`/passing.
+- **TESTING evidence** — mined from worker notes and **classified**, because a
+  note is a claim, not proof:
+
+  | badge | colour | means |
+  |---|---|---|
+  | **✓ VERIFIED** | green | the reporter resolved a real artifact itself — a path in the note that exists on disk, or test files inside the commit the worker landed. The pointer is printed next to the badge. |
+  | **⚠︎ SELF-REPORTED** | amber | the worker said tests passed and nothing was checked. A green badge here would vouch for tests nobody looked at (this is exactly how #105's "tested (5/5)" came to cover tests asserting the wrong contract). |
+  | **no tests run** | red | no testing mentioned at all. **Anti-fabrication:** stated on its own line and in a NO-DATA panel — never omitted, never a fabricated `0`/passing. |
+
+  VERIFIED means *the evidence exists and here it is* — it does **not** mean the
+  tests assert the right thing. That judgment stays with the reader, which is
+  why the pointer is always shown.
 - **Ticket states** — `gh issue view` (best-effort; if GitHub is unreachable it
   falls back to the manager-side status and says so).
 - **Decisions / open questions** — decisions from close reasons; open questions
@@ -94,10 +103,33 @@ A narrated MP4 is optional: the emitted `<slug>.demo.yaml` is a ready
 3. Default `--since-last` advances the marker, so the next report is naturally
    incremental. Use `--all` for a full retrospective.
 
+## Reconciliation — latest state wins
+
+Every worker is folded to its **latest status epoch** before rendering. Notes
+written before the last status change are **superseded** and never surfaced as
+current position; the deck says how many were set aside. This is what stops one
+deck reading "holding for OK to commit+push" on the testing slide and "merged
+f9b3e6c → origin/main" on the decisions slide about the same worker.
+
+## Freshness
+
+The summary slide carries a provenance strip — generated-at plus the age of the
+newest source event — badged **FRESH** / **AGING** (>24h) / **STALE** (>72h),
+tunable via `REPORT_FRESH_WARN_SECS` / `REPORT_FRESH_STALE_SECS`. Aging and
+stale data also raise an open question telling the reader to regenerate. A deck
+with no visible age gets read as live; a 2-day-old one silently misleads.
+
 ## Rules
 
 - **Read-only** w.r.t. every reported system; the only write is the report
   marker for `--since-last`.
 - **Never fabricate.** Missing testing evidence is "no tests run", missing git a
   "no commit recorded", unreachable GitHub a stated fallback — never a `0`.
+- **Never vouch for what wasn't checked.** A worker's claim renders as
+  SELF-REPORTED, not as a pass.
+- **No unverifiable health claims.** The reporter never says "everything's on
+  track" — it states what it checked (state log, git, board) and scopes its
+  conclusion to that. Prefer stating what IS known over a summary judgment.
+- **Reconcile before rendering** — one worker, one current state, no
+  contradictions across slides.
 - **Reuse the renderer** — import `deck.generate`; do not copy the template.
