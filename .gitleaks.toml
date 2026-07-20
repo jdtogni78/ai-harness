@@ -18,5 +18,5 @@ paths = [
   # The perm-gate redaction tests deliberately contain fake-secret strings
   # (curl auth headers, private-key blocks, AWS/GitHub-token shapes) so the
   # redactor can be asserted against them. None are real credentials.
-  '''tests/perm_gate_lab/.*''',
+  '''tests/perm_gate_lab_tests/.*''',
 ]
