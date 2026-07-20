@@ -1,0 +1,51 @@
+# milestones/familyfund.yaml — MAJOR end-to-end goals for FamilyFund.
+#
+# DRAFT — these goals were seeded by the validator author and are NOT yet
+# operator-confirmed. The operator will correct the goal list and the proof
+# strategy. The `draft: true` flag makes the tables and deck badge this file as
+# UNCONFIRMED so nobody mistakes it for a settled contract.
+#
+# Like dstrader, FamilyFund's real system is not reachable from the ai-harness
+# host, so the evidence pointers live where FF would write them and resolve
+# MISSING here — every goal is honestly UNVERIFIED until run where FF is live.
+#
+# See milestones/cos-console.yaml for the evidence-check schema.
+
+project: familyfund
+draft: true
+title: FamilyFund — major goals (DRAFT, unconfirmed)
+system: familyfund (separate repo/host; not present in ai-harness)
+
+goals:
+  - id: ingests-sources
+    goal: FamilyFund pulls dstrader and other data sources, complete and correct.
+    prove: Source→FF row/value match for each ingested source.
+    evidence:
+      - file: ~/dev/familyfund/var/ingest/sources-latest.json
+      - file: ~/dev/familyfund/var/ingest/dstrader-receipt-latest.json
+
+  - id: computes-correctly
+    goal: NAV, per-member positions, and returns are computed correctly.
+    prove: Recompute matches a known-good baseline.
+    evidence:
+      - file: ~/dev/familyfund/var/compute/nav-latest.json
+      - file: ~/dev/familyfund/tests/baselines/nav-known-good.json
+    pending:
+      - Recomputed NAV/positions/returns diffed against the known-good baseline with zero delta.
+
+  - id: per-period-reconcile
+    goal: Balances and net-worth reconcile each period.
+    prove: A reconciliation report per period with zero unexplained delta.
+    evidence:
+      - file: ~/dev/familyfund/var/reconcile/latest-report.json
+    pending:
+      - Reconciliation report shows zero unexplained delta for the period.
+
+  - id: member-statements
+    goal: Member statements are correct and timely.
+    prove: A rendered statement matches the computed values for that member/period.
+    evidence:
+      - file: ~/dev/familyfund/var/statements/latest.pdf
+      - file: ~/dev/familyfund/var/compute/nav-latest.json
+    pending:
+      - Rendered statement values matched against the computed NAV/positions for the same period.

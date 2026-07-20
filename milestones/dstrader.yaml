@@ -1,0 +1,48 @@
+# milestones/dstrader.yaml — MAJOR end-to-end goals for dstrader.
+#
+# Operator-CONFIRMED goals. dstrader's real system (TWS, the IB session, the
+# order/fill store) is NOT reachable from the ai-harness host, so the evidence
+# pointers below live where that system would write them. Run from a host that
+# can see dstrader and they resolve; from here they are MISSING and every goal
+# is honestly UNVERIFIED — "not reachable from here", never faked green.
+#
+# See milestones/cos-console.yaml for the evidence-check schema.
+
+project: dstrader
+draft: false
+title: dstrader — major goals
+system: dstrader (separate repo/host; not present in ai-harness)
+
+goals:
+  - id: tws-runs
+    goal: TWS launches and stays up, automated.
+    prove: A process/health check plus an uptime log showing TWS alive.
+    evidence:
+      - file: ~/dev/dstrader/var/tws-health.json
+      - file: ~/dev/dstrader/logs/tws-uptime.log
+      - command:
+          run: pgrep -f 'tws|ibgateway'
+          expect_rc: 0
+
+  - id: tws-connects
+    goal: An authenticated IB session is up with live market data and account access.
+    prove: A connection log confirming auth plus at least one live data tick captured.
+    evidence:
+      - file: ~/dev/dstrader/logs/ib-connection.log
+      - file: ~/dev/dstrader/var/last-tick.json
+
+  - id: trades-execute
+    goal: The strategy places and manages orders correctly — right instrument, size, and timing.
+    prove: An order/fill record matching the intended instrument, size, and timing.
+    evidence:
+      - file: ~/dev/dstrader/var/orders/fills.jsonl
+      - file: ~/dev/dstrader/var/orders/latest-order.json
+
+  - id: info-to-ff
+    goal: Positions, trades, and PnL are pushed to FamilyFund — complete, accurate, and on-schedule.
+    prove: An FF-side receipt whose values match the dstrader source for the same period.
+    evidence:
+      - file: ~/dev/dstrader/var/exports/ff-push-latest.json
+      - file: ~/dev/familyfund/var/ingest/dstrader-receipt-latest.json
+    pending:
+      - FF-side receipt reconciled field-by-field against the dstrader source export.

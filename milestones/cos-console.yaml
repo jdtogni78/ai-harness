@@ -1,0 +1,77 @@
+# milestones/cos-console.yaml — MAJOR end-to-end goals for cos-console.
+#
+# This file is MANAGER-OWNED and editable. `/validate cos-console` reads it and
+# tries to PROVE each goal with real, resolvable evidence. A goal is only shown
+# VERIFIED-WORKING when every declared evidence check resolves AND nothing is
+# left `pending`. Anything else is PARTIAL / NOT-YET / UNVERIFIED / FAILED — the
+# validator never renders a goal "working" without proof.
+#
+# Evidence check kinds (each resolves to PASS / FAIL / MISSING):
+#   - file:   <path>                         PASS if the path exists on disk
+#   - grep:   {pattern: <re>, path: <path>}  PASS if the pattern is found in the file
+#   - command:{run: <shell>, expect_rc: 0,   PASS if rc matches and (if given)
+#              expect_match: <re>}            expect_match is found in the output
+# Paths are resolved relative to the ai-harness repo root (also ~ and absolute).
+# `pending:` lists aspects that are NOT yet provable — any pending entry caps the
+# goal at PARTIAL (it can never be VERIFIED-WORKING while something is pending).
+# `expect:` is the operator's declared status for goals with no automatable proof
+# (not-yet / partial / failed); it is a LABEL, never an upgrade — evidence always
+# wins, and a mismatch is surfaced as a discrepancy.
+
+project: cos-console
+draft: false
+title: cos-console — major goals
+
+goals:
+  - id: true-status
+    goal: The status data plane never fabricates — missing signals degrade to unavailable, never a fake zero.
+    prove: Schema forbids zero-for-missing; collectors degrade instead of raising.
+    evidence:
+      - file: cos-console/status-mcp/status_report.schema.json
+      - grep:
+          pattern: "NOT zero"
+          path: cos-console/status-mcp/status_report.schema.json
+      - grep:
+          pattern: "NEVER raise"
+          path: cos-console/status-mcp/status_mcp/collectors.py
+
+  - id: honest-validation
+    goal: Reporting/validation is proof-demanding — it classifies verified vs self-reported and never vouches for unchecked claims.
+    prove: The report classifier resolves real artifacts and badges VERIFIED vs SELF-REPORTED; screenshots exist.
+    evidence:
+      - file: skills/report/scripts/report.py
+      - grep:
+          pattern: "VERIFIED"
+          path: skills/report/scripts/report.py
+      - grep:
+          pattern: "SELF-REPORTED"
+          path: skills/report/scripts/report.py
+      - file: skills/report/verification/report-testing.png
+
+  - id: present-talkover
+    goal: Outcomes can be presented as decks and narrated walkthroughs, rendered by a single reusable renderer.
+    prove: deck.generate exposes the reusable generic renderer; rendered decks and the narrate skill exist.
+    evidence:
+      - file: cos-console/presentation-poc/deck/generate.py
+      - grep:
+          pattern: "def write_generic_deck"
+          path: cos-console/presentation-poc/deck/generate.py
+      - file: cos-console/presentation-poc/out/dstrader-status.html
+      - file: skills/narrate-demo/SKILL.md
+
+  - id: voice-e2e
+    goal: You can talk to the console and the Claude brain answers, end-to-end.
+    prove: A live voice loop reaching the Claude brain and speaking a real answer back.
+    expect: not-yet
+    note: Wave 3 parked — the talk-to-it end-to-end loop with the Claude brain is not built yet.
+    evidence: []
+
+  - id: phone-access
+    goal: The console is usable from a phone.
+    prove: A phone-reachable surface exists; the full console experience on phone is still incomplete.
+    expect: partial
+    note: The surface app is reachable from a phone, but the full console is not yet phone-complete.
+    evidence:
+      - file: cos-console/surface/README.md
+    pending:
+      - Full console (not just the surface app) verified working on a real phone screen.
