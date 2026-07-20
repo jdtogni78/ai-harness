@@ -394,6 +394,58 @@ class PrefixTest(unittest.TestCase):
             build_nickname_map(), host="mini")}
         self.assertEqual(plan["cse_bridge"].new_title, "[DEV.mini][MGR-2] body")
 
+    def test_extract_sub_tokens_drops_legacy_autoderived_nick_by_host_suffix(self):
+        # MGR-12 gap: a LEGACY/AUTO-DERIVED stale nick (``DIV.m5`` on a repo that
+        # now auto-derives ``DP``) is neither the current nick nor a CONFIGURED
+        # one, so ``known`` misses it and it used to survive as a bogus sub --
+        # the pre-existing double the daemon couldn't self-heal. It carries our
+        # host suffix (``.m5``), which only nick brackets ever do, so the host
+        # rule drops it while the real subs survive.
+        self.assertEqual(
+            extract_sub_tokens("[DP.m5][DIV.m5][MGR7-W15][#66] body",
+                               nick="DP.m5", nicks=("DEV", "COS"), host="m5"),
+            ["MGR7-W15", "#66"])
+        # Multiple stacked legacy nicks all collapse.
+        self.assertEqual(
+            extract_sub_tokens("[FE.m5][FIN.m5][FE.m5][MGR6-W11][#19] x",
+                               nick="FE.m5", nicks=("COS",), host="m5"),
+            ["MGR6-W11", "#19"])
+
+    def test_host_suffix_rule_keeps_bare_subs_and_cross_host_claims(self):
+        # Real subs are emitted BARE (no host suffix) -> never eaten.
+        self.assertEqual(
+            extract_sub_tokens("[AH.m5][MGR-3][S1] work",
+                               nick="AH.m5", nicks=("COS",), host="m5"),
+            ["MGR-3", "S1"])
+        # A DIFFERENT host's suffix (``.mini`` on an ``m5`` pass) is a cross-host
+        # claim, not our stacked render -- left intact so the host rule can't
+        # reintroduce the cross-host suffix ping-pong existing_prefix_host guards.
+        self.assertEqual(
+            extract_sub_tokens("[DP.m5][DIV.mini][MGR-1] x",
+                               nick="DP.m5", nicks=("COS",), host="m5"),
+            ["DIV.mini", "MGR-1"])
+        # Without *host* (back-compat), the legacy nick still survives -- the new
+        # behavior is opt-in via the host argument plan_renames now threads.
+        self.assertEqual(
+            extract_sub_tokens("[DP.m5][DIV.m5][MGR7-W15] body",
+                               nick="DP.m5", nicks=("COS",)),
+            ["DIV.m5", "MGR7-W15"])
+
+    def test_daemon_cycle_self_heals_legacy_double_end_to_end(self):
+        # End-to-end through plan_renames (what a DAEMON cycle runs): a fresh
+        # stacked title with a legacy auto-derived nick self-heals in ONE pass
+        # and is idempotent on the next -- no manual titles-set needed.
+        def cycle(title):
+            sessions = [{"id": "cse_dp", "title": title, "config": {}}]
+            plan = {r.id: r for r in plan_renames(
+                sessions, {"cse_dp": "divorce-prep"},
+                build_nickname_map(), host="m5")}
+            return plan["cse_dp"].new_title
+
+        healed = cycle("[DP.m5][DIV.m5][MGR7-W15][#66] reconcile red rows")
+        self.assertEqual(healed, "[DP.m5][MGR7-W15][#66] reconcile red rows")
+        self.assertEqual(cycle(healed), healed)  # idempotent second cycle
+
 
 class RepoDerivationTest(unittest.TestCase):
     def test_basename_from_url(self):
