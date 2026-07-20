@@ -304,11 +304,22 @@ class PrefixTest(unittest.TestCase):
         self.assertEqual(
             extract_sub_tokens("[DEV.m5][DEV][DEV.m5][MGR-2] body", nick="DEV"),
             ["MGR-2"])
-        # genuine subs whose base differs from the nick are preserved
+        # Leading brackets that are OTHER CONFIGURED REPO NICKS are stale nick
+        # occurrences (a flapped repo->nick resolution), not subs -- they are
+        # dropped too, leaving the single leading nick slot. Only the genuine
+        # sub survives. (Before #110 this asserted the accreting form
+        # ["FE.m5", "FIN.m5", "MGR-2"], which is what let the title grow a
+        # bracket per watcher pass.)
         self.assertEqual(
             extract_sub_tokens("[DEV.m5][FE.m5][FIN.m5][MGR-2] body",
-                               nick="DEV.m5"),
-            ["FE.m5", "FIN.m5", "MGR-2"])
+                               nick="DEV.m5", nicks=("DEV", "FE", "FIN")),
+            ["MGR-2"])
+        # ...but a bracket that is NOT a known nick is a real sub and stays,
+        # even when it sits next to the nick.
+        self.assertEqual(
+            extract_sub_tokens("[DEV.m5][MGR2-W1][#123] body",
+                               nick="DEV.m5", nicks=("DEV", "FE", "FIN")),
+            ["MGR2-W1", "#123"])
 
     def test_host_flap_does_not_accrete_nick_brackets(self):
         # The unbounded-stacking bug: a watcher whose host-local detection
@@ -326,21 +337,50 @@ class PrefixTest(unittest.TestCase):
         # one more pass is a no-op
         self.assertEqual(watch(title, "DEV.m5"), "[DEV.m5][MGR-2] body")
 
-    def test_fe_nick_override_stack_is_idempotent(self):
+    def test_fe_nick_override_stack_collapses_to_one_nick(self):
         # The manager's live repro: a ``--nick FE.m5`` title re-rendered by a
-        # watcher that derives ``DEV.m5``. The first pass prepends one nick
-        # (FE.m5/FIN.m5 are operator-set subs the watcher can't know are
-        # stale); every subsequent pass is byte-identical -- a single leading
-        # nick, no further stacking.
+        # watcher that derives ``DEV.m5``. FE.m5/FIN.m5 ARE known repo nicks,
+        # so they are stale nick occurrences, not subs -- the pass must collapse
+        # them into the single leading nick slot and keep only the real sub.
+        # (Before #110 this test asserted the accreting form
+        # "[DEV.m5][FE.m5][FIN.m5][MGR-2] ..." and called FE/FIN "operator-set
+        # subs the watcher can't know are stale" -- that assertion WAS the bug,
+        # written down: it made the defect the expected behaviour.)
         def watch(title):
-            subs = extract_sub_tokens(title, nick="DEV.m5")
+            subs = extract_sub_tokens(title, nick="DEV.m5",
+                                      nicks=("DEV", "FE", "FIN"))
             return apply_prefix(title, "DEV.m5", subs=subs)
 
         set_title = "[FE.m5][FIN.m5][MGR-2] Monarch import (1 worker)"
         once = watch(set_title)
-        self.assertEqual(
-            once, "[DEV.m5][FE.m5][FIN.m5][MGR-2] Monarch import (1 worker)")
+        self.assertEqual(once, "[DEV.m5][MGR-2] Monarch import (1 worker)")
         self.assertEqual(watch(once), once)
+
+    def test_different_nick_flap_does_not_accrete_forever(self):
+        # LIVE DEFECT (#110). ``test_host_flap_does_not_accrete_nick_brackets``
+        # only covers the SAME-nick flap (DEV <-> DEV.m5), which nick_base
+        # collapses. When repo->nick resolution flaps between two DIFFERENT
+        # nicks (FE <-> FIN -- inconsistent worktree/config resolution for the
+        # same session), extract_sub_tokens' while-loop bails at index 0
+        # because nick_base("FE") != nick_base("FIN"), so the stale nick is
+        # misclassified as a real sub and preserved. apply_prefix then prepends
+        # the fresh nick IN FRONT of it -- one extra bracket per pass, forever:
+        #   [FE.m5][MGR6-W11][#19] x
+        #   -> [FIN.m5][FE.m5][MGR6-W11][#19] x
+        #   -> [FE.m5][FIN.m5][FE.m5][MGR6-W11][#19] x   ...unbounded
+        # Contract: at most ONE nick bracket may lead the title, no matter how
+        # the resolution flaps. Real subs (MGR6-W11, #19) must survive.
+        def watch(title, token):
+            subs = extract_sub_tokens(title, nick=token,
+                                      nicks=("FE", "FIN", "DEV"))
+            return apply_prefix(title, token, subs=subs)
+
+        title = "[FE.m5][MGR6-W11][#19] computer-wide findoc inventory"
+        for token in ("FIN.m5", "FE.m5", "FIN.m5", "FE.m5"):
+            title = watch(title, token)
+        # The bracket count must not grow with the number of passes.
+        self.assertEqual(
+            title, "[FE.m5][MGR6-W11][#19] computer-wide findoc inventory")
 
     def test_plan_renames_collapses_flapped_nick(self):
         # End-to-end through plan_renames: a host-local bridge session whose

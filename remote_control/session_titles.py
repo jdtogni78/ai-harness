@@ -59,7 +59,8 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Callable, Dict, List, NamedTuple, Optional, Tuple
+from typing import (Callable, Dict, Iterable, List, NamedTuple, Optional,
+                    Tuple)
 
 from .config import DEV, LOGDIR, REPO, UsageLimitConfig, host_nickname
 from .usage_limit import monitor
@@ -337,7 +338,8 @@ def nick_base(token: str) -> str:
     return parts[0] if parts else (token or "")
 
 
-def extract_sub_tokens(title: str, nick: Optional[str] = None) -> List[str]:
+def extract_sub_tokens(title: str, nick: Optional[str] = None,
+                       nicks: Optional[Iterable[str]] = None) -> List[str]:
     """All sub-bracket tokens in a chained ``[NICK][S1][S2] desc`` prefix, in
     order, or ``[]`` if there are none. With *nick* supplied (the canonical
     rendered NICK token for this session), every leading bracket whose
@@ -346,6 +348,26 @@ def extract_sub_tokens(title: str, nick: Optional[str] = None) -> List[str]:
     ``DEV.m5``, ``DEV.mini``) collapses into the single leading slot rather than
     surviving as a bogus sub. The remainder are real subs (``MGR-2``,
     ``MGR2-W1``, ``#123``, ...), whose bases never coincide with a repo nick.
+
+    *nicks* is the set of ALL configured repo nicknames (``nmap.values()``).
+    Matching the current *nick* alone is not enough: repo->nick resolution can
+    flap between two DIFFERENT nicks for one session (``FE`` one pass, ``FIN``
+    the next -- a worktree resolving through a different config source), and
+    then ``nick_base(bracket) != nick_base(nick)``, the drop-loop bails at
+    index 0, the stale nick is misclassified as a real sub, and apply_prefix
+    prepends the fresh nick IN FRONT of it. That accretes ONE BRACKET PER PASS,
+    without bound::
+
+        [FE.m5][MGR6-W11][#19] x
+        -> [FIN.m5][FE.m5][MGR6-W11][#19] x
+        -> [FE.m5][FIN.m5][FE.m5][MGR6-W11][#19] x   ...forever
+
+    Treating every leading bracket whose base is a KNOWN repo nick as a nick
+    occurrence collapses the different-nick flap the same way ``nick_base``
+    already collapses the host-variant flap: the title keeps exactly one
+    leading nick slot, and real subs (which never collide with a repo nick)
+    survive intact.
+
     Without *nick*, falls back to the legacy single-sub heuristic (assume the
     first N-1 leading brackets are stacked NICK dups, return the LAST one) so
     :func:`extract_sub_token` and the existing new-session ``--subname``
@@ -354,9 +376,12 @@ def extract_sub_tokens(title: str, nick: Optional[str] = None) -> List[str]:
     if len(brackets) < 2:
         return []
     if nick is not None:
-        base = nick_base(nick)
+        # The current nick is always droppable; the rest of the configured
+        # nicks cover the flapped-to-a-different-nick case.
+        known = {nick_base(n) for n in (nicks or ()) if n}
+        known.add(nick_base(nick))
         i = 0
-        while i < len(brackets) and nick_base(brackets[i]) == base:
+        while i < len(brackets) and nick_base(brackets[i]) in known:
             i += 1
         return brackets[i:]
     return [brackets[-1]]
@@ -592,7 +617,7 @@ def plan_renames(
         # source is the title it's looking at right now -- so re-extract every
         # pass and re-emit. Pass the rendered NICK so dup-NICK leading brackets
         # are dropped and any real subs (one OR multiple) survive intact.
-        subs = extract_sub_tokens(old, nick=token)
+        subs = extract_sub_tokens(old, nick=token, nicks=nmap.values())
         plan.append(Rename(sid, repo, token, old,
                            apply_prefix(old, token, subs=subs)))
     return plan
