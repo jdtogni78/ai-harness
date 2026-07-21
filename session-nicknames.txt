@@ -31,3 +31,5 @@ format={nick}.{host}
 # (No nickname mappings by default. Add your own below, e.g. `your-app=YA`.)
 
 cos-console=COS
+divorce-prep=DP
+divorcio=DP
