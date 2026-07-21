@@ -33,3 +33,4 @@ format={nick}.{host}
 cos-console=COS
 divorce-prep=DP
 divorcio=DP
+divorcio-73-familyfund-pipeline=DP
