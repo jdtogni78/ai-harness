@@ -5,8 +5,9 @@ description: >-
   session (or against another dir). Wraps `python3 -m remote_control
   new-session`, which launches a detached `claude remote-control --capacity 1`
   server with a non-`mm-` name — picker-visible like the launchd-managed
-  servers, supervisor-invisible (no active-dirs edit), self-exits when its one
-  session ends. Supports the manager-pattern one-shot dispatch via `--wait` and
+  servers, supervisor-invisible (no active-dirs edit). NOTE: it does NOT self-exit
+  when its session ends (`--capacity` caps concurrency, not lifetime); the
+  supervisor's one-shot reaper sweeps the leftover process. Supports the manager-pattern one-shot dispatch via `--wait` and
   `--prompt` (spawn → wait for the inner cse_id → submit the first turn, in a
   single CLI call). Use when the user wants to "create a new session", "spin a
   worker session", "dispatch a worker with this brief", "/new-session",

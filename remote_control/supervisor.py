@@ -31,7 +31,7 @@ SUPERVISOR_USAGE = (
     "       (no arguments; config is from environment variables -- see config.py)"
 )
 
-from . import procutil
+from . import oneshot_reaper, procutil
 from .config import SupervisorConfig
 from .discovery import Allowlist, Server, discover, load_allowlist
 from .logging_util import make_logger
@@ -170,6 +170,9 @@ class Supervisor:
         # server reappears in this tick's discover() output (so the strike
         # never persists across an unrelated transient miss).
         self._deactivate_strikes: Dict[str, int] = {}
+        # Epoch of the last one-shot reaper sweep. 0.0 means "never", so the
+        # first tick after startup sweeps immediately.
+        self._last_reaper_sweep: float = 0.0
         self._running = True
 
     # --- discovery wiring (side effects isolated here) ---
@@ -411,6 +414,52 @@ class Supervisor:
         # cse_ is attached to <host>-dev. No-op if autospawn is off, the dev
         # server isn't running, or a session is already attached.
         self._ensure_dispatcher(now)
+
+        # Last: sweep leaked one-shot servers. Runs after _ensure_dispatcher so
+        # a one-shot this tick just spawned is already visible (and protected by
+        # the min-age guard) rather than being judged mid-startup.
+        self._reap_oneshots(now)
+
+    def _reap_oneshots(self, now: float) -> None:
+        """Sweep leaked ``--capacity 1`` one-shot servers (issue: sprawl).
+
+        Rate-limited to one sweep per ``reaper_interval_secs`` because each
+        sweep costs a full paginated session list. Wrapped in a blanket except:
+        the reaper is a janitor, and a janitor that can crash the supervisor is
+        worse than the mess it cleans.
+        """
+        if not self.cfg.reaper_enabled:
+            return
+        if (now - self._last_reaper_sweep) < self.cfg.reaper_interval_secs:
+            return
+        self._last_reaper_sweep = now
+        # Deferred for the same reason as _rehydrate_on_startup's imports: keep
+        # the urllib monitor client out of a supervisor that never starts.
+        from .config import UsageLimitConfig
+        from .usage_limit import monitor
+
+        try:
+            ulim = UsageLimitConfig.from_env()
+            token = monitor.get_token(ulim, self.log)
+            sessions = (monitor.list_sessions(ulim, token, self.log)
+                        if token else None)
+            oneshot_reaper.sweep(
+                oneshots=self.proc.oneshot_servers(),
+                logdir=self.cfg.logdir,
+                sessions=sessions,
+                read_capacity=self.proc.read_capacity,
+                process_age=self.proc.process_age_secs,
+                term=self.proc.term,
+                log=self.log,
+                # Belt-and-braces on top of the ``--capacity 1`` discriminator,
+                # which already excludes every supervisor-owned server.
+                protected_pids=[os.getpid()],
+                protected_names=[f"{self.cfg.host}-dev"],
+                min_age_secs=self.cfg.reaper_min_age_secs,
+                max_per_sweep=self.cfg.reaper_max_per_sweep,
+            )
+        except Exception as e:  # pragma: no cover -- defensive last-resort
+            self.log(f"reaper: aborted with unhandled error: {type(e).__name__}: {e}")
 
     def shutdown_all(self) -> None:
         self.log("shutdown: forwarding SIGTERM to all servers")

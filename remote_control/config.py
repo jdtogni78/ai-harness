@@ -158,6 +158,25 @@ class SupervisorConfig:
     dispatcher_autospawn: bool
     dispatcher_prompt_file: Path
     dispatcher_wait_timeout_secs: int
+    # One-shot reaper (see :mod:`remote_control.oneshot_reaper`). ``--capacity 1``
+    # servers never self-exit -- the flag caps concurrency, not lifetime -- so
+    # every ``new-session`` leaks a process that idles at ``Capacity: 0/1``
+    # forever. 168 had accumulated on one host by 2026-07-21. The sweep TERMs a
+    # one-shot only when its log says capacity 0 AND its inner cse_ is archived.
+    # On by default: leaking is the strictly worse failure mode, and the
+    # two-signal rule plus the ``--capacity 1`` discriminator mean a
+    # supervisor-owned server can never be a candidate.
+    reaper_enabled: bool
+    # Only sweep every Nth tick -- each sweep costs a full paginated session
+    # list. 600s against a 30s tick is one sweep per ~20 ticks.
+    reaper_interval_secs: int
+    # Grace for a just-spawned one-shot that hasn't logged a Capacity line or
+    # attached its session yet; without it a server is briefly indistinguishable
+    # from a dead one. Comfortably longer than the observed spawn->attach gap.
+    reaper_min_age_secs: int
+    # Cap per sweep so a pathological classification can't TERM the world in one
+    # tick; the remainder is picked up on the next sweep.
+    reaper_max_per_sweep: int
 
     @classmethod
     def from_env(cls, env: Optional[Mapping[str, str]] = None) -> "SupervisorConfig":
@@ -187,6 +206,10 @@ class SupervisorConfig:
                 f"{REPO}/remote_control/prompts/dispatcher.md")),
             dispatcher_wait_timeout_secs=int(env.get(
                 "DISPATCHER_WAIT_TIMEOUT_SECS", "45")),
+            reaper_enabled=_truthy(env.get("ONESHOT_REAPER", "1")),
+            reaper_interval_secs=int(env.get("ONESHOT_REAPER_INTERVAL_SECS", "600")),
+            reaper_min_age_secs=int(env.get("ONESHOT_REAPER_MIN_AGE_SECS", "300")),
+            reaper_max_per_sweep=int(env.get("ONESHOT_REAPER_MAX_PER_SWEEP", "25")),
         )
 
     @property

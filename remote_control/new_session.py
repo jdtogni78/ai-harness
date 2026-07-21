@@ -3,7 +3,18 @@
 
 Same shape as the launchd supervisor's per-dir servers, but:
 
-  * ``--capacity 1`` so the server self-exits when its single session ends.
+  * ``--capacity 1`` so the server hosts at most one session at a time.
+
+    KNOWN CLI GAP -- this does NOT make the server exit when that session
+    ends. ``--capacity`` caps *concurrency*, not process lifetime: on session
+    end (or crash) the server prints ``Ready · Capacity: 0/1`` and idles
+    forever waiting for a session that never comes. This docstring used to
+    claim it self-exits; it never did, and every one-shot ever spawned leaked
+    a process (168 had piled up on one host by 2026-07-21, burying the real
+    dev server in the app's picker). Until a real ``--exit-after-session``
+    lands upstream, the supervisor's :mod:`remote_control.oneshot_reaper`
+    sweep is what cleans these up -- it TERMs a one-shot only once its log
+    reports ``Capacity: 0`` AND its inner ``cse_`` is archived.
   * Name prefix ``local-`` (not ``mm-`` and not ``<host>-``) so neither
     ``procutil._RUNNING_RE`` nor the supervisor's adopt logic can ever pick
     this server up -- the supervisor's regex scans ``<host>-<basename>`` only.
@@ -51,7 +62,9 @@ USAGE = (
     "                                      [--subname SLUG | --no-subname]\n"
     "                                      [--dry-run]\n"
     "  Spawn a single-session `claude remote-control` server (capacity 1),\n"
-    "  picker-visible, supervisor-invisible. Self-exits when its session ends.\n"
+    "  picker-visible, supervisor-invisible. NOTE: the server does NOT exit\n"
+    "  when its session ends (capacity caps concurrency, not lifetime); the\n"
+    "  supervisor's one-shot reaper sweeps the leftovers.\n"
     "    --dir              run in this dir (default: cwd)\n"
     "    --inject-into SERVER  do NOT spawn a fresh server. Instead, attach to\n"
     "                       an already-running named server (e.g. `<host>-dev`)\n"

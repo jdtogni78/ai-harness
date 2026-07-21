@@ -12,7 +12,7 @@ import signal
 import subprocess
 import time
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional
+from typing import Dict, List, Mapping, Optional, Tuple
 
 from .config import SupervisorConfig
 from .discovery import Server
@@ -70,6 +70,41 @@ def running_servers(host: str) -> List[str]:
     return sorted(names)
 
 
+# A one-shot (``new-session``) server always carries ``--capacity 1``; a
+# supervisor-spawned server never passes ``--capacity`` at all (see
+# ``spawn_argv``). That makes the flag a structural discriminator rather than a
+# naming convention -- the reaper can never match ``<host>-dev`` or any other
+# supervisor-owned server no matter what a one-shot is named.
+_ONESHOT_RE = re.compile(
+    r"/claude\s+remote-control\s+.*?--name\s+(\S+).*?--capacity\s+1(?:\s|$)"
+)
+
+
+def oneshot_servers() -> List[Tuple[int, str]]:
+    """``(pid, name)`` for every running ``--capacity 1`` one-shot server.
+
+    Sorted by pid for deterministic iteration. Parses ``ps -axo pid=,command=``;
+    a line whose pid isn't an int is skipped rather than raising.
+    """
+    try:
+        out = subprocess.run(["ps", "-axo", "pid=,command="],
+                             capture_output=True, text=True)
+    except OSError:
+        return []
+    found = []
+    for line in out.stdout.splitlines():
+        line = line.strip()
+        pid_str, _, rest = line.partition(" ")
+        try:
+            pid = int(pid_str)
+        except ValueError:
+            continue
+        m = _ONESHOT_RE.search(rest)
+        if m:
+            found.append((pid, m.group(1)))
+    return sorted(found)
+
+
 def server_pid(name: str) -> Optional[int]:
     """First PID of the running server for *name*, or None.
 
@@ -87,6 +122,51 @@ def server_pid(name: str) -> Optional[int]:
         except ValueError:
             continue
     return None
+
+
+def parse_etime(text: str) -> Optional[float]:
+    """BSD ``ps -o etime`` (``[[dd-]hh:]mm:ss``) -> seconds. None if unparseable.
+
+    macOS ps has no ``etimes`` (the seconds-valued GNU field), only this
+    formatted one -- and asking for ``etimes`` fails the whole ps invocation
+    rather than degrading, which silently pinned every age to 0 and made the
+    reaper's min-age guard permanent.
+    """
+    text = (text or "").strip()
+    if not text:
+        return None
+    days = 0
+    if "-" in text:
+        d, _, text = text.partition("-")
+        try:
+            days = int(d)
+        except ValueError:
+            return None
+    parts = text.split(":")
+    if not 1 <= len(parts) <= 3:
+        return None
+    try:
+        nums = [float(p) for p in parts]
+    except ValueError:
+        return None
+    secs = 0.0
+    for n in nums:                  # mm:ss or hh:mm:ss, left-padded
+        secs = secs * 60 + n
+    return secs + days * 86400
+
+
+def process_age_secs(pid: int) -> float:
+    """Seconds since *pid* started, or 0.0 if unknown.
+
+    0.0 on failure is deliberate: callers use age as a "too young to judge"
+    guard, so an unreadable age reads as "just started" and keeps the process.
+    """
+    try:
+        out = subprocess.run(["ps", "-o", "etime=", "-p", str(pid)],
+                             capture_output=True, text=True)
+    except OSError:
+        return 0.0
+    return parse_etime(out.stdout) or 0.0
 
 
 def git_usable_worktree(directory: Path) -> bool:

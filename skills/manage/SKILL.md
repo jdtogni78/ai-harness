@@ -102,8 +102,8 @@ answer.
 8. **Boss OKs close.** Only with explicit OK, send the worker a "go run
    /close-work" instruction. That triggers the worker's own close-work flow
    (review → test gate → TODO sweep → merge → push → release leases → close
-   ticket → release claim). The one-shot server self-exits after its single
-   session ends.
+   ticket → release claim). The one-shot server does NOT self-exit; the
+   supervisor's one-shot reaper sweeps it once its session is archived.
 9. **Mark closed in the state log** (`workers.sh close …`) and the row drops
    out of the active list.
 
@@ -588,8 +588,9 @@ When the boss says "status" / "what are my workers up to":
    --json` and match on `cse_*` to pick up each worker's `worker_status`
    (running / idle / requires_action / disconnected) and `last_event_at`.
 3. **Note absences**: a worker present in the state log but absent from the
-   live session list has already self-exited (its one-shot server ended
-   after the single session). Surface as "ended without reporting" and ask
+   live session list has already ended (the session is archived/gone; its
+   leftover one-shot server is retired separately by the reaper). Surface
+   as "ended without reporting" and ask
    the boss whether to **check** (no longer possible — session is gone) or
    **forget** (drop from tracking).
 4. Present a compact table to the boss: worker id (last 8 chars), ticket #,
@@ -676,8 +677,10 @@ When the boss says "close worker N" (after a satisfactory report):
      [[resume-work]]); only **close** in the state log once that successor
      worker delivers (or the boss decides the ticket is dead).
 5. **Archive the worker's cloud session** (close path only — NOT handoff).
-   The one-shot server self-exits when its single session ends, but the
-   cloud session record stays *active+idle* in the picker until archived.
+   The one-shot server does NOT self-exit, and the cloud session record
+   stays *active+idle* in the picker until archived. Archiving is also what
+   lets the supervisor's one-shot reaper retire the leftover server process,
+   so it is the step that actually cleans up both halves.
    Auto-archive on close so the picker stays clean:
    ```bash
    cd ~/dev/ai-harness && python3 -m remote_control sessions archive \
@@ -689,7 +692,8 @@ When the boss says "close worker N" (after a satisfactory report):
    [[resume-work]]) may need the session record live to pick up context.
 6. Tell the boss the merge SHA + the state-log row's new state +
    "archived" so they know the picker is clean. The worker's one-shot
-   server self-exits separately.
+   server is retired separately by the supervisor's one-shot reaper (it
+   needs the session archived first, which step 5 just did).
 7. **Auto-disarm the monitoring loop if this was the last worker.** Check
    `workers.sh list --json | jq 'length'`. If `0`, run
    `workers.sh loop-disarm` and do NOT call ScheduleWakeup at the end of
@@ -738,8 +742,8 @@ active workers. **Stays silent unless an anomaly is found** — periodic
    exclusive; pick the most specific):
 
    - **`exited-without-reporting`** — worker is in the state log as
-     `active` but absent from `sessions --json`. The one-shot server
-     self-exited. Either ran /close-work but skipped its Phase 5 step 9
+     `active` but absent from `sessions --json`. The session ended.
+     Either ran /close-work but skipped its Phase 5 step 9
      report, or died before merging. **Suggested action**: check the
      worker's transcript for the merge SHA (see [[session-triage]]); if
      merged → `workers.sh close cse_<w> --reason "merged, no report"`,

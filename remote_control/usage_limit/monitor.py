@@ -13,6 +13,7 @@ import signal
 import subprocess
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
@@ -91,15 +92,54 @@ def api_request(cfg: UsageLimitConfig, method: str, path: str, token: str,
         return code, raw
 
 
+PAGE_LIMIT = 100
+MAX_PAGES = 100
+
+
 def list_sessions(cfg: UsageLimitConfig, token: str, log) -> Optional[List[dict]]:
-    code, data = api_request(cfg, "GET", "/sessions?limit=100", token)
-    if code == 401:
-        log("list sessions 401 (token stale?); skipping cycle")
-        return None
-    if code != 200 or not isinstance(data, dict):
-        log(f"list sessions failed http={code} body={str(data)[:200]}")
-        return None
-    return data.get("data", [])
+    """Every session, following ``next_cursor`` until the API runs out.
+
+    This used to issue a single ``?limit=100`` and return that page as if it
+    were the whole world. On an account with ~936 sessions that silently hid
+    ~90% of them, and every consumer treats "absent from this list" as a fact:
+    the rehydrate sweep reads it as "session is gone", and the one-shot reaper
+    would read it as "no live session -> safe to kill". A truncated page turns
+    both into false positives, so paginate.
+
+    Pages are de-duplicated by id: sessions can shift between pages while we
+    walk them (the ordering is mutable), and without the id set a session that
+    slid backwards would be yielded twice. A page contributing no new ids also
+    ends the walk, which stops a server-side cursor that never advances from
+    spinning us forever. Returns None (not a partial list) if any page fails,
+    since a partial list is exactly the falsehood this function exists to kill.
+    """
+    out: List[dict] = []
+    seen = set()
+    cursor = None
+    for page in range(MAX_PAGES):
+        path = f"/sessions?limit={PAGE_LIMIT}"
+        if cursor:
+            path += f"&cursor={urllib.parse.quote(str(cursor), safe='')}"
+        code, data = api_request(cfg, "GET", path, token)
+        if code == 401:
+            log("list sessions 401 (token stale?); skipping cycle")
+            return None
+        if code != 200 or not isinstance(data, dict):
+            log(f"list sessions failed http={code} page={page} "
+                f"body={str(data)[:200]}")
+            return None
+        batch = data.get("data") or []
+        fresh = [s for s in batch
+                 if isinstance(s, dict) and s.get("id") not in seen]
+        for s in fresh:
+            seen.add(s.get("id"))
+        out.extend(fresh)
+        cursor = data.get("next_cursor")
+        if not cursor or not fresh:
+            return out
+    log(f"list sessions: stopped at MAX_PAGES={MAX_PAGES} ({len(out)} so far); "
+        "returning partial page walk as a guard against a non-advancing cursor")
+    return out
 
 
 def archive_session(cfg: UsageLimitConfig, token: str, sid: str, log) -> Tuple[int, object]:
