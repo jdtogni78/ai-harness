@@ -36,12 +36,24 @@ are stale NICK occurrences (drop) vs real subs (keep), and re-renders.
   (`nmap.values()`). Real subs (`MGR-3`, `MGR7-W15`, `#66`) never collide
   with a repo nick, so they survive.
 
-### Legacy / auto-derived stale nick (fixed after #110)
+### Unconfigured auto-derived stale nick (fixed after #110)
 
-The base/configured-nick collapse alone misses a **legacy / auto-derived** stale
-segment not in `nmap` — e.g. `DIV` on a `divorce-prep` session, which now
-auto-derives to `DP`. It used to survive as a bogus sub, so the daemon couldn't
-self-heal that double (only a manual `titles set` could).
+The base/configured-nick collapse alone misses a stale segment whose base is in
+neither the current nick nor `nmap`. The live case: one session resolved to
+**two different repo names** depending on the derivation source — its git source
+URL said `divorce-prep` (auto-derives `DP`) while its local dir is `divorcio`
+(auto-derives `DIV`, since single-word repos take 3 letters and hyphenated ones
+take initials). Neither `DP` nor `DIV` was configured, so `known` contained
+neither, the different-nick collapse couldn't fire, and `[DP.m5][DIV.m5]…`
+survived as a bogus sub the daemon couldn't self-heal (only a manual
+`titles set` could).
+
+**Two independent fixes, both wanted.** The code fix below makes *any* such
+double self-heal. The config fix kills this one at the source: map **every
+alias of a repo to the same nick** in `session-nicknames.txt`
+(`divorce-prep=DP` + `divorcio=DP`), so both derivation sources render the same
+token and there is no flap to collapse. Do that whenever a repo's dir name and
+its git-URL name differ.
 
 The widening (`extract_sub_tokens(..., host=<monitor host>)`, threaded from
 `plan_renames`): `apply_prefix` emits subs **bare** and only ever suffixes the
@@ -49,8 +61,8 @@ NICK bracket with `{host}`, so **any leading bracket rendered as `<base>.<host>`
 is provably a stacked prior-pass nick**, whatever its base — drop it. A
 `<base>.<other-host>` bracket is left intact (a cross-host claim
 `existing_prefix_host` owns; eating it would restart the suffix ping-pong).
-Result: a fresh stacked legacy-nick title self-heals on the next **daemon**
-cycle. Regression tests: `PrefixTest.test_*legacy*` /
+Result: a fresh stacked unconfigured-nick title self-heals on the next
+**daemon** cycle. Regression tests: `PrefixTest.test_*legacy*` /
 `test_daemon_cycle_self_heals_legacy_double_end_to_end`.
 
 ## Operating the watcher
