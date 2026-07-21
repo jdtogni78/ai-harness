@@ -715,6 +715,27 @@ def parse_cmd_session_id(cmd: str) -> Optional[str]:
     return None
 
 
+def self_session_id_from_env(env: Optional[dict] = None) -> Optional[str]:
+    """This session's own ``cse_*`` id, read from the
+    ``CLAUDE_CODE_SESSION_ACCESS_TOKEN`` JWT the app injects into our env, or
+    None if the var is absent/garbage or carries no ``cse_`` session claim.
+
+    The ``--self`` fallback for sessions that are NOT in a bridge worktree: a
+    manager or worker anchored in a plain checkout has no
+    ``.claude/worktrees/bridge-cse_<id>`` path for ``session_id_from_path`` to
+    parse, so cwd-based resolution fails and the caller used to have to look
+    its own id up by hand and pass ``--id``. The JWT is the same source
+    :func:`parse_cmd_session_id` reads out of a live process's env blob -- here
+    we just read our OWN env directly instead of shelling out to ``ps``.
+    Signature is not verified (see :func:`_jwt_payload`); the ``cse_`` prefix
+    check is what keeps a malformed/foreign claim from being used as an id."""
+    raw = (env if env is not None else os.environ).get(
+        "CLAUDE_CODE_SESSION_ACCESS_TOKEN") or ""
+    payload = _jwt_payload(raw) if raw else None
+    sid = (payload or {}).get("session_id") if payload else None
+    return sid if isinstance(sid, str) and sid.startswith("cse_") else None
+
+
 def repo_from_cwd(cwd: str, dev: str) -> Optional[str]:
     """The repo basename a cwd belongs to (``<dev>/<repo>`` or any subdir of
     it), or None if not under *dev*. Catches the layouts the bridge-worktree
@@ -1133,11 +1154,22 @@ def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
     else:
         cwd = os.getcwd()
         sid = session_id_from_path(cwd)
-        if not sid:
-            log("--self: not inside a bridge worktree; pass --id CSE_ID")
-            return 2
-        repo = repo_from_worktree_path(cwd)
-        host_local = True  # --self: we ARE running inside it, on this host
+        if sid:
+            repo = repo_from_worktree_path(cwd)
+            host_local = True  # --self: we ARE running inside it, on this host
+        else:
+            # Not in a bridge worktree (a manager/worker anchored in a plain
+            # checkout). Fall back to our OWN id from the app-injected JWT --
+            # there is no local worktree to derive from then, so resolve
+            # repo/host_local exactly the way the --id path does and let
+            # repo_for_session recover the nick from the session's own source.
+            sid = self_session_id_from_env()
+            if not sid:
+                log("--self: not inside a bridge worktree and no cse_id in "
+                    "CLAUDE_CODE_SESSION_ACCESS_TOKEN; pass --id CSE_ID")
+                return 2
+            repo = index.get(sid)
+            host_local = sid in index
     # ``--raw``/``--exact``: force the title to the given text verbatim -- no
     # [NICK] prefix, no bracket stripping, no repo/host derivation. For callers
     # who want an exact title (e.g. preserving a manager label the prefix
