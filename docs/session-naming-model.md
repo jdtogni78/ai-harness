@@ -101,6 +101,16 @@ daemon calls it each cycle — so nickname/format edits take effect on the next
 cycle with **no restart**. Python code, by contrast, is loaded once at process
 start, so a `session_titles.py` change needs a restart.
 
+> **Landing a config change that DEPENDS on a code change? Restart the daemon
+> immediately — the asymmetry actively breaks things, it doesn't just fail to
+> fix them.** Real example: #126 added glob keys and switched the config to
+> `divorcio*=DP`. The config hot-reloaded into a daemon still running
+> exact-match code, which couldn't match the `*` key, fell through to the
+> auto-derive, and would have retitled every divorce session to `[DIV.m5]` —
+> re-creating the exact flap #119 removed. Sequence such changes as
+> **merge → `kickstart -k` → verify `titles list` shows `0 to rename`**, inside
+> one cycle (600s).
+
 **A stale daemon is the #1 failure mode.** The process loads code at start; a
 merge to `session_titles.py` does **nothing** until the daemon is restarted. In
 July 2026 the live daemon had been up since Jul 9 and so ran pre-#110 code that
