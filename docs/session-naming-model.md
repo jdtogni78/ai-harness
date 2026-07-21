@@ -77,10 +77,14 @@ against the fix commit date whenever titles misbehave.
 
 ## Naming gotchas
 
-- **`--self` fails outside a bridge worktree.** `titles set --self` only
-  resolves an id inside a bridge worktree. From a manager/dispatcher session,
-  use `--id <your-own-cse_id>` instead. Find your cse via `titles list`
-  (your row is the one whose title matches your spawn).
+- **`--self` works anywhere** (since the env-JWT fallback). It resolves this
+  session's own id from the bridge-worktree cwd, and failing that from the
+  `CLAUDE_CODE_SESSION_ACCESS_TOKEN` JWT the app injects — so a manager or
+  worker anchored in a plain checkout can self-title too. It only errors when
+  *both* miss (no bridge cwd and no usable token), and then you pass
+  `--id <cse_id>`. Use `--id` for titling **another** session; `--self` for
+  your own. (Historical gotcha: before this fallback, `--self` errored with
+  "not inside a bridge worktree" from any non-bridge session.)
 - **`--nick` takes the rendered host-suffixed form** you want in the bracket,
   e.g. `--nick AH.m5` → `[AH.m5]`. `--sub` may repeat for a chain
   (`--sub MGR7-W15 --sub '#66'` → `[...][MGR7-W15][#66]`).

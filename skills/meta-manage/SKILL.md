@@ -141,10 +141,10 @@ the generic `[NICK.host][<name>] auto-spawned` and stays that way until
 something retitles it — the watcher won't invent a `[MGR-N]`. So the brief's
 FIRST instruction must be: self-title before anything else, via
 `~/.claude/skills/manage/scripts/workers.sh retitle "<task>"` (auto-allocates
-the `[MGR-N]` ordinal). If the manager is anchored *outside* a bridge worktree
-(e.g. at `~/dev`), `--self` won't resolve — tell it to use
-`titles set --id <its-own-cse_id> --nick <NICK.host> --sub MGR-<n> "<task>"`
-instead (find its cse via `titles list`). See `docs/session-naming-model.md`.
+the `[MGR-N]` ordinal). `titles set --self` resolves the manager's own id even
+outside a bridge worktree (env-JWT fallback), so this works from a plain
+checkout too; `--id <cse_id>` is only needed to title *another* session. See
+`docs/session-naming-model.md`.
 
 ### 6. HANDLE BROKEN SESSIONS — verify ground truth first
 

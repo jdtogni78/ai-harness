@@ -1,3 +1,4 @@
+import json
 import os
 import unittest
 
@@ -639,6 +640,70 @@ class RunSetRepoFallbackTest(unittest.TestCase):
                 os.environ["REMOTE_CONTROL_HOST"] = prev_host
         self.assertEqual(rc, 0)
         self.assertEqual(cap["title"], "[AO] no claim")
+
+    def _fake_jwt(self, payload_obj):
+        """A JWT whose middle segment decodes to *payload_obj*. Signature is
+        never verified (see _jwt_payload), so header/sig are filler."""
+        import base64
+        raw = json.dumps(payload_obj).encode()
+        mid = base64.urlsafe_b64encode(raw).decode().rstrip("=")
+        return f"eyJhbGciOiJub25lIn0.{mid}.sig"
+
+    def _run_self_with_env(self, token_value, sessions):
+        """Run ``titles set --self`` with CLAUDE_CODE_SESSION_ACCESS_TOKEN set to
+        *token_value* (None = unset). cwd during tests is a plain checkout, not
+        a bridge worktree, so session_id_from_path misses and the env fallback
+        is the only path that can resolve an id."""
+        prev = os.environ.get("CLAUDE_CODE_SESSION_ACCESS_TOKEN")
+        if token_value is None:
+            os.environ.pop("CLAUDE_CODE_SESSION_ACCESS_TOKEN", None)
+        else:
+            os.environ["CLAUDE_CODE_SESSION_ACCESS_TOKEN"] = token_value
+        try:
+            return self._run({"self": True, "desc": "env self title"}, sessions)
+        finally:
+            if prev is None:
+                os.environ.pop("CLAUDE_CODE_SESSION_ACCESS_TOKEN", None)
+            else:
+                os.environ["CLAUDE_CODE_SESSION_ACCESS_TOKEN"] = prev
+
+    def test_self_resolves_via_env_jwt_outside_bridge_worktree(self):
+        """`--self` from a NON-bridge cwd resolves this session's own cse_id
+        from the app-injected JWT instead of erroring. Repo (hence [NICK]) then
+        comes from the session's own source URL, the same as the --id path."""
+        me = {"id": "cse_envtest", "config": {"sources": [
+            {"url": "https://github.com/me/AppOne.git"}]}}
+        jwt = self._fake_jwt({"session_id": "cse_envtest"})
+        rc, cap = self._run_self_with_env(jwt, [me])
+        self.assertEqual(rc, 0)
+        self.assertEqual(cap["sid"], "cse_envtest")
+        self.assertEqual(cap["title"], "[AO] env self title")
+
+    def test_self_errors_when_env_token_missing_or_garbage(self):
+        """Both cwd and env miss -> exit 2, and nothing is written. Covers an
+        absent var, a non-JWT string, a JWT with no session_id, and a claim
+        that isn't a cse_ id (the prefix check is what rejects a foreign one)."""
+        me = {"id": "cse_envtest", "config": {}}
+        for bad in (None, "not-a-jwt", "a.!!!notbase64!!!.c",
+                    self._fake_jwt({"sub": "nope"}),
+                    self._fake_jwt({"session_id": "usr_12345"})):
+            with self.subTest(token=str(bad)[:24]):
+                rc, cap = self._run_self_with_env(bad, [me])
+                self.assertEqual(rc, 2)
+                self.assertEqual(cap, {})
+
+    def test_self_session_id_from_env_unit(self):
+        """Direct unit coverage of the helper's accept/reject rule."""
+        from remote_control.session_titles import self_session_id_from_env
+        good = self._fake_jwt({"session_id": "cse_abc123"})
+        self.assertEqual(
+            self_session_id_from_env({"CLAUDE_CODE_SESSION_ACCESS_TOKEN": good}),
+            "cse_abc123")
+        self.assertIsNone(self_session_id_from_env({}))
+        self.assertIsNone(self_session_id_from_env(
+            {"CLAUDE_CODE_SESSION_ACCESS_TOKEN": ""}))
+        self.assertIsNone(self_session_id_from_env(
+            {"CLAUDE_CODE_SESSION_ACCESS_TOKEN": self._fake_jwt({"session_id": 42})}))
 
     def test_cwd_override_recovers_repo_outside_index(self):
         """`titles set --id <sid> --cwd <dir>` derives [NICK] from the dir
