@@ -50,10 +50,25 @@ survived as a bogus sub the daemon couldn't self-heal (only a manual
 
 **Two independent fixes, both wanted.** The code fix below makes *any* such
 double self-heal. The config fix kills this one at the source: map **every
-alias of a repo to the same nick** in `session-nicknames.txt`
-(`divorce-prep=DP` + `divorcio=DP`), so both derivation sources render the same
-token and there is no flap to collapse. Do that whenever a repo's dir name and
-its git-URL name differ.
+alias of a repo to the same nick** in `session-nicknames.txt`, so both
+derivation sources render the same token and there is no flap to collapse. Do
+that whenever a repo's dir name and its git-URL name differ.
+
+Use a **glob key** rather than one line per name:
+
+```
+divorcio*=DP
+divorce-prep*=DP
+```
+
+A feature worktree's dir name becomes its own repo name
+(`divorcio-73-familyfund-pipeline` → auto-derives `D7FP`, flapping against
+`DP`), and the transcript dir **outlives** the worktree, so the stale name keeps
+resolving after the worktree is reaped. Without globs every
+`<repo>-<ticket>-<slug>` needs its own hand-added line forever. Precedence is
+most-specific-first — an exact key beats a glob, and among globs the longest
+pattern wins — so a broad glob can't shadow a deliberate entry. Keys without a
+glob character keep pure exact-match semantics.
 
 The widening (`extract_sub_tokens(..., host=<monitor host>)`, threaded from
 `plan_renames`): `apply_prefix` emits subs **bare** and only ever suffixes the

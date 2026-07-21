@@ -53,6 +53,7 @@ against plain dicts; ``{branch}`` resolution (the one git call) is injected.
 """
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import re
@@ -149,6 +150,11 @@ _LEADING_BRACKET_RE = re.compile(r"\s*\[([^\]]{1,64})\]")
 # can detect that another host's monitor already claimed the session and leave
 # it alone (see existing_prefix_host).
 _PREFIX_SEP_RE = re.compile(r"[.\s/@:]")
+
+# Keys in the nickname map that carry one of these are treated as GLOB patterns
+# by nickname_for; every other key keeps pure exact-match semantics (so no
+# existing plain entry changes meaning).
+_GLOB_META_RE = re.compile(r"[*?\[]")
 
 
 # --------------------------------------------------------------------------- #
@@ -271,7 +277,35 @@ def derive_nickname(repo: str) -> str:
 
 
 def nickname_for(repo: str, nmap: Dict[str, str]) -> str:
-    return nmap.get(repo.lower()) or derive_nickname(repo)
+    """The nickname for *repo*: an exact map entry, else the most specific
+    matching GLOB entry, else an auto-derived acronym.
+
+    Glob keys (``divorcio*=DP``) exist because a feature worktree's dir name
+    becomes its own repo name -- ``divorcio-73-familyfund-pipeline`` derives
+    ``D7FP`` (hyphenated -> initials), which flaps against the base repo's
+    ``DP``. Worse, a transcript dir OUTLIVES the worktree and is a repo
+    derivation source, so the stale name keeps resolving after the worktree is
+    reaped. Without globs every ``<repo>-<ticket>-<slug>`` needs its own hand-
+    added line, forever -- fixing instances instead of the mechanism.
+
+    Precedence is most-specific-first so a glob can't shadow a deliberate
+    entry: exact beats glob, and among globs the LONGEST pattern wins
+    (``divorcio-legacy*`` beats ``divorcio*``), ties broken lexicographically
+    so the result never depends on dict ordering. Only keys containing a glob
+    metacharacter are treated as patterns, so every existing plain key keeps
+    pure exact-match semantics."""
+    key = (repo or "").lower()
+    exact = nmap.get(key)
+    if exact:
+        return exact
+    best: Optional[Tuple[str, str]] = None
+    for pattern, nick in nmap.items():
+        if not _GLOB_META_RE.search(pattern):
+            continue
+        if fnmatch.fnmatchcase(key, pattern):
+            if best is None or (len(pattern), pattern) > (len(best[0]), best[0]):
+                best = (pattern, nick)
+    return best[1] if best else derive_nickname(repo)
 
 
 _HOST_NOTE_SUFFIX_RE = re.compile(r"(?i)note$")
