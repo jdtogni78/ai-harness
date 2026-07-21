@@ -57,6 +57,47 @@ class NicknameMapTest(unittest.TestCase):
         self.assertEqual(nickname_for("SampleApp", nmap), "SAM")
         self.assertEqual(nickname_for("SAMPLEAPP", nmap), "SAM")
 
+    def test_glob_key_covers_feature_worktree_names(self):
+        # A feature worktree's dir name becomes its own repo name and would
+        # auto-derive its own acronym (D7FP), flapping against the base repo's
+        # nick. One glob covers every present and future worktree instead of a
+        # hand-added line each.
+        nmap = {"divorcio*": "DP"}
+        self.assertEqual(nickname_for("divorcio", nmap), "DP")
+        self.assertEqual(
+            nickname_for("divorcio-73-familyfund-pipeline", nmap), "DP")
+        self.assertEqual(nickname_for("divorcio-74-anything", nmap), "DP")
+        # ...and glob keys fold case like exact ones.
+        self.assertEqual(nickname_for("DIVORCIO-73-FamilyFund", nmap), "DP")
+
+    def test_glob_precedence_exact_then_longest(self):
+        # Most-specific-first, so a broad glob can never shadow a deliberate
+        # entry: exact beats glob, and among globs the LONGEST pattern wins.
+        nmap = {"divorcio": "EXACT", "divorcio*": "SHORT",
+                "divorcio-legacy*": "LONG"}
+        self.assertEqual(nickname_for("divorcio", nmap), "EXACT")
+        self.assertEqual(nickname_for("divorcio-legacy-x", nmap), "LONG")
+        self.assertEqual(nickname_for("divorcio-73-x", nmap), "SHORT")
+
+    def test_plain_keys_keep_exact_match_semantics(self):
+        # Only keys carrying a glob metacharacter are patterns. A map with no
+        # globs must behave exactly as before (no accidental prefix matching),
+        # and a non-matching repo still falls through to the auto-derive.
+        nmap = {"divorcio": "DP"}
+        self.assertEqual(nickname_for("divorcio", nmap), "DP")
+        self.assertEqual(nickname_for("divorcio-73-x", nmap),
+                         derive_nickname("divorcio-73-x"))
+        self.assertEqual(nickname_for("unrelated-repo", {"divorcio*": "DP"}),
+                         derive_nickname("unrelated-repo"))
+
+    def test_glob_values_stay_plain_nicks_for_collapse_set(self):
+        # plan_renames feeds nmap.values() to extract_sub_tokens as the set of
+        # known nicks. Glob keys must not leak a pattern into that set, or the
+        # #117/#119 collapse would start matching bracket bases against `*`.
+        nmap = build_nickname_map("divorcio*=DP\ndivorce-prep*=DP")
+        self.assertIn("DP", nmap.values())
+        self.assertTrue(all("*" not in v for v in nmap.values()))
+
 
 class DeriveNicknameTest(unittest.TestCase):
     def test_multiword_initials(self):

@@ -24,6 +24,16 @@
 # An empty token (e.g. {host} on a cloud session) collapses with one adjacent
 # separator, so `{nick}.{host}` is `YA.host1` locally and `YA` in the cloud.
 #
+# GLOB KEYS: a key containing `*`, `?` or `[...]` is matched as a glob against
+# the repo name (`divorcio*=DP`). This matters because a feature worktree's dir
+# name becomes its own repo name -- `divorcio-73-familyfund-pipeline` would
+# auto-derive `D7FP` and flap against the base repo's `DP` -- and a transcript
+# dir outlives the worktree, so the stale name keeps resolving after the
+# worktree is reaped. One glob covers every present and future worktree instead
+# of one hand-added line each. Precedence is most-specific-first: an exact key
+# beats a glob, and among globs the longest pattern wins. Keys without a glob
+# character keep pure exact-match semantics.
+#
 # Manage with: /rename-sessions
 
 format={nick}.{host}
@@ -31,6 +41,10 @@ format={nick}.{host}
 # (No nickname mappings by default. Add your own below, e.g. `your-app=YA`.)
 
 cos-console=COS
-divorce-prep=DP
-divorcio=DP
-divorcio-73-familyfund-pipeline=DP
+
+# Both names for the divorce repo (local dir `divorcio`, git-URL name
+# `divorce-prep`) plus every feature worktree of either -> one nick, so the
+# two derivation sources can't flap. Replaces the per-worktree lines this
+# used to need (`divorcio-73-familyfund-pipeline=DP`, ...).
+divorcio*=DP
+divorce-prep*=DP
