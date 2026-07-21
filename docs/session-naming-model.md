@@ -80,6 +80,12 @@ python3 -m remote_control titles list          # '~' rows = will-rename
 python3 -m remote_control titles apply
 ```
 
+**Config hot-reloads; code does not.** `apply_prefixes` re-reads
+`session-nicknames.txt` (and rebuilds the nickname map) on *every* call, and the
+daemon calls it each cycle — so nickname/format edits take effect on the next
+cycle with **no restart**. Python code, by contrast, is loaded once at process
+start, so a `session_titles.py` change needs a restart.
+
 **A stale daemon is the #1 failure mode.** The process loads code at start; a
 merge to `session_titles.py` does **nothing** until the daemon is restarted. In
 July 2026 the live daemon had been up since Jul 9 and so ran pre-#110 code that
