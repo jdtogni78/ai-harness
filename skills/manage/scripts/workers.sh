@@ -15,6 +15,7 @@
 #   get      <worker_id>         (latest folded record as JSON)
 #   path                         (print state file path)
 #   mgr-id                       (allocate / read this manager's host-scoped ordinal)
+#   mgr-audit                    (check the ordinal ledger against the LIVE session list)
 #   mgr-cwd                      (read the cwd snapshotted on mgr-id's first call)
 #   retitle  "<task>"            (compose `titles set` for the manager title)
 #   retitle-worker <wid> [brief] (compose `titles set` for one worker title)
@@ -382,6 +383,60 @@ cmd_mgr_id() {
   printf '%s\n' "$ord"
 }
 
+# Audit the ordinal ledger against the LIVE session list. Exists because this
+# ledger drifted twice from hand-checking: the first repair reconciled against
+# connection_status (connected/disconnected), which is NOT archived-status, so
+# four ordinals stayed "active" while their holders were archived -- including
+# one whose own title said it had HANDED OVER to a live successor. Reconcile
+# against ACTIVE sessions, and sweep EVERY live claimant rather than the ones
+# someone happened to mention. Exits non-zero if the ledger is inconsistent.
+cmd_mgr_audit() {
+  require_jq
+  local file; file="$(ordinals_path)" || return $?
+  AI_HARNESS_DIR="$AI_HARNESS_DIR" LEDGER="$file" python3 - <<'PYAUDIT'
+import json, os, re, subprocess, sys
+led = [json.loads(l) for l in open(os.environ["LEDGER"]) if l.strip()]
+run = lambda a: json.loads(subprocess.run(
+    ["python3", "-m", "remote_control", "sessions", "list"] + a,
+    capture_output=True, text=True, cwd=os.environ["AI_HARNESS_DIR"]).stdout)
+active = {r["id"]: r for r in run(["--json"])}
+problems = []
+
+claims = [r for r in led if "retired_at" not in r]
+for r in claims:
+    if r["cse_id"] not in active:
+        problems.append(f"ord {r['ord']}: holder {r['cse_id']} is ARCHIVED "
+                        f"(retire it; name a live successor if one exists)")
+
+ords = [r["ord"] for r in claims]
+for o in sorted({x for x in ords if ords.count(x) > 1}):
+    who = ", ".join(r["cse_id"] for r in claims if r["ord"] == o)
+    problems.append(f"ord {o}: DUPLICATE active claim -- {who}")
+
+held = {r["cse_id"] for r in claims}
+this_host = os.environ.get("REMOTE_CONTROL_HOST", "")
+for cid, s in active.items():
+    m = re.search(r"\[MGR-(\d+)\]", s.get("title") or "")
+    if not m or cid in held:
+        continue
+    nick = re.match(r"\[([^\]]+)\]", s.get("title") or "")
+    seg = nick.group(1).rsplit(".", 1)[-1] if nick and "." in nick.group(1) else ""
+    if seg and this_host and seg != this_host:
+        continue  # another host owns its own ledger
+    problems.append(f"MGR-{m.group(1)}: live claimant {cid} holds NO record "
+                    f"(backfill it)")
+
+print(f"{len(claims)} active claims, {len(led) - len(claims)} retired; "
+      f"{len(active)} live sessions")
+if problems:
+    print("\nINCONSISTENT:")
+    for p in problems:
+        print(f"  - {p}")
+    sys.exit(1)
+print("ledger is consistent with the live session list")
+PYAUDIT
+}
+
 cmd_mgr_cwd() {
   require_jq
   local existing
@@ -528,6 +583,7 @@ Subcommands:
   loop-arm                     (set the loop-armed marker for this manager)
   loop-disarm                  (clear the loop-armed marker)
   mgr-id                       (allocate / read this manager's host-scoped ordinal)
+  mgr-audit                    (check the ordinal ledger against the LIVE session list)
   mgr-cwd                      (read the cwd snapshotted on first mgr-id call)
   retitle "<task>"             (titles set --id <mgr> --sub MGR-<ord> "...")
   retitle-worker <wid> [brief] (titles set --sub MGR<ord>-W<k> --sub #<ticket> ...)
@@ -548,6 +604,7 @@ main() {
     close)           cmd_close           "$@" ;;
     forget)          cmd_forget          "$@" ;;
     mgr-id)          cmd_mgr_id          "$@" ;;
+    mgr-audit)       cmd_mgr_audit       "$@" ;;
     mgr-cwd)         cmd_mgr_cwd         "$@" ;;
     retitle)         cmd_retitle         "$@" ;;
     retitle-worker)  cmd_retitle_worker  "$@" ;;

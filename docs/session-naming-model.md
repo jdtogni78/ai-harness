@@ -216,6 +216,34 @@ All observed, and all now fixed:
 With allocation atomic and single-source, #128's `[MGRn-Wm]` linkage half is
 unblocked.
 
+### Auditing the ledger — reconcile against ACTIVE, not "connected"
+
+```bash
+~/.claude/skills/manage/scripts/workers.sh mgr-audit   # exit 1 if inconsistent
+```
+
+Checks three things against the **live** session list: an active claim whose
+holder is archived, a duplicate active ordinal, and a live `[MGR-n]` claimant
+holding no record.
+
+This exists because the ledger drifted **twice** from hand-checking:
+
+1. The first repair reconciled on `connection_status` — which is **not**
+   archived-status. A session can report `connected` and still be archived, so
+   four ordinals stayed "active" while their holders were archived. One of them
+   (`ord 7`) said in its own title that it had *handed over* to a live
+   successor, and that successor held no record at all — the same
+   live-claimant-vs-dead-predecessor pattern the repair had just fixed
+   elsewhere.
+2. The backfill only covered the claimants someone happened to name, so live
+   MGR-9 and MGR-10 were missed entirely.
+
+Rules: reconcile against **active** sessions; sweep **every** live claimant, not
+the ones mentioned; retire an archived holder with `superseded_by` pointing at
+its live successor where one exists, or no successor where the initiative simply
+ended. Ordinals are never recycled either way. **Run `mgr-audit` after any
+repair** rather than eyeballing it — that's what the two drifts have in common.
+
 ### Ordinals are per-host; titles are global
 
 The ledger lives in `$HOME/.ai-harness/manager` — **per machine**. Titles live
@@ -229,6 +257,12 @@ bracket — `[DEV.m5][MGR-13]` vs `[DEV.mini][MGR-13]` are distinguishable. But
 the **linkage token alone is not**, so any consumer grouping by ordinal
 (`sessions --json` filtering on `[MGR`) must key on **host + ordinal**, never the
 ordinal alone.
+
+This is not theoretical: the first cross-host allocation collided immediately.
+mini allocated `MGR-3` — correctly, on its own host, through the atomic
+allocator — while m5 already had a live `[DD.m5][MGR-3]`. Both counters start at
+1, so overlap is the *default* outcome, not an edge case. Tracked in #135
+(per-host ranges).
 
 Corollary: **allocate an ordinal on the host that owns the session.** Running
 `mgr-id` here for a session on another host writes the claim into the wrong
