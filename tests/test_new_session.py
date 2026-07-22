@@ -671,6 +671,43 @@ class SubnameTest(unittest.TestCase):
             self.assertIn("[FR.mini][deadbeef]", title)
             self.assertIn("auto-spawned", title)
 
+    def test_initial_subname_title_task_replaces_placeholder(self):
+        # `--task` lets the spawner (who wrote the brief) put the real work in
+        # the row instead of the `auto-spawned` placeholder, which says nothing
+        # and is half of why dispatcher-spawned workers read as orphans (#128).
+        with tempfile.TemporaryDirectory() as d:
+            dev = Path(d)
+            repo_dir = dev / "fake-repo"
+            repo_dir.mkdir()
+            title = initial_subname_title(
+                repo_dir, host="mini", subname="tf-loan-40", dev_root=dev,
+                nicknames_file="/no/such/file", task="#40 TF loan export")
+            self.assertEqual(title, "[FR.mini][tf-loan-40] #40 TF loan export")
+            self.assertNotIn("auto-spawned", title)
+
+    def test_initial_subname_title_blank_task_keeps_placeholder(self):
+        # Back-compat: omitted/blank/whitespace-only task falls back to the
+        # historical placeholder, so every existing caller is unchanged.
+        with tempfile.TemporaryDirectory() as d:
+            dev = Path(d)
+            repo_dir = dev / "fake-repo"
+            repo_dir.mkdir()
+            for task in (None, "", "   "):
+                title = initial_subname_title(
+                    repo_dir, host="mini", subname="x", dev_root=dev,
+                    nicknames_file="/no/such/file", task=task or "")
+                self.assertEqual(title, "[FR.mini][x] auto-spawned")
+
+    def test_initial_subname_title_task_applies_at_dev_root(self):
+        # The dev-root fallback path (dispatcher sessions, cwd == dev root)
+        # composes its title separately, so it needs the same task handling.
+        with tempfile.TemporaryDirectory() as d:
+            dev = Path(d)
+            title = initial_subname_title(
+                dev, host="m5", subname="dispatcher", dev_root=dev,
+                nicknames_file="/no/such/file", task="local dispatcher")
+            self.assertEqual(title, "[DEV.m5][dispatcher] local dispatcher")
+
     def test_initial_subname_title_returns_none_when_repo_unresolvable(self):
         with tempfile.TemporaryDirectory() as d:
             dev = Path(d) / "dev"
