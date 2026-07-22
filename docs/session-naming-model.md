@@ -216,6 +216,26 @@ All observed, and all now fixed:
 With allocation atomic and single-source, #128's `[MGRn-Wm]` linkage half is
 unblocked.
 
+### Working principle: enumerate the population, don't fix the instances
+
+Before fixing anything reported here, ask **what the full population is and how
+to enumerate it** — then check all of it. Fixing the instances someone handed
+you leaves the ones nobody mentioned, and they are invisible to both parties for
+exactly the same reason.
+
+This ledger drifted twice under two different people applying that anti-pattern:
+a list of four bad ordinals was handed over, four were fixed, and two live
+managers holding no record at all were missed — because neither side asked for
+the population. `mgr-audit` is built the way it is for this reason: it takes the
+**live session list** as its input rather than a list of suspects, so it cannot
+miss a claimant that exists.
+
+Corollary for any checker: **verify it in both directions.** One that has only
+been seen to pass tells you nothing when it passes. `mgr-audit` was tested
+against a known-bad ledger (reproduces every defect, exit 1) as well as the
+repaired one (exit 0), and the band check was tested by auditing the m5 ledger
+*as if* it were mini (all claims flagged out-of-band).
+
 ### Auditing the ledger — reconcile against ACTIVE, not "connected"
 
 ```bash
