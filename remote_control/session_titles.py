@@ -1162,10 +1162,13 @@ def _parse_args(argv: List[str]) -> dict:
     return opts
 
 
-# A manager-ordinal sub-token (``MGR-3``), as opposed to a worker tag
-# (``MGR3-W1``) or a ticket tag (``#66``). Only the bare manager form is
-# allocator-owned, so only it triggers the warning.
-_MGR_ORDINAL_SUB_RE = re.compile(r"^MGR-\d+$")
+# Allocator-owned sub-tokens: a manager ordinal (``MGR-3``) and a worker tag
+# (``MGR3-W1``, which embeds its manager's ordinal). A ticket tag (``#66``) is
+# NOT allocator-owned -- ticket numbers come from the issue tracker.
+# Both forms are warned about, because a hand-written worker tag asserts a
+# manager ordinal just as much as the bare form does (the live ``MGR7-W20``
+# case) -- it simply hides it inside the token.
+_MGR_ORDINAL_SUB_RE = re.compile(r"^(?:MGR-\d+|MGR\d+-W\d+)$")
 
 # Set by workers.sh around its `titles set` call to mark the ordinal as
 # allocator-issued. Its absence is what identifies a hand-asserted number.
@@ -1191,10 +1194,10 @@ def _warn_hand_asserted_ordinal(opts: dict, log) -> None:
     if not bare:
         return
     log(f"warning: {bare[0]} was not issued by the ordinal allocator. "
-        "Manager ordinals should come from "
-        "`skills/manage/scripts/workers.sh retitle \"<task>\"` (which calls "
-        "mgr-id and records the claim); hand-picking one can duplicate a live "
-        "manager's number. See docs/session-naming-model.md.")
+        "Manager ordinals come from `workers.sh retitle \"<task>\"` and worker "
+        "tags from `workers.sh retitle-worker <cse>` (both call mgr-id and "
+        "record the claim); hand-picking one can duplicate a live manager's "
+        "number. See docs/session-naming-model.md.")
 
 
 # A manager/worker linkage token (``MGR-3``, ``MGR7-W20``). Machine-readable

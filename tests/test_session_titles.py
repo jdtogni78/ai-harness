@@ -560,10 +560,23 @@ class HandAssertedOrdinalWarningTest(unittest.TestCase):
     def test_silent_when_allocator_issued(self):
         self.assertEqual(self._warn({"subs": ["MGR-12"]}, env_marker="1"), [])
 
-    def test_worker_and_ticket_tags_are_not_ordinals(self):
-        # Only the bare MGR-<n> form is allocator-owned.
-        self.assertEqual(self._warn({"subs": ["MGR7-W15", "#66"]}), [])
+    def test_warns_on_hand_written_worker_tag(self):
+        # A worker tag embeds its manager's ordinal, so hand-writing one asserts
+        # that ordinal just as much as the bare form -- it only hides it inside
+        # the token. This is the live MGR7-W20 case.
+        msgs = self._warn({"subs": ["MGR7-W20", "#66"]})
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("MGR7-W20", msgs[0])
+
+    def test_ticket_tags_are_not_allocator_owned(self):
+        # Ticket numbers come from the issue tracker, not the allocator.
+        self.assertEqual(self._warn({"subs": ["#66"]}), [])
         self.assertEqual(self._warn({"sub": "#40"}), [])
+
+    def test_silent_for_worker_tag_when_allocator_issued(self):
+        # retitle-worker derives the tag from mgr-id, so it marks the call.
+        self.assertEqual(
+            self._warn({"subs": ["MGR7-W20", "#66"]}, env_marker="1"), [])
 
 
 class RepoDerivationTest(unittest.TestCase):

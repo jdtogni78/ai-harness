@@ -209,6 +209,19 @@ separate `mgr-id` warm-up. `retitle-worker` requires the worker to have been
 `register`ed with `--ticket N` first (registration without a ticket is
 rejected — see "Confirmation rules" below).
 
+**These helpers are the ONLY way an ordinal may enter a title.** Never write
+`MGR-<n>` or `MGR<n>-W<k>` by hand — not in a `titles set --sub`, and above all
+not into a worker's spawn brief. An ordinal you typed is an *assertion*; only
+`mgr-id` *allocates*. Hand-asserted numbers are what left the ledger vestigial
+and put two live managers on the same ordinal (#129), and a hand-written worker
+tag asserts a manager ordinal just as much — it only hides it inside the token.
+`titles set` now warns on any allocator-owned sub-token it didn't issue.
+
+Spawn a worker with a **descriptive** title (`new-session --task "<what it's
+doing>"`), then `register` it and let `retitle-worker` add the linkage. The
+worker never needs to know its own ordinal, so the brief never needs to name
+one.
+
 If `count==0`, the helpers still emit `[MGR-<ord>] <task> (0 workers)` so the
 boss can tell an idle manager from a non-manager session at a glance.
 
