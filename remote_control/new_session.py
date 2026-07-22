@@ -60,6 +60,7 @@ USAGE = (
     "                                      [--prompt TEXT | --prompt-file PATH]\n"
     "                                      [--reply-to CSE_ID | --no-reply-to]\n"
     "                                      [--subname SLUG | --no-subname]\n"
+    "                                      [--task TEXT]\n"
     "                                      [--dry-run]\n"
     "  Spawn a single-session `claude remote-control` server (capacity 1),\n"
     "  picker-visible, supervisor-invisible. NOTE: the server does NOT exit\n"
@@ -103,8 +104,14 @@ USAGE = (
     "                       `[from CSE_ID — reply via send-to-session]` header.\n"
     "                       Default: auto-detect from CLAUDE_CODE_SESSION_ACCESS_TOKEN.\n"
     "    --no-reply-to      skip both env propagation and the prompt header\n"
+    "    --task TEXT        description body for the inner session's title, in\n"
+    "                       place of the `auto-spawned` placeholder ->\n"
+    "                       `[NICK.host][SLUG] TEXT`. Pass this whenever you know\n"
+    "                       what you are dispatching: the placeholder says nothing\n"
+    "                       about the work and leaves the row reading as an orphan\n"
+    "                       in the roster. Implies --wait (needs the cse_id).\n"
     "    --subname SLUG     after registration, set the inner session's title\n"
-    "                       to `[NICK.host][SLUG] auto-spawned` so the spawned\n"
+    "                       to `[NICK.host][SLUG] <task>` so the spawned\n"
     "                       subsession is distinguishable from human-driven\n"
     "                       sessions in the picker / session list. The titles\n"
     "                       watcher preserves the [SLUG] tag across re-renders\n"
@@ -280,8 +287,9 @@ def initial_subname_title(
     dev_root: Path,
     *,
     nicknames_file: Optional[str] = None,
+    task: str = "",
 ) -> Optional[str]:
-    """The ``[NICK.host][SUB] auto-spawned`` title to PUT on a freshly-
+    """The ``[NICK.host][SUB] <task>`` title to PUT on a freshly-
     registered subsession, or None if the cwd's repo can't be derived (in
     which case the caller skips the title-set; the watcher will still add a
     bare ``[NICK.host]`` once it can, just without the [SUB] tag).
@@ -294,6 +302,13 @@ def initial_subname_title(
     ``could not derive repo … skipping [dispatcher] title tag`` log). The
     fallback gives that session a sensible ``[DEV.<host>][dispatcher]`` tag.
 
+    *task* is the description body. It defaults to the literal
+    ``auto-spawned`` -- a placeholder that says nothing about the work and, left
+    unreplaced, is half of why dispatcher-spawned workers read as orphans in the
+    roster (see docs/session-naming-model.md). A spawner that knows what it is
+    dispatching should pass ``--task`` so the row is meaningful from the first
+    moment, rather than relying on the worker to retitle itself later.
+
     Lazy-imports session_titles so new_session stays light when the
     subsession-title path isn't exercised (and so a circular import can't
     bite us through cli.py)."""
@@ -304,6 +319,7 @@ def initial_subname_title(
     # Both paths get resolve()'d so the macOS /private/var symlink doesn't break
     # the relative_to() check inside repo_from_cwd (the supervisor resolves cwd
     # too, so this keeps both sides of the comparison canonical).
+    body = (task or "").strip() or "auto-spawned"
     cwd_s = str(Path(cwd).resolve())
     dev_s = str(Path(dev_root).resolve())
     repo = repo_from_worktree_path(cwd_s) or repo_from_cwd(cwd_s, dev_s)
@@ -326,13 +342,13 @@ def initial_subname_title(
                               host=host, host_local=True, branch="")
         vals["nick"] = "DEV"
         token = render_prefix(template, vals)
-        return apply_prefix("auto-spawned", token, sub=subname)
+        return apply_prefix(body, token, sub=subname)
     # No id yet (the title PUT itself doesn't need it; the ``{id}``/``{shortid}``
     # template tokens get an empty value), host_local=True (we ARE running here).
     vals = session_values({"id": ""}, repo, nmap,
                           host=host, host_local=True, branch="")
     token = render_prefix(template, vals)
-    return apply_prefix("auto-spawned", token, sub=subname)
+    return apply_prefix(body, token, sub=subname)
 
 
 def own_session_id_from_env(env: Mapping[str, str]) -> Optional[str]:
@@ -354,7 +370,7 @@ def _parse_args(argv: List[str]) -> dict:
         "permission_mode": "bypassPermissions", "dry_run": False, "help": False,
         "wait": False, "wait_timeout": 30.0,
         "prompt": None, "prompt_file": None,
-        "reply_to": None, "no_reply_to": False,
+        "reply_to": None, "no_reply_to": False, "task": None,
         "subname": None, "no_subname": False,
         "inject_into": None,
     }
@@ -383,6 +399,8 @@ def _parse_args(argv: List[str]) -> dict:
             i += 1; opts["reply_to"] = argv[i]
         elif a == "--no-reply-to":
             opts["no_reply_to"] = True
+        elif a == "--task":
+            i += 1; opts["task"] = argv[i]
         elif a == "--subname":
             i += 1; opts["subname"] = argv[i]
         elif a == "--no-subname":
@@ -424,6 +442,7 @@ def _post_subname_title(
     dev_root: Path,
     log,
     *,
+    task: str = "",
     set_title: Optional[Callable[..., Any]] = None,
     get_token: Optional[Callable[..., Any]] = None,
 ) -> None:
@@ -436,7 +455,7 @@ def _post_subname_title(
     strip our [SUB] tag, but it now preserves it across passes via
     session_titles.extract_sub_token, so the tag sticks until the subsession
     ends."""
-    title = initial_subname_title(cwd, host, subname, dev_root)
+    title = initial_subname_title(cwd, host, subname, dev_root, task=task)
     if not title:
         log(f"could not derive repo for {cwd}; skipping [{subname}] title tag")
         return
@@ -644,6 +663,7 @@ def inject_into_server(
     subname: Optional[str],
     wait_timeout: float,
     log,
+    task: str = "",
     waiter: Optional[Callable[..., Optional[str]]] = None,
     submit: Optional[Callable[..., Any]] = None,
     get_token: Optional[Callable[..., Any]] = None,
@@ -706,6 +726,7 @@ def inject_into_server(
 
     if subname:
         _post_subname_title(sid, cwd, cfg.host, subname, cfg.dev, log,
+                            task=task,
                             set_title=set_title, get_token=get_token)
 
     # Emit the same `session : cse_...` sentinel a one-off spawn prints so
@@ -752,10 +773,12 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
               file=sys.stderr)
         return 2
 
+    # --task, like --subname, is applied to the registered session, so it needs
+    # the cse_id and therefore implies --wait too.
     # A prompt requires the cse_id, so it implies --wait. (--subname also
     # needs the cse_id to PUT the title, but it stays opt-in via --wait/--prompt
     # so the default fire-and-forget spawn doesn't grow a 30s polling loop.)
-    want_wait = opts["wait"] or prompt_body is not None
+    want_wait = opts["wait"] or prompt_body is not None or bool(opts["task"])
 
     cfg = SupervisorConfig.from_env(env)
     cwd = Path(opts["dir"] or os.getcwd()).resolve()
@@ -802,6 +825,7 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
             server_name=opts["inject_into"],
             cwd=cwd, cfg=cfg, prompt_body=prompt_body, subname=inj_subname,
             wait_timeout=opts["wait_timeout"], log=log, waiter=waiter,
+            task=opts.get("task") or "",
             submit=submit, get_token=get_token, set_title=set_title,
             fetch_state=fetch_state,
         )
@@ -948,6 +972,7 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
     # and continues -- the spawn + prompt itself is what matters.
     if subname:
         _post_subname_title(sid, cwd, cfg.host, subname, cfg.dev, log,
+                            task=opts.get("task") or "",
                             set_title=set_title, get_token=get_token)
 
     if prompt_body is None:
