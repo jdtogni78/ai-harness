@@ -148,5 +148,55 @@ against the fix commit date whenever titles misbehave.
   turn — otherwise it lingers as `[NICK.host][<name>] auto-spawned` until a
   human retitles it. Manager-spawn briefs (meta-manage §5) MUST include this
   directive; see `skills/meta-manage/SKILL.md`.
+
+## Spawned workers: don't leave the placeholder
+
+`new-session` titles a spawned session `[NICK.host][SUB] auto-spawned`, where
+`SUB` defaults to the server-derived subname. Left alone that row is an orphan:
+it carries no manager linkage and its body describes nothing.
+
+**Pass `--task`** whenever you know what you're dispatching — you wrote the
+brief, so you do:
+
+```bash
+python3 -m remote_control new-session --dir ~/dev/<repo> \
+  --prompt-file <brief> --reply-to <self_cse_id> \
+  --subname tf-loan-40 --task "#40 TF loan export"
+# -> [FE.m5][tf-loan-40] #40 TF loan export
+```
+
+`--task` implies `--wait` (the title is PUT against the registered session, so
+it needs the cse_id). Omitted/blank falls back to `auto-spawned`.
+
+## Manager ordinals are currently assertions, not allocations
+
+> **Every `[MGR-N]` in the system today is a human/agent assertion, not an
+> allocated ordinal.** No code path calls the allocator (`workers.sh mgr-id`);
+> the only reference to it in the repo is prose in meta-manage §5. Ordinals are
+> written into spawn briefs by hand and the session simply takes the number.
+
+Consequences, all observed:
+
+- The ledger `~/.ai-harness/manager/ordinals.jsonl` is **vestigial** — it stops
+  at ord 8 (2026-07-18) while MGR-9…MGR-12 are live and titled with zero
+  records. "Not in the ledger" therefore says nothing about whether a session
+  has an ordinal.
+- There are **two competing sources of truth** (brief text vs the ledger), and
+  the one that actually governs is the brief.
+- The allocator is **TOCTOU** (`prior=max(.ord); ord=prior+1; append`, no lock),
+  and the file already contains a duplicate (two sessions on ord 3) plus a
+  removed record (ord 4 absent, yet the next allocation was 5) — so it has been
+  hand-edited as well as raced.
+
+So the `[MGRn-Wm]` **worker→manager linkage** half of the naming convention
+(#128) is **blocked on #129**. Don't build linkage on that file until allocation
+is atomic and single-source; otherwise duplicate ordinals become duplicate
+worker namespaces (two managers both minting `MGR3-W1`). Until then, prefer a
+descriptive title over inventing an ordinal — hand-assigning one is the very
+defect being fixed.
+
+**Title PUTs work on disconnected sessions.** A title write is metadata; it does
+not require the session to be connected. A `disconnected` row can still be
+retitled — only *submitting turns* into it fails.
 </content>
 </invoke>
