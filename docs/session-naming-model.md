@@ -261,8 +261,26 @@ ordinal alone.
 This is not theoretical: the first cross-host allocation collided immediately.
 mini allocated `MGR-3` — correctly, on its own host, through the atomic
 allocator — while m5 already had a live `[DD.m5][MGR-3]`. Both counters start at
-1, so overlap is the *default* outcome, not an edge case. Tracked in #135
-(per-host ranges).
+1, so overlap was the *default* outcome, not an edge case.
+
+**Fixed in #135 with disjoint per-host bands** (`_ordinal_band` in `workers.sh`):
+
+| host | band |
+|---|---|
+| `m5` | 1–99 |
+| `mini` | 100–199 |
+
+`mgr-id` allocates `max(ords in band)+1` and **dies** if the band is exhausted
+rather than silently overflowing into another host's range. A host with no band
+keeps the legacy global `max+1`, so nothing breaks silently. Override with
+`MANAGER_ORDINAL_BAND="lo-hi"` (tests, new hosts).
+
+Disjoint bands need **no shared state and no coordination at allocation time**,
+which is the only shape that works for two hosts that cannot read each other's
+ledger. `mgr-audit` **enforces** the band — an out-of-band active claim fails the
+audit exactly like a duplicate does. Without that enforcement a band is only a
+convention, and this system has already demonstrated what happens to conventions
+with nothing checking them.
 
 Corollary: **allocate an ordinal on the host that owns the session.** Running
 `mgr-id` here for a session on another host writes the claim into the wrong
