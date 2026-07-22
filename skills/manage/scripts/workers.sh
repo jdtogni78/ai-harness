@@ -312,6 +312,32 @@ _ordinal_record() {
     '[ .[] | select(.cse_id == $m and (has("retired_at") | not)) ][0] // empty' "$file"
 }
 
+# Per-host ordinal BAND. The ledger is per-machine but titles are GLOBAL, so
+# two hosts allocating `max(own ledger)+1` both start at 1 and collide -- which
+# is not theoretical: the first cross-host allocation produced a live
+# [DD.m5][MGR-3] and a live [DEV.mini][MGR-3] simultaneously (#135). Disjoint
+# bands make the collision impossible with NO shared state and no coordination
+# at allocation time, which is the only shape that works for two hosts that
+# cannot read each other's ledger.
+#
+# Echoes "<lo> <hi>", or nothing when this host has no band (unknown host with
+# no override -> legacy unbanded behaviour, so nothing breaks silently).
+# MANAGER_ORDINAL_BAND="lo-hi" overrides, for tests and new hosts.
+_ordinal_band() {
+  local host band
+  if [[ -n "${MANAGER_ORDINAL_BAND:-}" ]]; then
+    printf '%s %s\n' "${MANAGER_ORDINAL_BAND%%-*}" "${MANAGER_ORDINAL_BAND##*-}"
+    return 0
+  fi
+  host="${REMOTE_CONTROL_HOST:-$(hostname -s)}"
+  case "$host" in
+    m5)   band="1 99"    ;;
+    mini) band="100 199" ;;
+    *)    return 0       ;;
+  esac
+  printf '%s\n' "$band"
+}
+
 # Portable exclusive lock around the ordinals file. macOS ships no flock(1),
 # so use mkdir -- atomic on every POSIX filesystem: exactly one racer creates
 # the dir, the rest spin. Without this, cmd_mgr_id was a textbook TOCTOU
@@ -362,14 +388,31 @@ cmd_mgr_id() {
     printf '%s\n' "$(echo "$existing" | jq -r '.ord')"
     return 0
   fi
-  # Allocate next ordinal as max(existing.ord) + 1, host-scoped via the state
-  # file's lifetime (per-machine since the state dir is local).
-  if [[ -s "$file" ]]; then
-    prior="$(jq -s '[ .[] | .ord ] | (max // 0)' "$file")"
+  # Allocate the next ordinal WITHIN this host's band, so the number can never
+  # collide with one minted on another host (#135). Unbanded hosts keep the
+  # legacy global max+1.
+  local lo hi
+  read -r lo hi <<<"$(_ordinal_band)"
+  if [[ -n "$lo" ]]; then
+    if [[ -s "$file" ]]; then
+      prior="$(jq -s --argjson lo "$lo" --argjson hi "$hi" \
+        '[ .[] | .ord | select(. >= $lo and . <= $hi) ] | (max // ($lo - 1))' "$file")"
+    else
+      prior=$((lo - 1))
+    fi
+    ord=$((prior + 1))
+    if [[ "$ord" -gt "$hi" ]]; then
+      _ordinals_unlock
+      die "mgr-id: host band $lo-$hi is exhausted; widen the band in _ordinal_band"
+    fi
   else
-    prior=0
+    if [[ -s "$file" ]]; then
+      prior="$(jq -s '[ .[] | .ord ] | (max // 0)' "$file")"
+    else
+      prior=0
+    fi
+    ord=$((prior + 1))
   fi
-  ord=$((prior + 1))
   # Record the HOST: the ledger is per-machine ($HOME/.ai-harness) but titles
   # are global, so two hosts can independently mint the same [MGR-N]. Stamping
   # the host makes a cross-host duplicate auditable after the fact.
@@ -393,7 +436,8 @@ cmd_mgr_id() {
 cmd_mgr_audit() {
   require_jq
   local file; file="$(ordinals_path)" || return $?
-  AI_HARNESS_DIR="$AI_HARNESS_DIR" LEDGER="$file" python3 - <<'PYAUDIT'
+  local lo hi; read -r lo hi <<<"$(_ordinal_band)"
+  AI_HARNESS_DIR="$AI_HARNESS_DIR" LEDGER="$file" BAND_LO="$lo" BAND_HI="$hi" python3 - <<'PYAUDIT'
 import json, os, re, subprocess, sys
 led = [json.loads(l) for l in open(os.environ["LEDGER"]) if l.strip()]
 run = lambda a: json.loads(subprocess.run(
@@ -407,6 +451,16 @@ for r in claims:
     if r["cse_id"] not in active:
         problems.append(f"ord {r['ord']}: holder {r['cse_id']} is ARCHIVED "
                         f"(retire it; name a live successor if one exists)")
+
+lo = os.environ.get("BAND_LO")
+hi = os.environ.get("BAND_HI")
+if lo and hi:
+    lo, hi = int(lo), int(hi)
+    for r in claims:
+        if not (lo <= r["ord"] <= hi):
+            problems.append(
+                f"ord {r['ord']}: OUTSIDE this host's band {lo}-{hi} "
+                f"({r['cse_id']}) -- migrate it, or the band is only a convention")
 
 ords = [r["ord"] for r in claims]
 for o in sorted({x for x in ords if ords.count(x) > 1}):
