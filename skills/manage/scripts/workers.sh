@@ -302,7 +302,42 @@ _ordinal_record() {
   mgr="$(resolve_manager_id)" || return $?
   file="$(ordinals_path)" || return $?
   [[ -s "$file" ]] || { printf ''; return 0; }
-  jq -s -c --arg m "$mgr" '[ .[] | select(.cse_id == $m) ][0] // empty' "$file"
+  # Skip RETIRED records: a record whose ordinal was reconciled to a live
+  # claimant (#129) is history, not a current claim. Without this filter a
+  # superseded session that reconnects would be handed its old number back and
+  # collide with whoever now holds it. It gets a fresh ordinal instead; the
+  # retired record stays in the file so max() never recycles an ordinal.
+  jq -s -c --arg m "$mgr" \
+    '[ .[] | select(.cse_id == $m and (has("retired_at") | not)) ][0] // empty' "$file"
+}
+
+# Portable exclusive lock around the ordinals file. macOS ships no flock(1),
+# so use mkdir -- atomic on every POSIX filesystem: exactly one racer creates
+# the dir, the rest spin. Without this, cmd_mgr_id was a textbook TOCTOU
+# (read max, compute max+1, append) and two managers allocating at once both
+# read the same max and both appended the SAME ordinal -- which is how the
+# live ledger ended up with two sessions on ord 3 (#129).
+_ordinals_lock() {
+  local lock deadline
+  lock="$(ordinals_path).lock"
+  deadline=$(( $(date +%s) + 10 ))
+  while ! mkdir "$lock" 2>/dev/null; do
+    if [[ $(date +%s) -ge $deadline ]]; then
+      # Break a lock orphaned by a killed process rather than wedging forever;
+      # 10s is far longer than the read-append this guards.
+      rmdir "$lock" 2>/dev/null || true
+      mkdir "$lock" 2>/dev/null && break
+      die "mgr-id: could not acquire $lock"
+    fi
+    sleep 0.1
+  done
+  _ORDINALS_LOCK="$lock"
+  trap '_ordinals_unlock' EXIT INT TERM
+}
+
+_ordinals_unlock() {
+  [[ -n "${_ORDINALS_LOCK:-}" ]] && rmdir "$_ORDINALS_LOCK" 2>/dev/null || true
+  _ORDINALS_LOCK=""
 }
 
 cmd_mgr_id() {
@@ -310,8 +345,19 @@ cmd_mgr_id() {
   local mgr file existing rec ord prior
   mgr="$(resolve_manager_id)" || return $?
   file="$(ordinals_path)" || return $?
+  # Fast path: already allocated, no lock needed (append-only file, and a
+  # record for THIS manager can never be rewritten by someone else).
   existing="$(_ordinal_record)" || return $?
   if [[ -n "$existing" ]]; then
+    printf '%s\n' "$(echo "$existing" | jq -r '.ord')"
+    return 0
+  fi
+  _ordinals_lock
+  # Re-read INSIDE the lock: a racer may have allocated for this same manager
+  # between the fast-path check and the lock (double-checked locking).
+  existing="$(_ordinal_record)" || { _ordinals_unlock; return 1; }
+  if [[ -n "$existing" ]]; then
+    _ordinals_unlock
     printf '%s\n' "$(echo "$existing" | jq -r '.ord')"
     return 0
   fi
@@ -328,6 +374,7 @@ cmd_mgr_id() {
     --arg cwd "$PWD" --arg ts "$(now_utc)" \
     '{cse_id:$m, ord:$o, cwd:$cwd, allocated_at:$ts}')"
   printf '%s\n' "$rec" >> "$file"
+  _ordinals_unlock
   printf '%s\n' "$ord"
 }
 
@@ -367,7 +414,10 @@ cmd_retitle() {
   ord="$(cmd_mgr_id)" || return $?
   count="$(cmd_list --json | jq 'length')"
   plural="s"; [[ "$count" == "1" ]] && plural=""
+  # Mark the ordinal as allocator-issued so `titles set` doesn't warn about a
+  # hand-asserted number (#129) -- this IS the sanctioned path.
   ( cd "$AI_HARNESS_DIR" && \
+    MANAGER_ORDINAL_ALLOCATED=1 \
     python3 -m remote_control titles set \
       --id "$mgr" \
       --sub "MGR-${ord}" \
