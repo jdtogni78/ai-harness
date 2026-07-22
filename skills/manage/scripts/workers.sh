@@ -329,11 +329,26 @@ _ordinal_band() {
     printf '%s %s\n' "${MANAGER_ORDINAL_BAND%%-*}" "${MANAGER_ORDINAL_BAND##*-}"
     return 0
   fi
+  # Match the host by GLOB, not by literal nick. `hostname -s` returns the
+  # machine name ("macmini", "m5note"), NOT the short nick ("mini", "m5"), so a
+  # literal case arm matched neither host and every call silently fell through
+  # to unbanded allocation -- which minted an out-of-band ord 4 on mini the
+  # first time this shipped. Mirrors discovery.NICKNAME_RULES, which already
+  # globs *macmini* -> mini; this is the same normalization, kept in sync by
+  # hand because workers.sh can't import it.
   host="${REMOTE_CONTROL_HOST:-$(hostname -s)}"
   case "$host" in
-    m5)   band="1 99"    ;;
-    mini) band="100 199" ;;
-    *)    return 0       ;;
+    m5|*m5*)         band="1 99"    ;;
+    mini|*macmini*)  band="100 199" ;;
+    *)
+      # LOUD, not silent. An unrecognized host allocating unbanded is exactly
+      # how a cross-host collision gets minted (#135), so say so rather than
+      # quietly reverting to the legacy behaviour.
+      echo "workers.sh: warning: host '$host' has no ordinal band; allocating" \
+           "UNBANDED, which can collide with another host. Set" \
+           "REMOTE_CONTROL_HOST or MANAGER_ORDINAL_BAND, or add an arm to" \
+           "_ordinal_band." >&2
+      return 0 ;;
   esac
   printf '%s\n' "$band"
 }
@@ -371,6 +386,11 @@ cmd_mgr_id() {
   require_jq
   local mgr file existing rec ord prior
   mgr="$(resolve_manager_id)" || return $?
+  # Garbage in, garbage claimed: mini's ledger carries records whose cse_id is
+  # "python3 (shimmed) -" and a bare uuid, i.e. resolve_manager_id's output was
+  # never validated before being written as an identity. Refuse rather than
+  # mint another one.
+  [[ "$mgr" == cse_* ]] || die "mgr-id: refusing to allocate for a non-cse manager id: '$mgr'"
   file="$(ordinals_path)" || return $?
   # Fast path: already allocated, no lock needed (append-only file, and a
   # record for THIS manager can never be rewritten by someone else).
@@ -440,10 +460,29 @@ cmd_mgr_audit() {
   AI_HARNESS_DIR="$AI_HARNESS_DIR" LEDGER="$file" BAND_LO="$lo" BAND_HI="$hi" python3 - <<'PYAUDIT'
 import json, os, re, subprocess, sys
 led = [json.loads(l) for l in open(os.environ["LEDGER"]) if l.strip()]
-run = lambda a: json.loads(subprocess.run(
-    ["python3", "-m", "remote_control", "sessions", "list"] + a,
-    capture_output=True, text=True, cwd=os.environ["AI_HARNESS_DIR"]).stdout)
+def run(a):
+    """Live session list, or [] on ANY failure (missing dir, non-zero exit,
+    unparseable output). Returning [] rather than raising keeps the empty-list
+    guard below as the single place that decides what an unreadable list
+    means -- a traceback here would just be a noisier false alarm."""
+    try:
+        p = subprocess.run(
+            ["python3", "-m", "remote_control", "sessions", "list"] + a,
+            capture_output=True, text=True, cwd=os.environ["AI_HARNESS_DIR"])
+        return json.loads(p.stdout) if p.returncode == 0 else []
+    except (OSError, ValueError):
+        return []
 active = {r["id"]: r for r in run(["--json"])}
+# A transient API failure returns an empty list, which would make EVERY active
+# claim look archived and every live claimant look missing -- a false alarm
+# that could talk someone into a destructive "repair". An empty live list is
+# never a legitimate audit input (this host is running at least this session),
+# so refuse to judge rather than report a ledger-wide fault.
+if not active:
+    print("mgr-audit: could not read the live session list (empty result) -- "
+          "refusing to audit; retry rather than trusting this as a fault",
+          file=sys.stderr)
+    sys.exit(2)
 problems = []
 
 claims = [r for r in led if "retired_at" not in r]
