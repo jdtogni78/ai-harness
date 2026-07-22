@@ -216,6 +216,25 @@ All observed, and all now fixed:
 With allocation atomic and single-source, #128's `[MGRn-Wm]` linkage half is
 unblocked.
 
+### Ordinals are per-host; titles are global
+
+The ledger lives in `$HOME/.ai-harness/manager` — **per machine**. Titles live
+in the cloud and are visible from every host. So each host allocates from its
+own `max(.ord)+1`, and **two hosts can independently mint the same `[MGR-N]`**;
+worker tags inherit it, so `MGR13-W1` could exist on both. New records carry a
+`host` field so a cross-host duplicate is at least auditable after the fact.
+
+What saves you in practice is that the full title carries the host in the nick
+bracket — `[DEV.m5][MGR-13]` vs `[DEV.mini][MGR-13]` are distinguishable. But
+the **linkage token alone is not**, so any consumer grouping by ordinal
+(`sessions --json` filtering on `[MGR`) must key on **host + ordinal**, never the
+ordinal alone.
+
+Corollary: **allocate an ordinal on the host that owns the session.** Running
+`mgr-id` here for a session on another host writes the claim into the wrong
+ledger *and* reads the wrong `max()` — you cannot even see the other host's
+ledger from here. Ask that host's dispatcher to allocate its own.
+
 ### Linkage must be in a bracket
 
 A title can carry a correct `[NICK.host]` prefix — so `titles list` reports

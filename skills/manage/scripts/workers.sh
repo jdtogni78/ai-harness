@@ -369,10 +369,14 @@ cmd_mgr_id() {
     prior=0
   fi
   ord=$((prior + 1))
+  # Record the HOST: the ledger is per-machine ($HOME/.ai-harness) but titles
+  # are global, so two hosts can independently mint the same [MGR-N]. Stamping
+  # the host makes a cross-host duplicate auditable after the fact.
   rec="$(jq -nc \
     --arg m "$mgr" --argjson o "$ord" \
     --arg cwd "$PWD" --arg ts "$(now_utc)" \
-    '{cse_id:$m, ord:$o, cwd:$cwd, allocated_at:$ts}')"
+    --arg host "${REMOTE_CONTROL_HOST:-$(hostname -s)}" \
+    '{cse_id:$m, ord:$o, cwd:$cwd, host:$host, allocated_at:$ts}')"
   printf '%s\n' "$rec" >> "$file"
   _ordinals_unlock
   printf '%s\n' "$ord"
@@ -450,6 +454,7 @@ cmd_retitle_worker() {
     # hard-failing, but keep the one-worker-one-ticket policy violation visible.
     echo "workers.sh: warning: $worker has no ticket recorded -- retitling without [#<ticket>]" >&2
     ( cd "$AI_HARNESS_DIR" && \
+      MANAGER_ORDINAL_ALLOCATED=1 \
       python3 -m remote_control titles set \
         --id "$worker" --cwd "$wdir" \
         --sub "MGR${ord}-W${wk}" \
@@ -457,6 +462,7 @@ cmd_retitle_worker() {
     return 0
   fi
   ( cd "$AI_HARNESS_DIR" && \
+    MANAGER_ORDINAL_ALLOCATED=1 \
     python3 -m remote_control titles set \
       --id "$worker" --cwd "$wdir" \
       --sub "MGR${ord}-W${wk}" \
