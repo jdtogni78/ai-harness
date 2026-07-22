@@ -24,6 +24,7 @@ from remote_control.session_titles import (
     parse_format_line,
     parse_nickname_map,
     plan_renames,
+    unbracketed_linkage,
     render_template,
     repo_basename_from_url,
     repo_for_session,
@@ -487,6 +488,82 @@ class PrefixTest(unittest.TestCase):
         healed = cycle("[DP.m5][DIV.m5][MGR7-W15][#66] reconcile red rows")
         self.assertEqual(healed, "[DP.m5][MGR7-W15][#66] reconcile red rows")
         self.assertEqual(cycle(healed), healed)  # idempotent second cycle
+
+
+class UnbracketedLinkageTest(unittest.TestCase):
+    """The checker blind spot (#129): a title can carry a correct
+    ``[NICK.host]`` prefix -- so plan_renames reports "0 to rename" -- while its
+    manager/worker linkage sits loose in the DESCRIPTION, invisible to any
+    ``[MGR`` filter. That is the orphan-in-the-roster failure #128 exists to
+    prevent, hiding inside a title the checker calls clean."""
+
+    def test_flags_linkage_left_in_the_description(self):
+        self.assertEqual(
+            unbracketed_linkage("[DP.m5] MGR7-W20 — condo/CA variant idx109",
+                                nick="DP.m5", host="m5"),
+            "MGR7-W20")
+        # bare manager ordinal, same defect
+        self.assertEqual(
+            unbracketed_linkage("[AH.m5] MGR-4 doing a thing",
+                                nick="AH.m5", host="m5"),
+            "MGR-4")
+
+    def test_correctly_bracketed_linkage_is_quiet(self):
+        self.assertIsNone(
+            unbracketed_linkage("[DP.m5][MGR7-W19] RESEARCH + VERIFICATION",
+                                nick="DP.m5", host="m5"))
+
+    def test_prose_mention_of_another_manager_is_not_a_defect(self):
+        # Live case: this title's OWN linkage is correctly bracketed and it
+        # merely names another manager in prose. Flagging it would train people
+        # to ignore the warning.
+        self.assertIsNone(
+            unbracketed_linkage(
+                "[DD.m5][MGR-3] IB pull #160 (W31, for MGR-7) — gated",
+                nick="DD.m5", host="m5"))
+
+    def test_title_without_any_linkage_is_quiet(self):
+        self.assertIsNone(
+            unbracketed_linkage("[AH.m5] session-naming / titles system",
+                                nick="AH.m5", host="m5"))
+
+
+class HandAssertedOrdinalWarningTest(unittest.TestCase):
+    """`titles set --sub MGR-<n>` that did not come from the allocator is how
+    every ordinal in the system got minted historically (#129) -- warn, but
+    never fail, since retitling an already-numbered legacy session is valid."""
+
+    def _warn(self, opts, env_marker=None):
+        import os
+        from remote_control.session_titles import _warn_hand_asserted_ordinal
+        prev = os.environ.get("MANAGER_ORDINAL_ALLOCATED")
+        if env_marker is None:
+            os.environ.pop("MANAGER_ORDINAL_ALLOCATED", None)
+        else:
+            os.environ["MANAGER_ORDINAL_ALLOCATED"] = env_marker
+        msgs = []
+        try:
+            _warn_hand_asserted_ordinal(opts, msgs.append)
+        finally:
+            if prev is None:
+                os.environ.pop("MANAGER_ORDINAL_ALLOCATED", None)
+            else:
+                os.environ["MANAGER_ORDINAL_ALLOCATED"] = prev
+        return msgs
+
+    def test_warns_on_hand_picked_manager_ordinal(self):
+        msgs = self._warn({"subs": ["MGR-12"]})
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("MGR-12", msgs[0])
+        self.assertIn("allocator", msgs[0])
+
+    def test_silent_when_allocator_issued(self):
+        self.assertEqual(self._warn({"subs": ["MGR-12"]}, env_marker="1"), [])
+
+    def test_worker_and_ticket_tags_are_not_ordinals(self):
+        # Only the bare MGR-<n> form is allocator-owned.
+        self.assertEqual(self._warn({"subs": ["MGR7-W15", "#66"]}), [])
+        self.assertEqual(self._warn({"sub": "#40"}), [])
 
 
 class RepoDerivationTest(unittest.TestCase):

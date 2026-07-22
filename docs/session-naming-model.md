@@ -168,32 +168,64 @@ python3 -m remote_control new-session --dir ~/dev/<repo> \
 `--task` implies `--wait` (the title is PUT against the registered session, so
 it needs the cse_id). Omitted/blank falls back to `auto-spawned`.
 
-## Manager ordinals are currently assertions, not allocations
+## Manager ordinals (fixed in #129)
 
-> **Every `[MGR-N]` in the system today is a human/agent assertion, not an
-> allocated ordinal.** No code path calls the allocator (`workers.sh mgr-id`);
-> the only reference to it in the repo is prose in meta-manage §5. Ordinals are
-> written into spawn briefs by hand and the session simply takes the number.
+An ordinal is **allocated**, never asserted. The only sanctioned path:
 
-Consequences, all observed:
+```bash
+~/.claude/skills/manage/scripts/workers.sh retitle "<task>"   # calls mgr-id
+```
 
-- The ledger `~/.ai-harness/manager/ordinals.jsonl` is **vestigial** — it stops
-  at ord 8 (2026-07-18) while MGR-9…MGR-12 are live and titled with zero
-  records. "Not in the ledger" therefore says nothing about whether a session
-  has an ordinal.
-- There are **two competing sources of truth** (brief text vs the ledger), and
-  the one that actually governs is the brief.
-- The allocator is **TOCTOU** (`prior=max(.ord); ord=prior+1; append`, no lock),
-  and the file already contains a duplicate (two sessions on ord 3) plus a
-  removed record (ord 4 absent, yet the next allocation was 5) — so it has been
-  hand-edited as well as raced.
+`mgr-id` allocates under a lock and records the claim in
+`~/.ai-harness/manager/ordinals.jsonl`. **Never write an ordinal into a spawn
+brief** and never run `titles set --sub MGR-<n>` by hand — `titles set` now
+warns when it sees a bare `MGR-<n>` the allocator didn't issue (`workers.sh`
+sets `MANAGER_ORDINAL_ALLOCATED=1` to mark the sanctioned call).
 
-So the `[MGRn-Wm]` **worker→manager linkage** half of the naming convention
-(#128) is **blocked on #129**. Don't build linkage on that file until allocation
-is atomic and single-source; otherwise duplicate ordinals become duplicate
-worker namespaces (two managers both minting `MGR3-W1`). Until then, prefer a
-descriptive title over inventing an ordinal — hand-assigning one is the very
-defect being fixed.
+### What was wrong before
+
+> Every `[MGR-N]` in the system was a human/agent **assertion**. No code path
+> called the allocator; ordinals were hand-written into briefs and the session
+> took the number.
+
+All observed, and all now fixed:
+
+- **Vestigial ledger** — it stopped at ord 8 (2026-07-18) while MGR-9…MGR-12 ran
+  titled with zero records, so "not in the ledger" proved nothing.
+- **Two competing sources of truth** — brief text vs the ledger, with the brief
+  winning. Worse, the two drifted apart entirely: one session held ord 3 in the
+  ledger while titling itself `[MGR-1]`, another held ord 5 while titling
+  `[MGR-2]`. Ledger ordinals and title ordinals were disjoint namespaces, each
+  with duplicates.
+- **TOCTOU allocator** — `prior=max(.ord); ord=prior+1; append`, no lock. In a
+  12-way concurrent test the old code produced **2 distinct ordinals out of 12**.
+
+### The fix
+
+- **Atomic allocation.** `mkdir`-based lock (macOS ships no `flock(1)`), plus
+  double-checked locking so concurrent calls for the *same* manager yield one
+  record. Same 12-way test now yields 12 distinct ordinals.
+- **Reconciled ledger.** Titles are what `[MGR` filters read, so the ledger was
+  reconciled *to the live titles*. Where a live session's claim collided with a
+  disconnected holder, the **live claimant keeps the number** and the legacy
+  record is marked `retired_at`/`superseded_by` — kept, not deleted, so `max()`
+  never recycles an ordinal. `_ordinal_record` skips retired records, so a
+  superseded session that reconnects gets a *fresh* ordinal instead of
+  colliding.
+
+With allocation atomic and single-source, #128's `[MGRn-Wm]` linkage half is
+unblocked.
+
+### Linkage must be in a bracket
+
+A title can carry a correct `[NICK.host]` prefix — so `titles list` reports
+`0 to rename` — while its linkage sits loose in the description
+(`[DP.m5] MGR7-W20 — …`). `extract_sub_tokens` returns `[]` and any `[MGR`
+filter misses it: the orphan failure #128 prevents, hiding inside a title the
+checker calls clean. `titles list` now reports these separately as
+**UNBRACKETED linkage** (a rename pass does *not* fix them; retitle with
+`--sub`). A title whose own linkage is correctly bracketed may still mention
+another manager in prose — that's not flagged.
 
 **Title PUTs work on disconnected sessions.** A title write is metadata; it does
 not require the session to be connected. A `disconnected` row can still be

@@ -140,10 +140,23 @@ relevant repo) and scope it via the brief.
 the generic `[NICK.host][<name>] auto-spawned` and stays that way until
 something retitles it — the watcher won't invent a `[MGR-N]`. So the brief's
 FIRST instruction must be: self-title before anything else, via
-`~/.claude/skills/manage/scripts/workers.sh retitle "<task>"` (auto-allocates
-the `[MGR-N]` ordinal). `titles set --self` resolves the manager's own id even
-outside a bridge worktree (env-JWT fallback), so this works from a plain
-checkout too; `--id <cse_id>` is only needed to title *another* session. See
+
+```bash
+~/.claude/skills/manage/scripts/workers.sh retitle "<task>"
+```
+
+**NEVER put an ordinal number in the brief, and never tell a manager to run
+`titles set --sub MGR-<n>` directly.** `retitle` is the only sanctioned path:
+it calls `mgr-id`, which *allocates* the ordinal under a lock and records the
+claim. A number written into a brief is an assertion — that habit is what left
+the ledger vestigial and put two live managers on the same number (#129).
+`titles set` now warns when it sees a bare `MGR-<n>` that the allocator did not
+issue. Let the manager discover its own ordinal; you don't need to know it in
+advance.
+
+(`titles set --self` still resolves a session's own id outside a bridge
+worktree via the env-JWT fallback — that's for *descriptive* retitles, not for
+minting an ordinal. `--id <cse_id>` is only for titling *another* session.) See
 `docs/session-naming-model.md`.
 
 ### 6. HANDLE BROKEN SESSIONS — verify ground truth first

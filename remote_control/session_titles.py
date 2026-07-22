@@ -1162,6 +1162,75 @@ def _parse_args(argv: List[str]) -> dict:
     return opts
 
 
+# A manager-ordinal sub-token (``MGR-3``), as opposed to a worker tag
+# (``MGR3-W1``) or a ticket tag (``#66``). Only the bare manager form is
+# allocator-owned, so only it triggers the warning.
+_MGR_ORDINAL_SUB_RE = re.compile(r"^MGR-\d+$")
+
+# Set by workers.sh around its `titles set` call to mark the ordinal as
+# allocator-issued. Its absence is what identifies a hand-asserted number.
+_ORDINAL_ALLOCATED_ENV = "MANAGER_ORDINAL_ALLOCATED"
+
+
+def _warn_hand_asserted_ordinal(opts: dict, log) -> None:
+    """Warn (never fail) when a caller passes a bare ``--sub MGR-<n>`` that did
+    NOT come from the allocator.
+
+    Every ``[MGR-N]`` in the system was historically a human/agent ASSERTION --
+    ordinals were hand-written into spawn briefs and no code path ever called
+    ``workers.sh mgr-id`` -- which left the ledger vestigial and let two live
+    managers claim the same number (#129). Titles are the machine-readable
+    linkage #128 depends on, so a hand-picked ordinal silently forks the
+    namespace. This is a warning rather than an error because retitling an
+    already-numbered legacy session is still legitimate; it just shouldn't be
+    how a NEW ordinal comes into existence."""
+    if os.environ.get(_ORDINAL_ALLOCATED_ENV) == "1":
+        return
+    subs = list(opts.get("subs") or ([] if not opts.get("sub") else [opts["sub"]]))
+    bare = [s for s in subs if _MGR_ORDINAL_SUB_RE.match(s or "")]
+    if not bare:
+        return
+    log(f"warning: {bare[0]} was not issued by the ordinal allocator. "
+        "Manager ordinals should come from "
+        "`skills/manage/scripts/workers.sh retitle \"<task>\"` (which calls "
+        "mgr-id and records the claim); hand-picking one can duplicate a live "
+        "manager's number. See docs/session-naming-model.md.")
+
+
+# A manager/worker linkage token (``MGR-3``, ``MGR7-W20``). Machine-readable
+# ONLY as a leading [bracket]; loose in the description it is invisible.
+_LINKAGE_TOKEN_RE = re.compile(r"\b(MGR-\d+|MGR\d+-W\d+)\b")
+
+
+def unbracketed_linkage(title: str, nick: Optional[str] = None,
+                        nicks: Optional[Iterable[str]] = None,
+                        host: str = "") -> Optional[str]:
+    """The linkage token sitting loose in *title*'s DESCRIPTION instead of in a
+    leading bracket, or None.
+
+    A title like ``[DP.m5] MGR7-W20 - condo variant`` LOOKS fine to
+    plan_renames -- the ``[NICK.host]`` prefix is correct, so it reports
+    "0 to rename" -- but the linkage is not machine-readable: ``extract_sub_tokens``
+    returns ``[]`` and any ``sessions --json`` filter on ``[MGR`` misses it
+    entirely. That is precisely the orphan-in-the-roster failure #128 exists to
+    prevent, hiding inside a title the checker calls clean. Its sibling
+    ``[DP.m5][MGR7-W19] ...`` shows the correct chained form.
+
+    Returns the offending token so the caller can name it. Flags ONLY titles
+    that carry no bracketed linkage AT ALL -- a title whose own linkage is
+    correctly bracketed may legitimately name another manager in prose
+    (``[DD.m5][MGR-3] ... (W31, for MGR-7)`` is fine, not a defect), and
+    flagging those would train people to ignore the warning."""
+    body = strip_prefix(title or "")
+    m = _LINKAGE_TOKEN_RE.search(body)
+    if not m:
+        return None
+    subs = extract_sub_tokens(title or "", nick=nick, nicks=nicks, host=host)
+    if any(_LINKAGE_TOKEN_RE.fullmatch(sub or "") for sub in subs):
+        return None
+    return m.group(1)
+
+
 def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
     """`titles set`: set ONE session's title to ``[NICK] <description>``.
 
@@ -1218,6 +1287,7 @@ def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
         log(f"FAILED {sid} http={code} body={str(body)[:160]}")
         return 1
     _set_title_lock(cfg, sid, False)  # a normal set hands control back to the watcher
+    _warn_hand_asserted_ordinal(opts, log)
     # ``--nick NICK`` is an explicit escape hatch: skip all repo/host
     # derivation entirely and use NICK verbatim as the bracket prefix. Exists
     # because repo resolution (config.sources[].url / worktree index / cse
@@ -1475,6 +1545,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     changed = [r for r in plan if r.changed]
     unknown = [r for r in plan if r.repo is None]
+    # Linkage that is present but not machine-readable. Reported separately
+    # from `to rename` because the title needs no re-prefixing -- a rename pass
+    # would leave it exactly as broken (#129).
+    loose = []
     for r in plan:
         mark = "~" if r.changed else ("?" if r.repo is None else "=")
         repo = r.repo or "<unknown repo>"
@@ -1482,8 +1556,18 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"    {r.old_title!r}")
         if r.changed:
             print(f" -> {r.new_title!r}")
+        tok = unbracketed_linkage(r.old_title, nick=r.nickname, nicks=nmap.values(),
+                                  host=host_nick)
+        if tok:
+            loose.append((r.id, tok))
+            print(f"  ! {tok} is in the description, not a [{tok}] bracket "
+                  f"-- invisible to a [MGR filter")
     print(f"\n{len(plan)} sessions; {len(changed)} to rename; "
           f"{len(unknown)} with undeterminable repo.")
+    if loose:
+        print(f"{len(loose)} with UNBRACKETED linkage (not fixed by a rename "
+              f"pass; retitle with --sub): "
+              + ", ".join(f"{sid} ({tok})" for sid, tok in loose))
 
     if opts["cmd"] != "apply":
         if changed:
