@@ -653,6 +653,9 @@ send-to-session]`:
    etc.), capture it as an **MVP POC** (see "POC checkpoints") — inline
    the diff/summary in chat when small, or save under
    `~/.ai-harness/manager/<MGR-CSE_ID>/pocs/` and link.
+   **If this report answers an explicit question the boss asked**, ALSO post
+   it to the durable feed with `answers.sh post` (see *Posting answers to the
+   boss's durable feed*) — same moment you surface it in chat.
 4. **Recommend the next action** (don't enumerate every option as a
    question): pick the one the report warrants — typically **close**,
    another **check**, re-dispatch with new instructions, or **forget** —
@@ -807,6 +810,36 @@ active workers. **Stays silent unless an anomaly is found** — periodic
   (armed / disarmed / next tick at).
 - "tick now" → run the **tick** play once outside its schedule (don't
   re-arm if the boss explicitly asked for a one-shot).
+
+## Posting answers to the boss's durable feed
+
+**Rule, not a suggestion:** whenever you deliver an answer to an **explicit
+question the boss asked**, you MUST also post it to the boss's durable answers
+feed. His question's answer scrolls away in the fast-moving chat; the feed is
+the one low-noise place he can always return to for it.
+
+Call the single helper — one call writes the durable iCloud file, mirrors into
+the `[INBOX] Boss answers feed` session, and fires the notification:
+
+```bash
+~/.claude/skills/manage/scripts/answers.sh post \
+  --mgr MGR-<ord> --subject "<short subject>" --ticket <N> \
+  --q "<the boss's question, verbatim or a tight paraphrase>" \
+  --a "<the answer you gave>"
+```
+
+- Scope is **strict**: post ONLY answers to the boss's explicit questions.
+  Not decisions, not "done" milestones, not worker status — those keep the
+  feed noisy and defeat its purpose.
+- `--subject` groups related answers under one `##` section (e.g. the ticket's
+  topic); reuse the same subject string so follow-ups stack newest-first in it.
+- `--ticket` is optional but include it when the question maps to one.
+- The helper is append-safe under a lock and idempotent (a re-run with the
+  same Q&A is a no-op), so posting twice never corrupts the file.
+
+Do this at the same moment you surface the answer to the boss in chat (see
+**Receiving a worker report** step 3, and any AskUserQuestion answer you
+relay) — the chat message and the feed post are two halves of one delivery.
 
 ## Confirmation rules (manager-specific)
 

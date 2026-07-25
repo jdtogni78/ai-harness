@@ -119,6 +119,25 @@ Each item: *what the boss must decide*, *which manager/ticket it's for*, *the
 default if the boss says nothing*. Keep it tight — if the boss can't act on a
 line, it doesn't belong here.
 
+**Post answers to the boss's durable feed.** Questions frequently route THROUGH
+you — the boss asks in this meta chat and you relay a manager's answer back. So
+the same rule the managers follow applies here: whenever you deliver the answer
+to an **explicit question the boss asked**, you MUST also post it to the durable
+feed at the moment you surface it in chat (including AskUserQuestion answers you
+relay). One helper call writes the iCloud file, mirrors into the `[INBOX] Boss
+answers feed` session, and fires the notification:
+
+```bash
+~/.claude/skills/manage/scripts/answers.sh post \
+  --mgr MGR-<ord> --subject "<short subject>" --ticket <N> \
+  --q "<the boss's question>" --a "<the answer>"
+```
+
+Scope is **strict**: only answers to explicit questions — not the pending-action
+list, not recaps, not status. Use the answering manager's `MGR-<ord>` as
+`--mgr` (or your own if the answer is yours). See the [[manage]] skill's
+*Posting answers to the boss's durable feed* for the full contract.
+
 ### 5. SPAWN MANAGERS — for a new initiative
 
 For a project-specific OR a system-wide initiative (e.g. "coordinate a
