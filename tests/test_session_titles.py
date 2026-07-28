@@ -1423,8 +1423,14 @@ class RepoFromCwdTest(unittest.TestCase):
     def test_outside_dev_returns_none(self):
         self.assertIsNone(repo_from_cwd("/elsewhere/repo", "/d"))
 
-    def test_equal_to_dev_returns_none(self):
-        self.assertIsNone(repo_from_cwd("/d", "/d"))
+    def test_equal_to_dev_returns_dev_root_basename(self):
+        # cwd IS the dev root (a dispatcher/manager anchored at ~/dev). Resolve
+        # to the dev-root basename ("dev" -> DEFAULT_NICKNAMES DEV) instead of
+        # None, so a ~/dev manager gets [DEV.host] from the shared resolver
+        # rather than <unknown repo> / a bare [MGR-n] (#141). Mirrors
+        # new_session.initial_subname_title's dev-root fallback.
+        self.assertEqual(repo_from_cwd("/Users/me/dev", "/Users/me/dev"), "dev")
+        self.assertEqual(repo_from_cwd("/d", "/d"), "d")
 
 
 class LiveSessionEntriesTest(unittest.TestCase):

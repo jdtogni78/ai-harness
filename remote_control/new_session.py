@@ -330,19 +330,22 @@ def initial_subname_title(
     nmap = build_nickname_map(file_text,
                               os.environ.get("SESSION_TITLE_NICKNAMES", ""))
     template = title_format(file_text, os.environ.get("SESSION_TITLE_FORMAT", ""))
-    if not repo:
-        # Only the dev root itself gets the fallback; any other unresolvable
-        # cwd still returns None (unchanged behaviour for the spawn path).
-        if cwd_s != dev_s:
-            return None
-        # Fixed ``DEV`` nick (not derived from a repo basename), host_local=True
-        # (we ARE running here). repo="dev" only feeds the {repo} token; {nick}
-        # is forced to DEV so the prefix reads [DEV.<host>] regardless of map.
+    # The dev root itself gets a fixed ``DEV`` nick. Keyed on ``cwd_s == dev_s``
+    # directly (not on ``repo`` being falsy): repo_from_cwd now RESOLVES the dev
+    # root to its basename rather than returning None (#141, so `titles set` and
+    # the live index tag a ~/dev manager instead of leaving it <unknown repo>),
+    # so the old ``if not repo`` trigger no longer fires here. ``{nick}`` is
+    # forced to DEV so the prefix reads ``[DEV.<host>]`` regardless of the dev
+    # dir's basename (tests use a temp dir; production is literally ~/dev).
+    if cwd_s == dev_s and repo_from_worktree_path(cwd_s) is None:
         vals = session_values({"id": ""}, "dev", nmap,
                               host=host, host_local=True, branch="")
         vals["nick"] = "DEV"
         token = render_prefix(template, vals)
         return apply_prefix(body, token, sub=subname)
+    if not repo:
+        # Any other unresolvable cwd -> no prefix (unchanged spawn behaviour).
+        return None
     # No id yet (the title PUT itself doesn't need it; the ``{id}``/``{shortid}``
     # template tokens get an empty value), host_local=True (we ARE running here).
     vals = session_values({"id": ""}, repo, nmap,

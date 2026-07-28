@@ -14,6 +14,7 @@ from __future__ import annotations
 import getpass
 import os
 import shutil
+import socket
 import subprocess
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -121,20 +122,25 @@ def seed_host_file(path: Path, host_value: str, out=print) -> bool:
     ``REMOTE_CONTROL_HOST`` env value at install time (the operator's chosen
     nickname for this machine).
 
-    Returns True if the file was just created; False if it already exists or
-    if *host_value* is empty (no plist override -> nothing to capture, fall
-    through to the hostname-derive path at run time). Idempotent. Perms: dir
-    700, file 600 (matches ``seed_active_file`` so the entire host-local
-    config tree has the same mode)."""
+    Returns True if the file was just created; False if it already exists.
+    Idempotent. Perms: dir 700, file 600 (matches ``seed_active_file`` so the
+    entire host-local config tree has the same mode).
+
+    When *host_value* is empty (the plist carried no ``REMOTE_CONTROL_HOST``),
+    seed the **hostname-derived** nick rather than leaving the file absent. An
+    absent file is the actual hazard: without it, every context derives its own
+    nick from its own env, so a process WITH ``REMOTE_CONTROL_HOST`` and one
+    WITHOUT it disagree (the ``local-m5note-*`` vs ``local-m5-*`` split, and a
+    session titled ``[…m5]`` whose server name was ``m5note`` -- #141). A seeded
+    file makes every context resolve identically. If the bare hostname isn't the
+    nick you want (e.g. ``m5note`` where you want ``m5``), set
+    ``REMOTE_CONTROL_HOST`` at install or edit the one file afterwards -- but the
+    file always exists, so the drift can't happen silently."""
+    from .discovery import nickname_from_hostname
     p = Path(path)
     if p.exists():
         return False
-    value = (host_value or "").strip()
-    if not value:
-        # Nothing to seed (the plist didn't carry REMOTE_CONTROL_HOST on this
-        # host -- run-time will derive from the hostname). Stay silent rather
-        # than create an empty/comment-only file.
-        return False
+    value = (host_value or "").strip() or nickname_from_hostname(socket.gethostname())
     p.parent.mkdir(parents=True, exist_ok=True)
     try:
         p.parent.chmod(0o700)

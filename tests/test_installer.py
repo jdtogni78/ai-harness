@@ -196,10 +196,15 @@ class SeedHostFileTest(unittest.TestCase):
             self.assertEqual(target.read_text(), "# operator-renamed\nnote\n")
             self.assertFalse(any("Seeded" in m for m in out))
 
-    def test_empty_host_value_is_no_op(self):
-        # No REMOTE_CONTROL_HOST in the plist -> nothing to capture. Don't
-        # create a comment-only file; that would mask the hostname-derive
-        # path at run time and silently break the supervisor's nickname.
+    def test_empty_host_value_seeds_hostname_derived_nick(self):
+        # No REMOTE_CONTROL_HOST in the plist -> seed the HOSTNAME-DERIVED nick
+        # rather than leave the file absent. An absent file is the hazard: each
+        # context then derives its own nick from its own env, so a process with
+        # the env and one without disagree (the local-m5note-* vs local-m5-*
+        # split, #141). A seeded file makes every context agree.
+        import socket
+        from remote_control.discovery import nickname_from_hostname
+        derived = nickname_from_hostname(socket.gethostname())
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "host"
             for value in ("", "   ", "\n"):
@@ -208,9 +213,12 @@ class SeedHostFileTest(unittest.TestCase):
                         target.unlink()
                     out = []
                     created = seed_host_file(target, value, out=out.append)
-                    self.assertFalse(created)
-                    self.assertFalse(target.exists())
-                    self.assertFalse(any("Seeded" in m for m in out))
+                    self.assertTrue(created)
+                    self.assertTrue(target.exists())
+                    self.assertIn(f"\n{derived}\n", target.read_text())
+                    self.assertEqual(
+                        host_nickname({}, host_file=str(target)), derived)
+                    self.assertTrue(any("Seeded" in m for m in out))
 
     def test_strips_whitespace_around_value(self):
         with tempfile.TemporaryDirectory() as tmp:
