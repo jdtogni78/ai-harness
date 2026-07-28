@@ -11,6 +11,19 @@ runbook) from the MacBook. The MacBook's personal nickname is set per-host
 via ``REMOTE_CONTROL_HOST`` in its plist; this file deliberately doesn't
 hard-code it (see issue #12).
 
+## Browser access behind logins / bot-walls
+
+Need a page behind Cloudflare Turnstile, a login, or 2FA? An agent-launched
+browser can't get through — use the `joint-browser-usage` skill: the boss logs
+in once in a debug-profile Chrome, the agent attaches over CDP and drives it.
+
+**A detached worker can never complete an OAuth flow** (`claude mcp login` dies
+with *"stdin isn't a terminal"*) — so it cannot self-authorize MCP servers.
+Escalate for an interactive terminal, or use a scoped token from a `chmod 600`
+file; **never paste credentials into chat**.
+
+Detail + gotchas: [docs/joint-browser.md](docs/joint-browser.md).
+
 ## Project tracking
 
 Work for this repo is tracked on the **Remote Control** GitHub Project board

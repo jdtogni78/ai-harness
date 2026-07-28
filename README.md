@@ -164,6 +164,7 @@ general-purpose CI system. The full runbook is in
 | **[docs/usage-limit-monitor-v2.md](docs/usage-limit-monitor-v2.md)** | Deep dive on the usage-limit monitor and why the local-transcript (v1) approach was abandoned. |
 | **[docs/session-manager-cases.md](docs/session-manager-cases.md)** | The session-manager case catalog, decision guidelines, and testing strategy. |
 | **[docs/perm-gate.md](docs/perm-gate.md)** | The AI permission gate: the two-tier decision model, shadow-mode rollout, and config. |
+| **[docs/joint-browser.md](docs/joint-browser.md)** | Sharing one real browser with an agent to get past bot-walls/2FA — and why a detached worker can't complete an OAuth flow. |
 | **[skills/README.md](skills/README.md)** | The skills and the multi-agent claim convention. |
 | **[scripts/pool/README.md](scripts/pool/README.md)** | The shared environment pools (preview + test). |
 
