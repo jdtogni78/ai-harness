@@ -222,6 +222,16 @@ doing>"`), then `register` it and let `retitle-worker` add the linkage. The
 worker never needs to know its own ordinal, so the brief never needs to name
 one.
 
+> **Required, not optional — this is where it actually breaks.** Every worker
+> spawn MUST pass `--task`, and the dispatch play is not done until you have
+> both `register`ed the worker and run `retitle-worker`. A bare
+> `new-session --prompt-file <brief>` with no `--task` and no registration is
+> exactly what left five live rows as `[NICK][slug] auto-spawned` with no
+> linkage (#141); `new-session` now WARNS when you do it. **A spawn is complete
+> only when the worker's title no longer reads `auto-spawned` and carries its
+> `[MGRn-Wm]`** — check it (`sessions list` / `titles list`) before moving on,
+> the same way you handshake "done" before declaring a task done.
+
 If `count==0`, the helpers still emit `[MGR-<ord>] <task> (0 workers)` so the
 boss can tell an idle manager from a non-manager session at a glance.
 

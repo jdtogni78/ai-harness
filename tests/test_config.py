@@ -61,8 +61,20 @@ class SupervisorConfigTest(unittest.TestCase):
                          "user")
 
     def test_host_defaults_to_hostname_nickname(self):
-        self.assertEqual(SupervisorConfig.from_env({}).host,
-                         nickname_from_hostname(socket.gethostname()))
+        # Hermetic: the ~/.ai-harness/host FILE outranks the hostname derive
+        # (host_nickname precedence #2), so this test must point HOST_FILE at a
+        # nonexistent path to actually exercise the fallthrough it claims to --
+        # otherwise it only passes on a machine that happens to have no host
+        # file, and breaks the moment one is seeded (which is the documented
+        # single-source fix, #141).
+        import remote_control.config as cfgmod
+        orig = cfgmod.HOST_FILE
+        cfgmod.HOST_FILE = "/nonexistent/ai-harness-host"
+        try:
+            self.assertEqual(SupervisorConfig.from_env({}).host,
+                             nickname_from_hostname(socket.gethostname()))
+        finally:
+            cfgmod.HOST_FILE = orig
 
     def test_handoff_perm_mode_default_is_bypass(self):
         # Handoff sessions come up unattended on supervisor restart -- any
