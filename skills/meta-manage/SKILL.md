@@ -178,6 +178,16 @@ worktree via the env-JWT fallback — that's for *descriptive* retitles, not for
 minting an ordinal. `--id <cse_id>` is only for titling *another* session.) See
 `docs/session-naming-model.md`.
 
+**The same rule applies to every WORKER you (or a manager) spawn.** A worker
+spawned with a bare `new-session --prompt-file <brief>` — no `--task`, no
+`register`/`retitle-worker` — lands as `[NICK.host][slug] auto-spawned` with no
+task and no manager linkage, and stays that way; that is exactly what produced
+five orphan rows in the wild (#141). So: pass `--task "<what it's doing>"` on
+the spawn, and don't consider a dispatch complete until the worker's title no
+longer reads `auto-spawned`. `new-session` now warns when a `--reply-to` worker
+is spawned with neither `--task` nor a self-title directive in its brief — treat
+that warning as a defect to fix, not noise.
+
 ### 6. HANDLE BROKEN SESSIONS — verify ground truth first
 
 - **`409 session_not_active`** — the target is busy or unreachable. Retry when

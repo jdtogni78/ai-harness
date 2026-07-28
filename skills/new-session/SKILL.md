@@ -81,6 +81,14 @@ python3 -m remote_control new-session [--dir PATH] [--name SLUG]
   from inside a Claude Code session "just works").
 - `--no-reply-to` — skip both env propagation and the prompt header (use
   when the worker has no caller to report back to).
+- `--task "<what it's doing>"` — **pass this whenever you spawn a worker.**
+  It sets the title BODY, replacing the `auto-spawned` placeholder →
+  `[NICK.host][slug] <task>`. Without it (and without a self-title directive
+  in the prompt), a worker lands as `[NICK.host][slug] auto-spawned` with no
+  task and no manager linkage — an orphan in the roster (#128/#141). The CLI
+  now WARNS when you spawn a `--reply-to` worker with neither `--task` nor a
+  self-title in the prompt; the warning means "you're about to create an
+  unnamed row," not a hard error. `--task` implies `--wait`.
 - `--subname SLUG` — tag the inner session's title with an extra
   `[SLUG]` bracket so the spawned subsession is visually distinguishable in
   the picker / `sessions list`. After registration, the CLI PUTs a title of
@@ -217,22 +225,25 @@ Spawn + brief, with auto-detected reply-to (the manager-pattern):
 ```bash
 python3 -m remote_control new-session \
   --dir ~/dev/job-search \
+  --subname adzuna-refactor \
+  --task "Adzuna API refactor (#57)" \
   --prompt-file /tmp/worker-brief.md
 # ... pid + name + log lines ...
 #   reply-to: cse_01MANAGER
 #   session: cse_01WORKER
-#   title  : '[JOB.mini][mini-3f2a1c8b] auto-spawned'
+#   title  : '[JOB.mini][adzuna-refactor] Adzuna API refactor (#57)'
 # submitted cse_01WORKER (1234 chars)
 ```
 
-Override the auto-derived subname with something meaningful:
+Omitting `--task` (and any self-title directive in the brief) triggers the
+worker-naming warning and leaves the row as `auto-spawned`:
 
 ```bash
 python3 -m remote_control new-session \
   --dir ~/dev/job-search \
-  --subname adzuna-refactor \
   --prompt-file /tmp/worker-brief.md
-# ... title  : '[JOB.mini][adzuna-refactor] auto-spawned'
+# WARNING: spawning a worker with neither --task nor a self-title directive ...
+# ... title  : '[JOB.mini][mini-3f2a1c8b] auto-spawned'   # <- the orphan row
 ```
 
 Dry-run a non-git dir:

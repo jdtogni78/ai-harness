@@ -10,8 +10,35 @@ from remote_control import new_session
 from remote_control.new_session import (
     autogen_name, build_argv, default_subname, extract_session_id,
     initial_subname_title, inject_into_server, name_is_safe, pick_spawn_mode,
-    read_log_tail, submit_active_with_retry, wait_for_session_id,
+    prompt_mandates_self_title, read_log_tail, submit_active_with_retry,
+    wait_for_session_id,
 )
+
+
+class WorkerNamingGuardTest(unittest.TestCase):
+    """A worker spawned with neither --task nor a self-title directive lands as
+    `[NICK.host][slug] auto-spawned` -- the orphan failure #128 prevents, which
+    recurred (#141) because the mandate was documented but not enforced. The
+    detector is what lets new-session warn only on a genuinely unnamed worker."""
+
+    def test_brief_that_actually_failed_is_flagged(self):
+        # The real /tmp/alldocs_worker_brief.md shape: a task description with
+        # no titling instruction at all.
+        self.assertFalse(prompt_mandates_self_title(
+            "Worker task — execute approved document moves. Report back."))
+
+    def test_self_title_paths_are_recognized(self):
+        for p in (
+            "First, run: workers.sh retitle-worker $CSE",
+            "Self-title before anything else via `titles set --self`",
+            "call mgr-id then retitle",
+            "You are [FIN.m5][MGR13-W2]; do the extraction",
+        ):
+            self.assertTrue(prompt_mandates_self_title(p), p)
+
+    def test_empty_or_missing_prompt_is_not_a_directive(self):
+        self.assertFalse(prompt_mandates_self_title(None))
+        self.assertFalse(prompt_mandates_self_title(""))
 
 
 class AutogenNameTest(unittest.TestCase):

@@ -351,6 +351,23 @@ def initial_subname_title(
     return apply_prefix(body, token, sub=subname)
 
 
+_SELF_TITLE_HINT_RE = re.compile(
+    r"(?i)(self-title|retitle|titles\s+set|mgr-id|\[MGR)")
+
+
+def prompt_mandates_self_title(prompt: Optional[str]) -> bool:
+    """True if *prompt* tells the spawned session to name itself -- any mention
+    of the sanctioned titling path (``workers.sh retitle`` / ``retitle-worker``,
+    ``titles set``, ``mgr-id``) or of a ``[MGR...]`` linkage tag. Used by the
+    worker-naming guard to stay quiet when the brief already handles naming, so
+    the warning only fires on a genuinely unnamed worker. Deliberately loose: a
+    false *negative* (missing a cleverly-worded instruction) only costs one
+    warning line; a false positive would train people to ignore it, so the
+    tokens matched are ones that only appear when titling is actually the
+    subject."""
+    return bool(prompt and _SELF_TITLE_HINT_RE.search(prompt))
+
+
 def own_session_id_from_env(env: Mapping[str, str]) -> Optional[str]:
     """The current process's own ``cse_*`` id, decoded from the desktop app's
     ``CLAUDE_CODE_SESSION_ACCESS_TOKEN`` JWT (``session_id`` claim). Local
@@ -864,6 +881,22 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
             log("no sender cse_id detected (CLAUDE_CODE_SESSION_ACCESS_TOKEN unset); "
                 "spawned worker won't know who to reply to — pass --reply-to CSE_ID "
                 "or --no-reply-to to silence this")
+
+    # Worker-naming guard. A worker (one spawned with a --reply-to manager) that
+    # gets neither a --task nor a self-title directive in its prompt lands as the
+    # generic `[NICK.host][<server-slug>] auto-spawned` and stays that way -- the
+    # exact orphan-in-the-roster failure #128 exists to prevent, which recurred
+    # in the wild (#141) precisely because the mandate was documented but not
+    # enforced here. Warn LOUDLY rather than fail (a deliberately unnamed scratch
+    # worker is legitimate), naming both fixes -- same "loud, not silent"
+    # principle as the host-band fallthrough (#139).
+    if reply_to and not opts["task"] and not prompt_mandates_self_title(prompt_body):
+        log("WARNING: spawning a worker with neither --task nor a self-title "
+            "directive in its prompt; it will land as '[NICK.host][slug] "
+            "auto-spawned' with no task or manager linkage. Pass --task \"<what "
+            "it's doing>\", or put a first-turn self-title in the brief "
+            "(workers.sh retitle-worker / titles set --self). See "
+            "docs/session-naming-model.md.")
 
     cmd = build_argv(cfg.claude_bin, name, spawn_mode, opts["permission_mode"])
     logpath = Path(cfg.logdir) / f"{name}.log"
