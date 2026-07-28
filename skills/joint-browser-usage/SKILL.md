@@ -127,6 +127,34 @@ driver when you need a repeatable, scripted, detached, multi-step flow.
 
 ---
 
+---
+
+## Deliberately NOT shipped: the *launched*-browser driver
+
+The #68 reference set also had a `driver.py` that **launched** its own Chromium
+(`p.chromium.launch(headless=False, …)`) and steered it with the same
+control-file loop. It is not included here, on purpose.
+
+It's the approach that **fails**. And note it isn't headless — it's headed — so
+headedness was never the issue: **the launch is**. Any launched browser, headed
+or headless, gets a fresh automation profile, `navigator.webdriver` set, and no
+login, which is exactly what Turnstile blocks. Shipping it as a supported option
+would invite someone to retry the thing that already cost a walkthrough.
+
+If you need to drive a browser where there's **no** login and **no** bot-wall,
+you don't need this skill — use [[narrate-demo]], which already owns
+Playwright-driven Chromium.
+
+## OAuth: a detached worker can't finish one
+
+Directly relevant if you reached for this skill to authorize something:
+`claude mcp login` dies in a non-interactive session with *"stdin isn't a
+terminal"*. The break is in the **paste-back of the redirect URL**, not the
+browser — so this skill carries the consent page but **cannot** finish the flow.
+Escalate for an interactive terminal, or use a scoped token from a `chmod 600`
+file. Never paste credentials into chat. Full note:
+[docs/joint-browser.md](../../docs/joint-browser.md).
+
 ## Notes
 - Requirements for Approach 1: Google Chrome installed, and the narrate venv
   (`~/dev/ai-harness/narrate/.venv`, has playwright + chromium).
