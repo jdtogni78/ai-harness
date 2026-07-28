@@ -780,7 +780,17 @@ def repo_from_cwd(cwd: str, dev: str) -> Optional[str]:
     except ValueError:
         return None
     parts = rel.parts
-    return parts[0] if parts else None
+    if not parts:
+        # cwd IS the dev root itself (a dispatcher/manager anchored at ~/dev,
+        # not any repo under it). Without this it returned None and the session
+        # resolved to <unknown repo> with no [NICK] -- a bare [MGR-15] until
+        # hand-forced to [DEV.m5] (#141). new_session.initial_subname_title
+        # already renders this case as [DEV.host]; return the dev-root basename
+        # ("dev" -> DEFAULT_NICKNAMES DEV) so the shared resolver -- and thus
+        # both the live index (live_session_entries) and `titles set --cwd` --
+        # agree with it.
+        return Path(dev).name
+    return parts[0]
 
 
 def _ps_cmd(pid: int) -> str:

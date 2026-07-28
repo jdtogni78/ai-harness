@@ -48,3 +48,9 @@ cos-console=COS
 # used to need (`divorcio-73-familyfund-pipeline=DP`, ...).
 divorcio*=DP
 divorce-prep*=DP
+
+# finex (local dir) and fin-export (git-URL repo name) are the same repo; both
+# -> FE so the dir-derived and URL-derived nicks don't flap (same fix as the
+# divorcio pair above; #141).
+finex*=FE
+fin-export*=FE
