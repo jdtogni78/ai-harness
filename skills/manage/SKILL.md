@@ -58,6 +58,34 @@ answer.
   or instructing /close-work without explicit boss confirmation is NOT
   — those are irreversible (see "Confirmation rules" below).
 
+## First-turn protocol — self-title, THEN register yourself
+
+Before doing any work, a manager session does two things in order:
+
+1. **Self-title** (allocates your `MGR-N` ordinal under a lock):
+   ```bash
+   ~/.claude/skills/manage/scripts/workers.sh retitle "<your task>"
+   ```
+2. **Register yourself in the manager registry** so out-of-domain work can be
+   routed TO you and the meta-manager's daily sweep can find you (see
+   [`docs/manager-registry.md`](../../docs/manager-registry.md)):
+   ```bash
+   REG=~/.claude/skills/manage/scripts/registry.sh
+   # DOMAIN manager (standing — owns a domain):
+   "$REG" register --kind domain  --name "<n>" --goals "<one line>" \
+     --responsibilities "skills"                 # from the controlled vocab
+   # PROJECT manager (ad-hoc — tied to a board/repo):
+   "$REG" register --kind project --name "<n>" --goals "<one line>" \
+     --responsibilities "deck" --board <N>       # or --project "<repo>"
+   ```
+   `register` reads your own `cse_id` and ordinal automatically (allocated by
+   step 1). Responsibilities come from a small **controlled vocabulary**
+   (skills, infra, trading, finance, legal, deck, sessions, harness,
+   coordination) — normalized on write and read, so pick the closest token; an
+   out-of-vocab word is accepted but warns. A **domain** responsibility is
+   EXCLUSIVE — if `register` refuses with a conflict, another manager already
+   owns that domain: route to it (see below) rather than `--force`-ing.
+
 ## The manager loop
 
 1. **Boss says: "do X (and Y and Z)".**
@@ -106,6 +134,29 @@ answer.
    supervisor's one-shot reaper sweeps it once its session is archived.
 9. **Mark closed in the state log** (`workers.sh close …`) and the row drops
    out of the active list.
+
+## Routing out-of-domain work — consult the registry FIRST
+
+When a request lands that is OUTSIDE your own registered responsibilities, do
+NOT just do it. Consult the registry to find the right owner first (see
+[`docs/manager-registry.md`](../../docs/manager-registry.md)):
+
+```bash
+REG=~/.claude/skills/manage/scripts/registry.sh
+owner="$("$REG" lookup --responsibility <x>)" && echo "owner: $owner"
+```
+
+- **A live manager owns it** (`lookup` prints a `cse_*`, and that session is
+  live in `sessions --json`) → **RELAY** to it via [[send-to-session]] — don't
+  do the work yourself. Canonical example: you're asked to "add a skill" but
+  you're not the skill-manager → relay to whoever owns `skills`.
+- **No owner** (`lookup` exits non-zero) **or the owner's session is not live**
+  → **ESCALATE** to the meta-manager (`MGR-11`), which decides whether to spin a
+  new manager. Spinning a new manager is the META-manager's call — a peer
+  manager relays to an existing owner but never spins a sibling itself.
+
+This keeps a single owner per domain and stops two managers doing the same
+domain's work two different ways (the point of the exclusive-domain rule).
 
 ## Session title convention
 

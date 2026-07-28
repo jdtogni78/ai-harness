@@ -164,6 +164,13 @@ FIRST instruction must be: self-title before anything else, via
 ~/.claude/skills/manage/scripts/workers.sh retitle "<task>"
 ```
 
+**And bake in the register step right after self-title** (per [[manage]]'s
+first-turn protocol): the brief must have the new manager declare its `kind`,
+`goals`, `responsibilities`, and `board`/`project` via `registry.sh register`,
+so it appears in the roster, is reachable by routed work, and is swept daily
+(§8, §9). A domain manager registers `--kind domain`; a project manager
+`--kind project --board <N>`.
+
 **NEVER put an ordinal number in the brief, and never tell a manager to run
 `titles set --sub MGR-<n>` directly.** `retitle` is the only sanctioned path:
 it calls `mgr-id`, which *allocates* the ordinal under a lock and records the
@@ -209,6 +216,78 @@ that warning as a defect to fix, not noise.
 Before any sweep/close/archive, rebuild state from **thread history + the
 manager JSONL logs** (§1). The logs outlive chat compression, so they're the
 recovery source when this session resumes cold (see [[resume-work]]).
+
+### 8. DAILY PROGRESS SWEEP — pull one line from every live manager
+
+Once-daily, **meta-driven** (NOT per-manager self-timers). You pull a one-line
+progress update from every live registered manager into one consolidated log
+the boss reads in ONE place. See
+[`docs/manager-registry.md`](../../docs/manager-registry.md).
+
+```bash
+REG=~/.claude/skills/manage/scripts/registry.sh
+```
+
+1. **List registered managers**: `"$REG" list --json`, joined with `sessions
+   --json` for liveness (§1).
+2. **Batch the sweep brief** to every LIVE manager (same shape as the
+   pending-question sweep, `--reply-to <self>`):
+   > "Daily progress sweep: reply with ONE line — what moved on your
+   > initiative since your last report."
+3. **Record every manager's outcome** — including the ones you could NOT reach.
+   A busy manager returns `409 session_not_active`; that is `unreachable-busy`,
+   NOT silence (#145 gap 3). Never let an unreachable manager render as "no
+   progress":
+   ```bash
+   "$REG" set-report --cse <mgr> --note "<their one-liner>"          # replied
+   "$REG" set-report --cse <mgr> --status unreachable-busy           # 409 / running
+   "$REG" set-report --cse <mgr> --status no-response                # idle, ignored the sweep
+   ```
+   Each call stamps the registry record AND appends to the **progress log**:
+   `~/.ai-harness/manager/progress.jsonl` (`"$REG" progress-path`). Retry an
+   `unreachable-busy` manager on the NEXT sweep — skip-and-retry is fine,
+   silent-drop is not.
+4. **Surface** the consolidated day to the boss from the progress log.
+
+**Scheduling (BOSS-GATED).** The once-daily trigger is a cron that nudges THIS
+meta-manager session to run the sweep. A standing recurring job is a recurring
+side-effect, so it is not created automatically — enable it deliberately:
+
+```
+# Enable: schedule a daily nudge (off-minute, ~09:07 local) into this session.
+#   CronCreate(cron="7 9 * * *", prompt="/meta-manage run the daily progress sweep")
+# Disable: CronList to find the job id, then CronDelete(id).
+```
+
+(CronCreate jobs are session-only and auto-expire after 7 days — re-arm as
+needed, or use the [[schedule]] skill for a durable cloud routine.)
+
+### 9. PROJECT LIST + SPIN DECISION — who owns what, what's unowned
+
+The projects are the **GitHub boards** (canonical) + a committed
+**system-initiative supplement** (`skills/meta-manage/system-initiatives.jsonl`)
+for non-board initiatives (the naming system, the answers feed, this registry,
+the skills domain, harness infra). Join them, annotated with each one's owning
+manager, and flagged when unowned:
+
+```bash
+"$REG" projects            # ⚠ SPIN = no live/active owner → spin candidate
+```
+
+On an **unmatched request** or an **unowned project/initiative**, YOU (the meta)
+spin a manager and register it:
+
+1. `new-session --dir <dir> --prompt-file <brief> --reply-to <self> --wait`
+   with a rich brief whose FIRST instructions are self-title then
+   `registry.sh register` (per [[manage]]'s first-turn protocol).
+2. Confirm its title no longer reads `auto-spawned` and `"$REG" list` shows it.
+
+**Stand up the STANDING domain managers.** Under the hybrid model, at least a
+**skill-manager** owning `skills` should exist, so future skill builds (the
+joint-browser #144, the answers feed we did ad-hoc) ROUTE to it instead of being
+built ad-hoc. When a manager escalates "add a skill" and no skill-manager
+exists, that's the signal to spin the standing one — this is the pattern the
+registry enables.
 
 ## Guardrails
 

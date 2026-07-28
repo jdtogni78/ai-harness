@@ -1,0 +1,5 @@
+{"name": "session-naming system", "description": "titles/ordinals/mgr-audit — the [NICK.host][MGR-N] naming model and its watcher", "responsibilities": ["sessions"]}
+{"name": "boss answers feed", "description": "answers.sh durable Q&A feed + [INBOX] mirror + notifications", "responsibilities": ["coordination"]}
+{"name": "manager registry", "description": "registry.sh — who-owns-what map, routing, daily progress sweep (this initiative, #145)", "responsibilities": ["coordination"]}
+{"name": "skills domain", "description": "building/maintaining ~/.claude/skills/* (new-session, joint-browser, etc.) — owned by the standing skill-manager", "responsibilities": ["skills"]}
+{"name": "harness infra", "description": "the remote_control supervisor, launchd servers, active-dirs, one-shot reaper", "responsibilities": ["infra"]}
