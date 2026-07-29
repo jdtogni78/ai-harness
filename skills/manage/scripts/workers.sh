@@ -303,13 +303,27 @@ _ordinal_record() {
   mgr="$(resolve_manager_id)" || return $?
   file="$(ordinals_path)" || return $?
   [[ -s "$file" ]] || { printf ''; return 0; }
-  # Skip RETIRED records: a record whose ordinal was reconciled to a live
-  # claimant (#129) is history, not a current claim. Without this filter a
-  # superseded session that reconnects would be handed its old number back and
-  # collide with whoever now holds it. It gets a fresh ordinal instead; the
-  # retired record stays in the file so max() never recycles an ordinal.
+  # SUPERSEDED vs TERMINAL -- the distinction that keeps this idempotent.
+  #
+  # A record carrying `superseded_by` means another cse now holds THIS ordinal,
+  # so handing the old session its number back would collide (#129/#136): skip
+  # it, and it gets a fresh one.
+  #
+  # A record retired with NO successor is TERMINAL -- the session is archived
+  # and its initiative ended. Return it. Skipping those was an ordinal LEAK
+  # (#146): `retitle-worker` calls mgr-id FOR THE MANAGER to build the
+  # MGR<n>-W<m> tag, so a LIVE worker of an ARCHIVED manager minted a new
+  # ordinal on every retitle -- one dead cse burned four (7, 14, 16, 19) and
+  # every reconcile pass simply fed it another. Returning the terminal record
+  # makes the ordinal stable, so the reconcile converges.
+  #
+  # Precedence: an ACTIVE record wins; else the most recent terminal-retired
+  # one; else empty (all superseded -> fresh allocation, the #136 intent).
   jq -s -c --arg m "$mgr" \
-    '[ .[] | select(.cse_id == $m and (has("retired_at") | not)) ][0] // empty' "$file"
+    '[ .[] | select(.cse_id == $m) ] as $all
+     | ( [ $all[] | select(has("retired_at") | not) ][0]
+         // [ $all[] | select(has("superseded_by") | not) ][-1]
+         // empty )' "$file"
 }
 
 # Per-host ordinal BAND. The ledger is per-machine but titles are GLOBAL, so
@@ -382,6 +396,23 @@ _ordinals_unlock() {
   _ORDINALS_LOCK=""
 }
 
+# True if *cse* is in the ACTIVE session list. Active-list MEMBERSHIP is the
+# real archived test -- `sessions --all` reports arch=None even for archived
+# sessions, which reads as "not archived" and has already misled one reader.
+# Fails OPEN (returns true) when the list can't be read, so a transient API
+# failure can't block every allocation on the host.
+_manager_id_is_active() {
+  local out
+  out="$(cd "$AI_HARNESS_DIR" && python3 -m remote_control sessions list --ids-only 2>/dev/null)" || return 0
+  # FAIL OPEN unless we positively hold a valid active list. Enforcing on
+  # anything else would block allocation whenever the API hiccups -- and would
+  # break any caller pointing AI_HARNESS_DIR at a stub (the workers.sh tests do
+  # exactly that). "Valid" = at least one line shaped like a session id; the
+  # check only has authority when it can actually see the roster.
+  grep -qE '^cse_[A-Za-z0-9]+$' <<<"$out" || return 0
+  grep -qx "$1" <<<"$out"
+}
+
 cmd_mgr_id() {
   require_jq
   local mgr file existing rec ord prior
@@ -398,6 +429,22 @@ cmd_mgr_id() {
   if [[ -n "$existing" ]]; then
     printf '%s\n' "$(echo "$existing" | jq -r '.ord')"
     return 0
+  fi
+  # IDENTITY GUARD. Allocating is the destructive step, so verify the resolved
+  # manager id is a LIVE session before minting anything. A spawned session that
+  # inherited its parent's CLAUDE_CODE_SESSION_ACCESS_TOKEN reports the PARENT's
+  # cse_id (#147), and every allocation under that identity is attributed to a
+  # session that isn't the caller -- which is how one archived manager burned
+  # four ordinals (#146). Refuse rather than warn: an ordinal minted under the
+  # wrong identity corrupts the ledger, and unlike a title it can't be observed
+  # and corrected later. Fixing spawn_env stops NEW sessions inheriting; this
+  # catches every session already running with a bad env.
+  if ! _manager_id_is_active "$mgr"; then
+    die "mgr-id: refusing to allocate for '$mgr' -- it is not an ACTIVE session.
+  This usually means THIS session inherited its parent's identity
+  (CLAUDE_CODE_SESSION_ACCESS_TOKEN) and is acting as its predecessor (#147).
+  Confirm with: python3 -m remote_control sessions list --json | grep <your cse>
+  Then re-run with MANAGER_CSE_ID=<your own cse_id> set explicitly."
   fi
   _ordinals_lock
   # Re-read INSIDE the lock: a racer may have allocated for this same manager
@@ -472,6 +519,10 @@ def run(a):
         return json.loads(p.stdout) if p.returncode == 0 else []
     except (OSError, ValueError):
         return []
+# ACTIVE-LIST MEMBERSHIP IS THE REAL ARCHIVED TEST. `sessions --all` reports
+# arch=None even for archived sessions, which reads as "not archived" and has
+# already caused one reader to doubt a correct classification. Absence from the
+# ACTIVE list is what means archived.
 active = {r["id"]: r for r in run(["--json"])}
 # A transient API failure returns an empty list, which would make EVERY active
 # claim look archived and every live claimant look missing -- a false alarm
@@ -490,6 +541,42 @@ for r in claims:
     if r["cse_id"] not in active:
         problems.append(f"ord {r['ord']}: holder {r['cse_id']} is ARCHIVED "
                         f"(retire it; name a live successor if one exists)")
+
+# IDENTITY MISATTRIBUTION (#147): a manager state log that is being WRITTEN
+# recently but is OWNED by a non-active cse means some LIVE session is acting
+# as that dead identity -- it inherited its parent's session token, so it
+# allocates ordinals, records workers, and retitles under the predecessor's id.
+# Detect it from disk (log mtime + active-list membership) rather than waiting
+# for someone to notice a duplicate ordinal.
+import glob, time
+LOG_DIR = os.path.dirname(os.environ["LEDGER"])
+for f in glob.glob(os.path.join(LOG_DIR, "cse_*.jsonl")):
+    owner = os.path.basename(f)[:-len(".jsonl")]
+    if owner in active:
+        continue
+    age_days = (time.time() - os.path.getmtime(f)) / 86400.0
+    if age_days < 3:
+        problems.append(
+            f"{owner}: manager log written {age_days:.1f}d ago but that cse is "
+            f"NOT active -- a live session is acting as this dead identity "
+            f"(inherited session token, #147)")
+
+# A `superseded_by` must mean "that cse holds THIS ordinal" -- not merely "the
+# work continued over there". Mis-attributing it (the 0729 reconcile pointed an
+# ordinal at a session holding no record) silently defeats the terminal-record
+# rule, because a superseded record is skipped and the archived session mints a
+# fresh ordinal anyway (#146). Validate the pointer rather than trusting the
+# author.
+by_ord = {}
+for r in led:
+    by_ord.setdefault(r["ord"], set()).add(r["cse_id"])
+for r in led:
+    sb = r.get("superseded_by")
+    if sb and sb not in by_ord.get(r["ord"], set()):
+        problems.append(
+            f"ord {r['ord']}: superseded_by={sb} holds no record for this "
+            f"ordinal -- an initiative handover is not an ordinal handover; "
+            f"drop it so the record is TERMINAL (#146)")
 
 lo = os.environ.get("BAND_LO")
 hi = os.environ.get("BAND_HI")
