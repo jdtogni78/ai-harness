@@ -282,6 +282,17 @@ def spawn_env(cfg: SupervisorConfig, base_env: Mapping[str, str]) -> Dict[str, s
     env = dict(base_env)
     env["CLAUDE_REMOTE_CONTROL_SESSION_NAME_PREFIX"] = cfg.host
     env["PATH"] = _augment_path(env.get("PATH", ""), env.get("HOME"))
+    # (3) DROP the parent's session identity. CLAUDE_CODE_SESSION_ACCESS_TOKEN
+    # is a JWT whose `session_id` claim IS the caller's cse_id, and everything
+    # that asks "who am I?" (session_list.own_session_id_from_env ->
+    # workers.sh resolve_manager_id) decodes it. Inheriting it made a spawned
+    # session report its PARENT's cse_id as its own, so it allocated ordinals
+    # for the parent, wrote its worker roster into the parent's state log, and
+    # retitled the parent's session row instead of its own (#147). The child
+    # receives its own token from the app when it registers, so the parent's is
+    # never the right answer. Same reasoning as handoff.run_handoff_dispatch
+    # popping REMOTE_CONTROL_REPLY_TO.
+    env.pop("CLAUDE_CODE_SESSION_ACCESS_TOKEN", None)
     return env
 
 
