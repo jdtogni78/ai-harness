@@ -14,6 +14,7 @@
 #   list     [--all] [--json]    (default: active only, table form)
 #   get      <worker_id>         (latest folded record as JSON)
 #   path                         (print state file path)
+#   whoami                       (is my resolved identity really mine? #147)
 #   mgr-id                       (allocate / read this manager's host-scoped ordinal)
 #   mgr-audit                    (check the ordinal ledger against the LIVE session list)
 #   mgr-cwd                      (read the cwd snapshotted on mgr-id's first call)
@@ -413,6 +414,47 @@ _manager_id_is_active() {
   grep -qx "$1" <<<"$out"
 }
 
+# Report whether THIS session's resolved identity is really its own (#147).
+#
+# A session cannot check this by comparing against "its own cse_id" -- its
+# notion of self comes from the SAME env that may be lying, so that is asking
+# the liar to audit itself. MEMBERSHIP is decidable without trusting the env at
+# all: a live session's own id is always in the ACTIVE list, so an id that is
+# absent cannot be this session's.
+#
+# COVERAGE (stated because it is not total): this detects the common case, an
+# inherited id whose predecessor is archived. If the predecessor is STILL
+# ACTIVE, membership passes and this reports OK -- that residue is covered from
+# the other side by `mgr-audit`, which flags a manager log written recently but
+# owned by a non-active cse. Self-check for breadth, audit for residue; neither
+# alone is complete.
+cmd_whoami() {
+  local mgr ids
+  mgr="$(resolve_manager_id)" || return $?
+  printf 'resolved identity : %s\n' "$mgr"
+  ids="$(cd "$AI_HARNESS_DIR" && python3 -m remote_control sessions list --ids-only 2>/dev/null)"
+  if ! grep -qE '^cse_[A-Za-z0-9]+$' <<<"$ids"; then
+    printf 'verdict           : UNKNOWN (could not read the active session list)\n'
+    return 0
+  fi
+  if grep -qx "$mgr" <<<"$ids"; then
+    printf 'verdict           : OK - this identity is ACTIVE, so it is your own\n'
+    printf 'note              : does NOT rule out inheriting a still-ACTIVE\n'
+    printf '                    predecessor; `mgr-audit` covers that residue.\n'
+    return 0
+  fi
+  printf 'verdict           : MISMATCH - this id is NOT an active session (#147)\n'
+  printf 'meaning           : you inherited your parent session'"'"'s identity, so\n'
+  printf '                    ordinals, worker records and retitles all address\n'
+  printf '                    your PREDECESSOR, not you.\n'
+  printf 'remedy            : restart this session, OR prefix EVERY workers.sh\n'
+  printf '                    call with MANAGER_CSE_ID=<your own cse_id>.\n'
+  printf 'IMPORTANT         : exporting it ONCE IS NOT ENOUGH - shell env does\n'
+  printf '                    not persist between a session'"'"'s tool calls, so a\n'
+  printf '                    later call silently resolves back to the dead id.\n'
+  return 1
+}
+
 cmd_mgr_id() {
   require_jq
   local mgr file existing rec ord prior
@@ -422,6 +464,30 @@ cmd_mgr_id() {
   # never validated before being written as an identity. Refuse rather than
   # mint another one.
   [[ "$mgr" == cse_* ]] || die "mgr-id: refusing to allocate for a non-cse manager id: '$mgr'"
+  # IDENTITY GUARD -- BEFORE the fast path, deliberately.
+  #
+  # It originally sat after the fast-path read, which made its real coverage
+  # "only identities that have no ledger record" -- the EASY case. A session
+  # wearing a dead identity whose predecessor DOES hold a record got that
+  # ordinal returned silently, rc=0, no refusal: a false negative on exactly
+  # the population the guard exists to catch (three live managers resolved to
+  # one archived cse and none of them tripped it). Same shape as the host band
+  # that never matched a real hostname -- it passed every test because no test
+  # exercised the path that actually occurs.
+  #
+  # So verify identity before ANY read or write. A wrong identity must not even
+  # be told which ordinal it "has": that answer is what gets stamped into
+  # worker tags and titles.
+  if ! _manager_id_is_active "$mgr"; then
+    die "mgr-id: refusing to act for '$mgr' -- it is not an ACTIVE session.
+  THIS session has almost certainly inherited its parent's identity
+  (CLAUDE_CODE_SESSION_ACCESS_TOKEN) and is acting as its predecessor (#147).
+  Check with: workers.sh whoami
+  Remedy: restart this session, OR prefix EVERY workers.sh call with
+  MANAGER_CSE_ID=<your own cse_id>. Exporting it ONCE IS NOT ENOUGH -- shell
+  env does not persist between a session's tool calls, so a later call
+  silently resolves back to the dead identity."
+  fi
   file="$(ordinals_path)" || return $?
   # Fast path: already allocated, no lock needed (append-only file, and a
   # record for THIS manager can never be rewritten by someone else).
@@ -429,22 +495,6 @@ cmd_mgr_id() {
   if [[ -n "$existing" ]]; then
     printf '%s\n' "$(echo "$existing" | jq -r '.ord')"
     return 0
-  fi
-  # IDENTITY GUARD. Allocating is the destructive step, so verify the resolved
-  # manager id is a LIVE session before minting anything. A spawned session that
-  # inherited its parent's CLAUDE_CODE_SESSION_ACCESS_TOKEN reports the PARENT's
-  # cse_id (#147), and every allocation under that identity is attributed to a
-  # session that isn't the caller -- which is how one archived manager burned
-  # four ordinals (#146). Refuse rather than warn: an ordinal minted under the
-  # wrong identity corrupts the ledger, and unlike a title it can't be observed
-  # and corrected later. Fixing spawn_env stops NEW sessions inheriting; this
-  # catches every session already running with a bad env.
-  if ! _manager_id_is_active "$mgr"; then
-    die "mgr-id: refusing to allocate for '$mgr' -- it is not an ACTIVE session.
-  This usually means THIS session inherited its parent's identity
-  (CLAUDE_CODE_SESSION_ACCESS_TOKEN) and is acting as its predecessor (#147).
-  Confirm with: python3 -m remote_control sessions list --json | grep <your cse>
-  Then re-run with MANAGER_CSE_ID=<your own cse_id> set explicitly."
   fi
   _ordinals_lock
   # Re-read INSIDE the lock: a racer may have allocated for this same manager
@@ -783,6 +833,7 @@ main() {
     update)          cmd_update          "$@" ;;
     close)           cmd_close           "$@" ;;
     forget)          cmd_forget          "$@" ;;
+    whoami)          cmd_whoami          "$@" ;;
     mgr-id)          cmd_mgr_id          "$@" ;;
     mgr-audit)       cmd_mgr_audit       "$@" ;;
     mgr-cwd)         cmd_mgr_cwd         "$@" ;;
