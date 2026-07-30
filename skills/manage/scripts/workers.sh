@@ -429,30 +429,54 @@ _manager_id_is_active() {
 # owned by a non-active cse. Self-check for breadth, audit for residue; neither
 # alone is complete.
 cmd_whoami() {
-  local mgr ids
+  local mgr ids path_id first
   mgr="$(resolve_manager_id)" || return $?
-  printf 'resolved identity : %s\n' "$mgr"
+
+  # An ENV-INDEPENDENT second opinion: a bridge worktree's dir name IS the
+  # session id (`.../worktrees/bridge-<cse>`), so when we're inside one the
+  # PATH knows who we are even though the env may be lying. Where both exist
+  # this is decisive, and it closes the gap membership alone leaves -- an
+  # inherited id whose predecessor is STILL ACTIVE passes the active-list test
+  # but fails this one. It also supplies the "expected" value the field asked
+  # for, which cannot be derived from the env by definition.
+  path_id="$(cd "$AI_HARNESS_DIR" && python3 -c "
+import sys, os
+sys.path.insert(0, os.getcwd())
+from remote_control.session_titles import session_id_from_path
+print(session_id_from_path(os.environ.get('WHOAMI_CWD','')) or '')" \
+    WHOAMI_CWD="$PWD" 2>/dev/null)"
+  [[ -n "$path_id" && "$path_id" != "$mgr" ]] && {
+    printf 'MISMATCH %s expected=%s\n' "$mgr" "$path_id"
+    _whoami_remedy; return 1
+  }
+
   ids="$(cd "$AI_HARNESS_DIR" && python3 -m remote_control sessions list --ids-only 2>/dev/null)"
   if ! grep -qE '^cse_[A-Za-z0-9]+$' <<<"$ids"; then
-    printf 'verdict           : UNKNOWN (could not read the active session list)\n'
+    printf 'UNKNOWN %s (could not read the active session list)\n' "$mgr"
     return 0
   fi
   if grep -qx "$mgr" <<<"$ids"; then
-    printf 'verdict           : OK - this identity is ACTIVE, so it is your own\n'
-    printf 'note              : does NOT rule out inheriting a still-ACTIVE\n'
-    printf '                    predecessor; `mgr-audit` covers that residue.\n'
+    printf 'OK %s\n' "$mgr"
+    printf '  identity is ACTIVE, so it is your own.\n'
+    [[ -z "$path_id" ]] && printf '  note: no bridge-worktree path to cross-check against, so this\n        cannot rule out inheriting a STILL-ACTIVE predecessor;\n        mgr-audit covers that residue.\n'
     return 0
   fi
-  printf 'verdict           : MISMATCH - this id is NOT an active session (#147)\n'
-  printf 'meaning           : you inherited your parent session'"'"'s identity, so\n'
-  printf '                    ordinals, worker records and retitles all address\n'
-  printf '                    your PREDECESSOR, not you.\n'
-  printf 'remedy            : restart this session, OR prefix EVERY workers.sh\n'
-  printf '                    call with MANAGER_CSE_ID=<your own cse_id>.\n'
-  printf 'IMPORTANT         : exporting it ONCE IS NOT ENOUGH - shell env does\n'
-  printf '                    not persist between a session'"'"'s tool calls, so a\n'
-  printf '                    later call silently resolves back to the dead id.\n'
+  printf 'MISMATCH %s expected=unknown\n' "$mgr"
+  _whoami_remedy
   return 1
+}
+
+# The human-facing remedy paragraph, printed BELOW the machine-readable first
+# line so `head -1` is a clean verdict for scripted sweeps and the operator
+# still gets the actionable detail.
+_whoami_remedy() {
+  printf '  meaning  : you inherited your parent session'"'"'s identity, so ordinals,\n'
+  printf '             worker records and retitles all address your PREDECESSOR.\n'
+  printf '  remedy   : RESTART this session (the only thing that truly clears it),\n'
+  printf '             or prefix EVERY workers.sh call with MANAGER_CSE_ID=<your id>.\n'
+  printf '  IMPORTANT: exporting it ONCE IS NOT ENOUGH -- shell env does not persist\n'
+  printf '             between a session'"'"'s tool calls (observed in the wild), so a\n'
+  printf '             later call silently resolves back to the dead identity.\n'
 }
 
 cmd_mgr_id() {
@@ -552,9 +576,17 @@ cmd_mgr_id() {
 # someone happened to mention. Exits non-zero if the ledger is inconsistent.
 cmd_mgr_audit() {
   require_jq
-  local file; file="$(ordinals_path)" || return $?
+  local file fix=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --fix) fix=1; shift ;;
+      *) die "mgr-audit: unknown arg: $1" ;;
+    esac
+  done
+  file="$(ordinals_path)" || return $?
   local lo hi; read -r lo hi <<<"$(_ordinal_band)"
-  AI_HARNESS_DIR="$AI_HARNESS_DIR" LEDGER="$file" BAND_LO="$lo" BAND_HI="$hi" python3 - <<'PYAUDIT'
+  AI_HARNESS_DIR="$AI_HARNESS_DIR" LEDGER="$file" BAND_LO="$lo" BAND_HI="$hi" \
+    AUDIT_FIX="$fix" python3 - <<'PYAUDIT'
 import json, os, re, subprocess, sys
 led = [json.loads(l) for l in open(os.environ["LEDGER"]) if l.strip()]
 def run(a):
@@ -662,6 +694,50 @@ if problems:
     print("\nINCONSISTENT:")
     for p in problems:
         print(f"  - {p}")
+
+    if os.environ.get("AUDIT_FIX") == "1":
+        # DELIBERATELY NARROW. --fix performs only the MECHANICAL repair: retire
+        # an active claim whose holder is archived, recording it as TERMINAL (no
+        # successor). It does NOT decide superseded_by, because "which live
+        # session inherited this ordinal" needs cross-session knowledge that
+        # this process does not have -- it is exactly the call that was got
+        # wrong by hand (an INITIATIVE handover recorded as an ORDINAL
+        # handover), and a daily unattended job repeating that error would
+        # corrupt the ledger faster than anyone reads the output. It also does
+        # NOT backfill live claimants or touch identity findings: those need a
+        # human/manager decision. Everything it declines is still REPORTED, so
+        # the residue is visible rather than silently accepted.
+        import shutil, time as _t
+        led_path = os.environ["LEDGER"]
+        rows = [json.loads(l) for l in open(led_path) if l.strip()]
+        stamp = _t.strftime("%Y-%m-%dT%H:%M:%SZ", _t.gmtime())
+        fixed, declined = [], []
+        for r in rows:
+            if "retired_at" in r:
+                continue
+            if r["cse_id"] in active:
+                continue
+            r["retired_at"] = stamp
+            r["note"] = ((r.get("note", "") + " | ") if r.get("note") else "") + \
+                "archived holder retired by mgr-audit --fix (mechanical; no "
+            r["note"] += "successor inferred -- attribute superseded_by by hand if one exists)"
+            fixed.append(r["ord"])
+        for p in problems:
+            if "is ARCHIVED" not in p:
+                declined.append(p)
+        if fixed:
+            shutil.copyfile(led_path, led_path + ".prefix.bak")
+            with open(led_path, "w") as fh:
+                for r in rows:
+                    fh.write(json.dumps(r) + "\n")
+            print(f"\n--fix: retired {len(fixed)} archived holder(s): "
+                  f"{sorted(fixed)} (backup: {os.path.basename(led_path)}.prefix.bak)")
+        else:
+            print("\n--fix: nothing mechanically repairable")
+        if declined:
+            print(f"--fix: {len(declined)} finding(s) NOT auto-repaired (need a "
+                  f"human decision) -- still listed above")
+        sys.exit(0 if not declined else 1)
     sys.exit(1)
 print("ledger is consistent with the live session list")
 PYAUDIT
