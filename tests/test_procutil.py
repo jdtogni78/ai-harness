@@ -108,10 +108,15 @@ class SpawnEnvTest(unittest.TestCase):
         env = spawn_env(_cfg(), {
             "CLAUDE_CODE_SESSION_ACCESS_TOKEN": "eyJhbGc.eyJzZXNz.sig",
             "REMOTE_CONTROL_REPLY_TO": "cse_STALE_PREDECESSOR",
+            "MANAGER_CSE_ID": "cse_CORPSE",
             "PATH": "/usr/bin",
         })
         self.assertNotIn("CLAUDE_CODE_SESSION_ACCESS_TOKEN", env)
         self.assertNotIn("REMOTE_CONTROL_REPLY_TO", env)
+        # MANAGER_CSE_ID is the most literal "who am I?" variable -- it
+        # OUTRANKS the token in resolve_manager_id, and it was the one actually
+        # poisoned in every #147 case tested while the two above were clean.
+        self.assertNotIn("MANAGER_CSE_ID", env)
 
     def test_unrelated_env_survives(self):
         # Default-deny applies to IDENTITY only -- ordinary inherited config
