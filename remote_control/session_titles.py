@@ -363,12 +363,21 @@ def _leading_brackets(title: str) -> List[str]:
 _LINKAGE_LEAD_RE = re.compile(r"^(?:MGR-\d+|MGR\d+-W\d+)$")
 
 
+# Synthetic linkage for a session with NO manager. Keeps every row leading with
+# a linkage bracket, and sorts AFTER every [MGR-n] because "M" < "N" -- which is
+# what makes unmanaged rows cluster below managers without an ugly sort hack.
+# Unlike [MGR-n], this token is DERIVABLE ("no linkage present"), so the watcher
+# may apply it; it must never invent an [MGR-n], which is allocator-issued.
+NO_MANAGER_TOKEN = "NOMRG"
+
+
 def is_linkage_token(token: str) -> bool:
     """True if *token* is a manager/worker linkage tag rather than a repo nick.
     Linkage is allocator-issued and identifies WHO owns the session; a nick
     identifies WHAT repo it belongs to. Only the former may lead a
     manager-first title."""
-    return bool(_LINKAGE_LEAD_RE.match((token or "").strip()))
+    tok = (token or "").strip()
+    return tok == NO_MANAGER_TOKEN or bool(_LINKAGE_LEAD_RE.match(tok))
 
 
 def nick_base(token: str) -> str:
@@ -679,14 +688,6 @@ def plan_renames(
         # log tail -> would overwrite to ``.<host-b>``). A non-claim title
         # (``[AH]`` or no prefix) is still re-prefixed, since adding a fresh
         # claim is fine.
-        # MANAGER-FIRST titles are owned by the manage helpers, not by this
-        # watcher: their leading bracket is linkage (``[MGR-13]``), which the
-        # watcher has no source for and must never overwrite with a repo nick.
-        # Leave them untouched -- re-rendering would destroy the linkage.
-        lead = _leading_brackets(old)
-        if lead and is_linkage_token(lead[0]):
-            plan.append(Rename(sid, repo, None, old, old))
-            continue
         claimed_by = existing_prefix_host(old)
         if claimed_by and claimed_by != host:
             plan.append(Rename(sid, repo, None, old, old))
@@ -711,8 +712,37 @@ def plan_renames(
         # pass and re-emit. Pass the rendered NICK so dup-NICK leading brackets
         # are dropped and any real subs (one OR multiple) survive intact.
         subs = extract_sub_tokens(old, nick=token, nicks=nmap.values(), host=host)
+        # MANAGER-FIRST rendering: a linkage token owns the leading slot and the
+        # repo nick moves to the END, so rows cluster by MANAGER while still
+        # carrying host/project. Linkage is allocator-issued and the watcher has
+        # no source for it, so it is PRESERVED from the existing title, never
+        # invented -- except NOMRG, which is derivable (this session shows no
+        # linkage) and therefore the watcher's to apply. The nick is still
+        # re-derived every pass, which is the watcher's actual job: skipping
+        # these titles entirely would have frozen a stale nick forever.
+        # Which token leads. extract_sub_tokens strips leading NICKS, so its
+        # first entry is the linkage for an old-format title
+        # (`[FE.m5][MGR13-W5]...`). But it returns [] for a SINGLE-bracket title,
+        # so a manager titled just `[MGR-20] task` would look unmanaged and have
+        # its linkage replaced by NOMRG -- silently destroying what this format
+        # exists to surface. Fall back to the raw leading brackets in that case.
+        _cand = subs if subs else _leading_brackets(old)
+        if _cand and is_linkage_token(_cand[0]):
+            lead_tok, rest = _cand[0], [t for t in subs if t != _cand[0]]
+        else:
+            lead_tok, rest = NO_MANAGER_TOKEN, subs
+        # Drop any STALE nick sitting inside the chain before appending the
+        # fresh one. extract_sub_tokens only strips nicks from the LEADING run,
+        # and under manager-first the nick is no longer leading -- so
+        # `[MGR-20][AH.m5]` would otherwise accrete to `[MGR-20][AH.m5][FE.m5]`,
+        # one nick per pass. Exactly the unbounded-stacking shape #110/#117
+        # fixed for the old layout, reappearing because the layout moved.
+        known_bases = {nick_base(n) for n in nmap.values() if n}
+        known_bases.add(nick_base(token))
+        rest = [t for t in rest
+                if not (nick_base(t) in known_bases or _has_host_suffix(t, host))]
         plan.append(Rename(sid, repo, token, old,
-                           apply_prefix(old, token, subs=subs)))
+                           apply_prefix(old, lead_tok, subs=rest + [token])))
     return plan
 
 

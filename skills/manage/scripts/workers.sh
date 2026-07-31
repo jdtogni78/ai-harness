@@ -850,6 +850,9 @@ cmd_retitle() {
       --id "$mgr" \
       --nick "MGR-${ord}" \
       "${task} (${count} worker${plural})" )
+  # The watcher appends the fresh [NICK.host] at the END on its next pass
+  # (manager-first: linkage leads, repo nick trails), so it is not set here --
+  # deriving it in bash would just freeze a copy the watcher already owns.
 }
 
 # Compose & invoke `titles set` for one worker. Reads worker's dir, worker_ord,

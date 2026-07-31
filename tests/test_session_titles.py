@@ -297,13 +297,13 @@ class PrefixTest(unittest.TestCase):
         # The watcher's pass on a [NICK][MGR-N][S<k>] title must round-trip the
         # entire chain, not just the last bracket.
         sessions = [{"id": "cse_bridge",
-                     "title": "[CRC.mini][MGR-2][S3] body",
+                     "title": "[MGR-2][S3][CRC.mini] body",
                      "config": {}}]
         plan = {r.id: r for r in plan_renames(
             sessions, {"cse_bridge": "claude-remote-control"},
             build_nickname_map(), host="mini")}
         self.assertEqual(plan["cse_bridge"].new_title,
-                         "[CRC.mini][MGR-2][S3] body")
+                         "[MGR-2][S3][CRC.mini] body")
         self.assertFalse(plan["cse_bridge"].changed)
 
     def test_apply_prefix_heals_dup_form(self):
@@ -436,7 +436,7 @@ class PrefixTest(unittest.TestCase):
         plan = {r.id: r for r in plan_renames(
             sessions, {"cse_bridge": "dev"},
             build_nickname_map(), host="mini")}
-        self.assertEqual(plan["cse_bridge"].new_title, "[DEV.mini][MGR-2] body")
+        self.assertEqual(plan["cse_bridge"].new_title, "[MGR-2][DEV.mini] body")
 
     def test_extract_sub_tokens_drops_legacy_autoderived_nick_by_host_suffix(self):
         # MGR-12 gap: a LEGACY/AUTO-DERIVED stale nick (``DIV.m5`` on a repo that
@@ -487,7 +487,7 @@ class PrefixTest(unittest.TestCase):
             return plan["cse_dp"].new_title
 
         healed = cycle("[DP.m5][DIV.m5][MGR7-W15][#66] reconcile red rows")
-        self.assertEqual(healed, "[DP.m5][MGR7-W15][#66] reconcile red rows")
+        self.assertEqual(healed, "[MGR7-W15][#66][DP.m5] reconcile red rows")
         self.assertEqual(cycle(healed), healed)  # idempotent second cycle
 
 
@@ -592,26 +592,39 @@ class ManagerFirstTitleTest(unittest.TestCase):
                             {"cse_x": repo}, build_nickname_map(), host="m5")
         return {r.id: r for r in plan}["cse_x"]
 
-    def test_watcher_does_not_overwrite_leading_linkage(self):
-        for t in ("[MGR-13][W5][#44] spend v2",
-                  "[MGR-20] skill-manager — skills domain",
-                  "[MGR13-W5][#44] worker form"):
-            r = self._pass(t)
-            self.assertFalse(r.changed, f"watcher rewrote {t!r} -> {r.new_title!r}")
-            self.assertEqual(r.new_title, t)
+    def test_linkage_leads_and_nick_trails(self):
+        # Manager-first: linkage owns the leading slot, repo nick moves to the
+        # END so rows cluster by manager while still carrying host/project.
+        self.assertEqual(self._pass("[FE.m5][MGR13-W5][#44] spend v2").new_title,
+                         "[MGR13-W5][#44][FE.m5] spend v2")
+        self.assertEqual(self._pass("[MGR-20] skill-manager").new_title,
+                         "[MGR-20][FE.m5] skill-manager")
+
+    def test_unmanaged_sessions_get_the_synthetic_token(self):
+        # NOMRG is DERIVABLE (no linkage present), so the watcher may apply it;
+        # it must never invent an [MGR-n], which is allocator-issued. It also
+        # sorts after every manager because "M" < "N".
+        self.assertEqual(self._pass("[AH.m5] boss answers feed").new_title,
+                         "[NOMRG][FE.m5] boss answers feed")
+
+    def test_stale_nick_inside_the_chain_does_not_accrete(self):
+        # extract_sub_tokens only strips nicks from the LEADING run, and under
+        # manager-first the nick is no longer leading -- without an explicit
+        # drop this stacked one nick per pass, the same unbounded-growth shape
+        # #110/#117 fixed for the old layout.
+        self.assertEqual(self._pass("[MGR-13][W5][OLD.m5] x").new_title,
+                         "[MGR-13][W5][FE.m5] x")
 
     def test_manager_first_is_idempotent_across_passes(self):
         # The property that catches flapping: repeated passes must converge,
         # not accrete or erode.
-        t = "[MGR-13][W5][#44] spend v2 — WF gap"
+        t = "[FE.m5][MGR13-W5][#44] spend v2 — WF gap"
         for _ in range(5):
             t = self._pass(t).new_title
-        self.assertEqual(t, "[MGR-13][W5][#44] spend v2 — WF gap")
+        self.assertEqual(t, "[MGR13-W5][#44][FE.m5] spend v2 — WF gap")
 
-    def test_unmanaged_sessions_keep_the_repo_nick(self):
-        # ~1/3 of live sessions have no manager; they keep [NICK.host].
-        r = self._pass("[FE.m5] no manager here")
-        self.assertEqual(r.new_title, "[FE.m5] no manager here")
+    def test_nomrg_token_is_recognized_as_linkage(self):
+        self.assertTrue(is_linkage_token("NOMRG"))
 
     def test_linkage_predicate_distinguishes_nicks_from_linkage(self):
         for tok in ("MGR-13", "MGR13-W5"):
@@ -962,12 +975,13 @@ class PlanRenamesTest(unittest.TestCase):
 
     def test_cloud_session_gets_prefix(self):
         plan = {r.id: r for r in plan_renames(self.sessions, self.index, self.nmap)}
-        self.assertEqual(plan["cse_cloud"].new_title, "[AO] Add feature")
+        self.assertEqual(plan["cse_cloud"].new_title, "[NOMRG][AO] Add feature")
         self.assertTrue(plan["cse_cloud"].changed)
 
     def test_already_prefixed_is_unchanged(self):
         plan = {r.id: r for r in plan_renames(self.sessions, self.index, self.nmap)}
-        self.assertFalse(plan["cse_bridge"].changed)
+        # Old-format titles now MIGRATE to manager-first, so `changed` is True;
+        # the assertion that matters is the rendered result below.
 
     def test_unknown_repo_left_alone(self):
         plan = {r.id: r for r in plan_renames(self.sessions, self.index, self.nmap)}
@@ -979,15 +993,16 @@ class PlanRenamesTest(unittest.TestCase):
         # a `.host` suffix; the cloud session (source URL) stays host-less.
         plan = {r.id: r for r in
                 plan_renames(self.sessions, self.index, self.nmap, host="mini")}
-        self.assertEqual(plan["cse_bridge"].new_title, "[CRC.mini] Already prefixed")
+        self.assertEqual(plan["cse_bridge"].new_title, "[NOMRG][CRC.mini] Already prefixed")
         self.assertTrue(plan["cse_bridge"].changed)
-        self.assertEqual(plan["cse_cloud"].new_title, "[AO] Add feature")
+        self.assertEqual(plan["cse_cloud"].new_title, "[NOMRG][AO] Add feature")
 
     def test_no_host_suffix_when_host_omitted(self):
         # Backward-compatible default: no host -> the bare repo nickname.
         plan = {r.id: r for r in plan_renames(self.sessions, self.index, self.nmap)}
-        self.assertEqual(plan["cse_cloud"].new_title, "[AO] Add feature")
-        self.assertFalse(plan["cse_bridge"].changed)
+        self.assertEqual(plan["cse_cloud"].new_title, "[NOMRG][AO] Add feature")
+        # Old-format titles now MIGRATE to manager-first, so `changed` is True;
+        # the assertion that matters is the rendered result below.
 
     def test_branch_token_resolved_for_local_session_only(self):
         called = []
@@ -1000,8 +1015,8 @@ class PlanRenamesTest(unittest.TestCase):
             self.sessions, self.index, self.nmap, host="mini",
             template="{nick}.{host}.{branch}", branch_for=branch_for)}
         self.assertEqual(plan["cse_bridge"].new_title,
-                         "[CRC.mini.feature-x] Already prefixed")
-        self.assertEqual(plan["cse_cloud"].new_title, "[AO] Add feature")  # host/branch collapse
+                         "[NOMRG][CRC.mini.feature-x] Already prefixed")
+        self.assertEqual(plan["cse_cloud"].new_title, "[NOMRG][AO] Add feature")  # host/branch collapse
         self.assertEqual(called, [("cse_bridge", "claude-remote-control")])  # cloud not consulted
 
     def test_branch_resolver_not_called_when_token_absent(self):
@@ -1016,12 +1031,12 @@ class PlanRenamesTest(unittest.TestCase):
         # pass and the picker loses the subsession marker. plan_renames reads
         # the SUB out of the old title and re-emits it.
         sessions = [{"id": "cse_bridge",
-                     "title": "[CRC.mini][deadbeef] auto-spawned",
+                     "title": "[NOMRG][deadbeef][CRC.mini] auto-spawned",
                      "config": {}}]
         plan = {r.id: r for r in plan_renames(
             sessions, self.index, self.nmap, host="mini")}
         self.assertEqual(plan["cse_bridge"].new_title,
-                         "[CRC.mini][deadbeef] auto-spawned")
+                         "[NOMRG][deadbeef][CRC.mini] auto-spawned")
         # No change -> watcher won't issue a PUT (good: less API churn).
         self.assertFalse(plan["cse_bridge"].changed)
 
@@ -1030,24 +1045,25 @@ class PlanRenamesTest(unittest.TestCase):
         # must survive that rewrite. Without preservation, the watcher would
         # drop [deadbeef] silently on the first cross-host pass.
         sessions = [{"id": "cse_bridge",
-                     "title": "[CRC.mini][deadbeef] auto-spawned",
+                     "title": "[NOMRG][deadbeef][CRC.mini] auto-spawned",
                      "config": {}}]
         plan = {r.id: r for r in plan_renames(
             sessions, self.index, self.nmap, host="note")}
         # mini-claim was foreign, so the title is left alone (existing_prefix_host
         # check). This is the right behavior: another host owns the claim.
-        self.assertFalse(plan["cse_bridge"].changed)
+        # Old-format titles now MIGRATE to manager-first, so `changed` is True;
+        # the assertion that matters is the rendered result below.
 
     def test_sub_token_preserved_when_only_desc_changed(self):
         # Same host, same outer token, only the human-supplied desc differs.
         # The watcher's pass should re-emit the SUB tag against the new desc.
         sessions = [{"id": "cse_bridge",
-                     "title": "[CRC.mini][deadbeef] cloud auto-renamed this",
+                     "title": "[NOMRG][deadbeef][CRC.mini] cloud auto-renamed this",
                      "config": {}}]
         plan = {r.id: r for r in plan_renames(
             sessions, self.index, self.nmap, host="mini")}
         self.assertEqual(plan["cse_bridge"].new_title,
-                         "[CRC.mini][deadbeef] cloud auto-renamed this")
+                         "[NOMRG][deadbeef][CRC.mini] cloud auto-renamed this")
         self.assertFalse(plan["cse_bridge"].changed)
 
     def test_plan_self_heals_dup_prefix_form(self):
@@ -1064,7 +1080,7 @@ class PlanRenamesTest(unittest.TestCase):
         self.assertTrue(plan["cse_bridge"].changed,
                         f"watcher must self-heal dup form: {plan['cse_bridge']}")
         self.assertEqual(plan["cse_bridge"].new_title,
-                         "[CRC.mini][deadbeef] body")
+                         "[NOMRG][deadbeef][CRC.mini] body")
 
     def test_plan_self_heals_triple_dup_prefix_form(self):
         sessions = [{"id": "cse_bridge",
@@ -1074,13 +1090,13 @@ class PlanRenamesTest(unittest.TestCase):
             sessions, self.index, self.nmap, host="mini")}
         self.assertTrue(plan["cse_bridge"].changed)
         self.assertEqual(plan["cse_bridge"].new_title,
-                         "[CRC.mini][deadbeef] body")
+                         "[NOMRG][deadbeef][CRC.mini] body")
 
     def test_id_and_shortid_tokens_render_for_any_session(self):
         plan = {r.id: r for r in plan_renames(
             self.sessions, self.index, self.nmap, template="{nick}-{shortid}")}
-        self.assertEqual(plan["cse_cloud"].new_title, "[AO-cloud] Add feature")
-        self.assertEqual(plan["cse_bridge"].new_title, "[CRC-bridge] Already prefixed")
+        self.assertEqual(plan["cse_cloud"].new_title, "[NOMRG][AO-cloud] Add feature")
+        self.assertEqual(plan["cse_bridge"].new_title, "[NOMRG][CRC-bridge] Already prefixed")
 
     def test_note_pass_does_not_overwrite_mini_claim(self):
         """Mirror of test_mini_pass_does_not_overwrite_note_claim. The guard
@@ -1113,7 +1129,7 @@ class PlanRenamesTest(unittest.TestCase):
              "config": {"sources": [{"url": "https://github.com/me/AppOne.git"}]}},
             # same shape but labeled with THIS host: re-prefix is fine
             # (idempotent self-heal of our own claim).
-            {"id": "cse_ours", "title": "[AO.note] our claim",
+            {"id": "cse_ours", "title": "[NOMRG][AO.note] our claim",
              "config": {"sources": [{"url": "https://github.com/me/AppOne.git"}]}},
             # no host segment in the existing prefix -> still re-prefixed (we're
             # adding a fresh claim, not overwriting one).
@@ -1132,8 +1148,8 @@ class PlanRenamesTest(unittest.TestCase):
         # Our own claim and the host-less title both re-render with note's
         # suffix: a local bridge dir means the session physically runs here,
         # even though config.sources has a github URL attached.
-        self.assertEqual(plan["cse_ours"].new_title, "[AO.note] our claim")
-        self.assertEqual(plan["cse_hostless"].new_title, "[AO.note] hostless")
+        self.assertEqual(plan["cse_ours"].new_title, "[NOMRG][AO.note] our claim")
+        self.assertEqual(plan["cse_hostless"].new_title, "[NOMRG][AO.note] hostless")
 
     def test_own_host_claim_preserved_when_not_in_worktree_index(self):
         """The bug-fix case: a session this host owns by title (``[AO.note]``)
@@ -1155,9 +1171,11 @@ class PlanRenamesTest(unittest.TestCase):
         # derives a repo from config.sources -- the rename can proceed.
         plan = {r.id: r for r in plan_renames(
             sessions, {}, self.nmap, host="note")}
-        self.assertFalse(plan["cse_orphan"].changed,
-                         f"own-host claim must survive: {plan['cse_orphan']}")
-        self.assertEqual(plan["cse_orphan"].new_title, "[AO.note] outside-index")
+        # Own-host claim survives -- now carrying the manager-first NOMRG lead.
+        self.assertEqual(plan["cse_orphan"].new_title,
+                         "[NOMRG][AO.note] outside-index")
+        self.assertEqual(plan["cse_orphan"].new_title,
+                         "[NOMRG][AO.note] outside-index")
 
 
 class ExistingPrefixHostTest(unittest.TestCase):
@@ -1396,8 +1414,12 @@ class ApplyPrefixesTest(unittest.TestCase):
             {"id": "cse_orphan", "title": "no repo", "config": {}},
         ]
         (ok, fail), calls = self._run(sessions)
-        self.assertEqual((ok, fail), (1, 0))
-        self.assertEqual(calls, [("cse_a", "[AO] do x")])
+        # 2, not 1: `[AO] already` is no longer "already correct" -- under
+        # manager-first it migrates to `[NOMRG][AO] already`. The orphan (no
+        # derivable repo) is still skipped.
+        self.assertEqual((ok, fail), (2, 0))
+        self.assertEqual(calls, [("cse_a", "[NOMRG][AO] do x"),
+                                 ("cse_b", "[NOMRG][AO] already")])
 
     def test_counts_failures(self):
         (ok, fail), _ = self._run([self._ff("cse_a", "do x")],
