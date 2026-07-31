@@ -126,6 +126,20 @@ cmd_register() {
     '{event:$ev, worker:$w, dir:$d, ticket:$t, brief:$b, worker_ord:$ord, ts:$ts}')"
   append_event "$rec"
   printf 'registered %s (worker_ord=%s, ticket=#%s)\n' "$worker" "$worker_ord" "$ticket"
+  # RETITLE IMMEDIATELY, in the same operation. The dispatch play documents
+  # "register, then retitle the worker" as two steps, and the second one gets
+  # skipped -- live evidence: two registered workers of MGR-17 (ords 8 and 9,
+  # tickets #68/#71) sat with a description but NO [MGRn-Wm] linkage, so they
+  # were invisible to every [MGR filter and read as orphans in the picker. The
+  # spawn-time guard cannot catch this: it fires on "no --task", and these had
+  # a task, which silenced it. A documented step that a human must remember is
+  # the same failure this whole initiative keeps finding, so remove the step
+  # rather than warn about it. Best-effort: a retitle failure must not undo a
+  # successful registration, so it warns and returns 0.
+  if ! cmd_retitle_worker "$worker" 2>/dev/null; then
+    printf 'warning: registered but could not retitle %s -- run `retitle-worker %s` to add its [MGR%s-W%s] linkage\n' \
+      "$worker" "$worker" "$(cmd_mgr_id 2>/dev/null || echo '?')" "$worker_ord" >&2
+  fi
 }
 
 cmd_update() {
