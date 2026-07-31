@@ -638,10 +638,36 @@ for f in glob.glob(os.path.join(LOG_DIR, "cse_*.jsonl")):
         continue
     age_days = (time.time() - os.path.getmtime(f)) / 86400.0
     if age_days < 3:
+        # Report EXTENT, not just presence. One flag per dead id badly
+        # under-represents the damage: three managers plus their workers can
+        # share ONE inherited id, so counting distinct bad IDS undercounts by
+        # an order of magnitude (one live case: a single flag standing in for
+        # 35 distinct workers' misfiled writes). Count the distinct ACTORS
+        # writing under the dead id instead -- "1 finding" and "35 actors
+        # misfiled" warrant very different responses.
+        actors, evts = set(), 0
+        try:
+            with open(f) as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except ValueError:
+                        continue
+                    evts += 1
+                    for k in ("worker", "cse_id", "cse"):
+                        v = rec.get(k)
+                        if isinstance(v, str) and v.startswith("cse_"):
+                            actors.add(v)
+        except OSError:
+            pass
         problems.append(
             f"{owner}: manager log written {age_days:.1f}d ago but that cse is "
             f"NOT active -- a live session is acting as this dead identity "
-            f"(inherited session token, #147)")
+            f"(inherited session token, #147). EXTENT: {evts} events, "
+            f"{len(actors)} distinct actor(s) recorded in this log")
 
 # A `superseded_by` must mean "that cse holds THIS ordinal" -- not merely "the
 # work continued over there". Mis-attributing it (the 0729 reconcile pointed an

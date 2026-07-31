@@ -371,6 +371,30 @@ def prompt_mandates_self_title(prompt: Optional[str]) -> bool:
     return bool(prompt and _SELF_TITLE_HINT_RE.search(prompt))
 
 
+def _session_is_active(sid: str) -> bool:
+    """True if *sid* is in the ACTIVE session list. FAILS OPEN unless we
+    positively hold a valid list, so an API hiccup can never block a spawn --
+    same contract as the workers.sh identity guard: authority only where it can
+    actually see the roster."""
+    try:
+        from .config import UsageLimitConfig
+        from .session_list import is_active
+        from .usage_limit import monitor
+        cfg = UsageLimitConfig.from_env()
+        token = monitor.get_token(cfg, lambda _m: None)
+        if not token:
+            return True
+        rows = monitor.list_sessions(cfg, token, lambda _m: None)
+    except Exception:
+        return True
+    if not rows:
+        return True
+    ids = {r.get("id") for r in rows if is_active(r)}
+    if not any(str(i).startswith("cse_") for i in ids):
+        return True
+    return sid in ids
+
+
 def own_session_id_from_env(env: Mapping[str, str]) -> Optional[str]:
     """The current process's own ``cse_*`` id, decoded from the desktop app's
     ``CLAUDE_CODE_SESSION_ACCESS_TOKEN`` JWT (``session_id`` claim). Local
@@ -880,6 +904,21 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
     reply_to: Optional[str] = None
     if not opts["no_reply_to"]:
         reply_to = opts["reply_to"] or own_session_id_from_env(env)
+        # An AUTO-DERIVED reply-to comes from this process's own env -- the same
+        # env that may be lying about who we are (#147). A spawner wearing an
+        # inherited identity would hand its worker a reply-to pointing at its
+        # dead ancestor, and the worker's replies would then vanish silently:
+        # sending to a stale reply-to does not error on the sender's side, so it
+        # waits forever for an answer delivered to a corpse. Validate it the way
+        # `workers.sh whoami` does -- ACTIVE-list membership, which is decidable
+        # without trusting the env. Only the DERIVED value is checked; an
+        # explicit --reply-to is the caller's assertion to make.
+        if reply_to and not opts["reply_to"] and not _session_is_active(reply_to):
+            log(f"auto-detected reply-to {reply_to} is NOT an active session; "
+                "dropping it. This session has probably inherited its parent's "
+                "identity (#147) -- run `workers.sh whoami`. Pass --reply-to "
+                "CSE_ID explicitly to override.")
+            reply_to = None
         if not reply_to and not opts["reply_to"]:
             log("no sender cse_id detected (CLAUDE_CODE_SESSION_ACCESS_TOKEN unset); "
                 "spawned worker won't know who to reply to — pass --reply-to CSE_ID "
