@@ -236,6 +236,35 @@ against a known-bad ledger (reproduces every defect, exit 1) as well as the
 repaired one (exit 0), and the band check was tested by auditing the m5 ledger
 *as if* it were mini (all claims flagged out-of-band).
 
+### Working principle: label a claim verified or explanatory, as you write it
+
+Two of the worst detours in this work started as a **correct observation
+paired with an invented mechanism**, shipped with the confidence of a finding:
+"the ordinal ledger proves X" (it proved too much) and "the reply-to header is
+a reliable second identity source" (it decodes the same JWT —
+`session_list.py:407`). Forming a mechanism from a real observation is right;
+attaching the same confidence to the observation and the explanation is the
+error, and it is fixable at the moment of writing rather than by thinking
+differently.
+
+So: mark which parts of a claim you **verified** and which you are **inferring**,
+in the message itself. Cheap, and it tells the reader exactly which line to go
+check.
+
+### Working principle: don't treat another party's conclusion as load-bearing
+
+Route evidence, and check the *mechanism* behind evidence you receive — not
+just its plausibility. An enumeration method proposed here would have failed in
+the **dangerous direction**: an affected session returns the same wrong id on
+both sides, the two sources agree, and it is reported CLEAN — a false negative
+on precisely the population being hunted, while a disagreement would mean only
+that someone typed a flag by hand. It survived review right up to the code
+path, and would have shipped as a detector that reports the sick as well.
+
+Both parties in that exchange were wrong at least once and each was caught by
+the other. That is a property to preserve **deliberately** — check the
+conclusion, not the reporter — not a happy accident to rely on.
+
 ### Auditing the ledger — reconcile against ACTIVE, not "connected"
 
 ```bash
