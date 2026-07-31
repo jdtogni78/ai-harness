@@ -731,10 +731,17 @@ def plan_renames(
             # an unbracketed tag is a self-ASSERTION, not an allocated one, and
             # stamping it would fabricate ownership (#129). Render nick-led and
             # let `titles list` keep reporting it UNBRACKETED for a human.
+            # Strip NOMRG *and* any stale nick left in the chain -- the other
+            # branch filters those and this one must too, or a leftover bare
+            # nick renders as `[DP][DP.m5] ...` (observed live after the #159
+            # migration).
+            _kb = {nick_base(n) for n in nmap.values() if n}
+            _kb.add(nick_base(token))
+            _keep = [t for t in subs
+                     if t != NO_MANAGER_TOKEN
+                     and not (nick_base(t) in _kb or _has_host_suffix(t, host))]
             plan.append(Rename(sid, repo, token, old,
-                               apply_prefix(old, token,
-                                            subs=[t for t in subs
-                                                  if t != NO_MANAGER_TOKEN])))
+                               apply_prefix(old, token, subs=_keep)))
             continue
         # extract_sub_tokens strips leading NICKS, so its first entry is the
         # linkage for an old-format title. But it returns [] for a SINGLE-bracket
