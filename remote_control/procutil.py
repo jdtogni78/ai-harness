@@ -282,17 +282,39 @@ def spawn_env(cfg: SupervisorConfig, base_env: Mapping[str, str]) -> Dict[str, s
     env = dict(base_env)
     env["CLAUDE_REMOTE_CONTROL_SESSION_NAME_PREFIX"] = cfg.host
     env["PATH"] = _augment_path(env.get("PATH", ""), env.get("HOME"))
-    # (3) DROP the parent's session identity. CLAUDE_CODE_SESSION_ACCESS_TOKEN
-    # is a JWT whose `session_id` claim IS the caller's cse_id, and everything
-    # that asks "who am I?" (session_list.own_session_id_from_env ->
-    # workers.sh resolve_manager_id) decodes it. Inheriting it made a spawned
-    # session report its PARENT's cse_id as its own, so it allocated ordinals
-    # for the parent, wrote its worker roster into the parent's state log, and
-    # retitled the parent's session row instead of its own (#147). The child
-    # receives its own token from the app when it registers, so the parent's is
-    # never the right answer. Same reasoning as handoff.run_handoff_dispatch
-    # popping REMOTE_CONTROL_REPLY_TO.
-    env.pop("CLAUDE_CODE_SESSION_ACCESS_TOKEN", None)
+    # (3) DROP EVERY INHERITED IDENTITY POINTER.
+    #
+    # THE RULE, for whoever adds the next identity-ish variable: this function
+    # is DEFAULT-DENY for identity, not default-inherit. If a variable answers
+    # "who am I?" or "who do I answer to?", drop it HERE and make the caller
+    # assert it explicitly afterwards. Adding such a variable to the
+    # pass-through instead is how both bugs below happened.
+    #
+    #   CLAUDE_CODE_SESSION_ACCESS_TOKEN -- a JWT whose `session_id` claim IS
+    #   the caller's cse_id, decoded by everything that asks "who am I?"
+    #   (session_list.own_session_id_from_env -> workers.sh
+    #   resolve_manager_id). Inheriting it made a spawned session report its
+    #   PARENT's cse_id as its own: it allocated ordinals for the parent, wrote
+    #   its worker roster into the parent's state log, and retitled the
+    #   parent's session row instead of its own (#147).
+    #
+    #   REMOTE_CONTROL_REPLY_TO -- "who do I report back to". A STALE inherited
+    #   value silently misroutes every reply: sending to a dead reply-to does
+    #   NOT error on the sender's side, so the requester waits forever for an
+    #   answer that was delivered to a corpse. That is strictly worse than the
+    #   token bug, which at least corrupted something observable. new_session
+    #   and handoff both set-or-pop this themselves AFTER calling spawn_env, so
+    #   they are unaffected; the exposed path was the supervisor's own
+    #   spawn_server, which passes os.environ straight through -- harmless
+    #   under launchd (plist env carries no reply-to) but live the moment the
+    #   supervisor is restarted from inside a session's shell, which is a thing
+    #   operators actually do.
+    #
+    # A child receives its own identity from the app when it registers, so an
+    # inherited one is never the right answer.
+    for _identity_var in ("CLAUDE_CODE_SESSION_ACCESS_TOKEN",
+                          "REMOTE_CONTROL_REPLY_TO"):
+        env.pop(_identity_var, None)
     return env
 
 

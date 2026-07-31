@@ -97,6 +97,37 @@ class SpawnEnvTest(unittest.TestCase):
                         {"CLAUDE_REMOTE_CONTROL_SESSION_NAME_PREFIX": "stale"})
         self.assertEqual(env["CLAUDE_REMOTE_CONTROL_SESSION_NAME_PREFIX"], "mini")
 
+    def test_drops_every_inherited_identity_pointer(self):
+        """spawn_env is DEFAULT-DENY for identity. A child receives its own
+        identity from the app on registration, so an inherited one is never
+        right: an inherited session token made a spawned session act as its
+        PARENT (#147), and an inherited REMOTE_CONTROL_REPLY_TO silently
+        misroutes every reply -- sending to a dead reply-to does not error on
+        the sender's side, so the requester waits forever for an answer
+        delivered to a corpse."""
+        env = spawn_env(_cfg(), {
+            "CLAUDE_CODE_SESSION_ACCESS_TOKEN": "eyJhbGc.eyJzZXNz.sig",
+            "REMOTE_CONTROL_REPLY_TO": "cse_STALE_PREDECESSOR",
+            "PATH": "/usr/bin",
+        })
+        self.assertNotIn("CLAUDE_CODE_SESSION_ACCESS_TOKEN", env)
+        self.assertNotIn("REMOTE_CONTROL_REPLY_TO", env)
+
+    def test_unrelated_env_survives(self):
+        # Default-deny applies to IDENTITY only -- ordinary inherited config
+        # must still reach the child.
+        env = spawn_env(_cfg(), {"PATH": "/usr/bin", "SOME_APP_CONFIG": "keep"})
+        self.assertEqual(env["SOME_APP_CONFIG"], "keep")
+
+    def test_caller_can_still_assert_reply_to_after_spawn_env(self):
+        # The contract that keeps new_session/handoff working: they set (or
+        # pop) REMOTE_CONTROL_REPLY_TO themselves AFTER calling spawn_env, so
+        # dropping it here is invisible to them. If this ever inverts, those
+        # callers silently lose their reply-to.
+        env = spawn_env(_cfg(), {"REMOTE_CONTROL_REPLY_TO": "cse_STALE"})
+        env["REMOTE_CONTROL_REPLY_TO"] = "cse_FRESH_MANAGER"
+        self.assertEqual(env["REMOTE_CONTROL_REPLY_TO"], "cse_FRESH_MANAGER")
+
     def test_does_not_mutate_base_env(self):
         base = {"PATH": "/usr/bin"}
         spawn_env(_cfg(), base)
