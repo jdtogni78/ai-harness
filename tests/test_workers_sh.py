@@ -64,7 +64,7 @@ class RetitleWorkerTest(unittest.TestCase):
         argv = json.loads(res.stdout)
         self.assertEqual(argv, [
             "titles", "set", "--id", "w1", "--cwd", "/tmp/d1",
-            "--sub", "MGR1-W1", "--sub", "#42", "fix the thing",
+            "--nick", "MGR-1", "--sub", "W1", "--sub", "#42", "fix the thing",
         ])
 
     def test_without_ticket_degrades_gracefully(self):
@@ -88,7 +88,7 @@ class RetitleWorkerTest(unittest.TestCase):
         argv = json.loads(res.stdout)
         self.assertEqual(argv, [
             "titles", "set", "--id", "w2", "--cwd", "/tmp/d2",
-            "--sub", "MGR1-W2", "no ticket here",
+            "--nick", "MGR-1", "--sub", "W2", "no ticket here",
         ])
         self.assertNotIn("#", " ".join(argv))
 
@@ -124,7 +124,7 @@ class RetitleManagerTest(unittest.TestCase):
         argv = json.loads(res.stdout)
         self.assertEqual(argv, [
             "titles", "set", "--id", "cse_test_mgr",
-            "--sub", "MGR-1", "manage the thing (0 workers)",
+            "--nick", "MGR-1", "manage the thing (0 workers)",
         ])
         self.assertNotIn("--cwd", argv)
         self.assertNotIn("#", " ".join(argv))
