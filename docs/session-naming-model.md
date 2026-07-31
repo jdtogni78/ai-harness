@@ -236,6 +236,31 @@ against a known-bad ledger (reproduces every defect, exit 1) as well as the
 repaired one (exit 0), and the band check was tested by auditing the m5 ledger
 *as if* it were mini (all claims flagged out-of-band).
 
+### Working principle: a rule that quantifies over a set is not applied until you enumerate the set
+
+Every principle below was written down *before* the failure it would have
+prevented. The failures did not come from lacking the rule; they came from
+having it in the file and not running it against the case in hand:
+
+- `spawn_env`'s **default-deny for identity** rule was written in one PR, then
+  applied to the two variables already known **by inspection**. It went three
+  PRs without being run against the actual set — and the rule named exactly the
+  variable being missed (`MANAGER_CSE_ID`, #147).
+- **"enumerate the population"** was quoted in a routing message and, in the
+  same message, an enumeration method was proposed whose code path had not been
+  checked.
+
+So the executable form, which is the only part that does any work: **when a rule
+quantifies over a set** — *all* identity variables, *every* live claimant, *any*
+consumer of this field — **the rule is not applied until that set has been
+enumerated mechanically.** Inspection of the members you already know is not
+enumeration; it is the failure mode wearing the rule's clothes.
+
+Concretely: grep for the set, list it, then apply the rule to every element. The
+difference between "we fixed three instances" and "the list is complete, there
+is no fourth" is the difference between done-so-far and done — and only the
+second is a claim you can make honestly.
+
 ### Working principle: label a claim verified or explanatory, as you write it
 
 Two of the worst detours in this work started as a **correct observation
