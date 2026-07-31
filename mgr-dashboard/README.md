@@ -5,11 +5,14 @@ turns each row into a `claude://resume?session=<uuid>` deep link. Sidesteps the
 app's private local group store entirely (issue #158). **Read-only**: one API
 `GET`, plain transcript file reads, zero writes to any app store or the API.
 
+Top-level tool dir (mirrors `narrate/`). A thin loadable `SKILL.md` wrapper that
+references this tool is a **follow-up**, not part of #158.
+
 ## Run
 
 ```bash
 cd ~/dev/ai-harness
-python3 skills/mgr-dashboard/mgr_dashboard.py -o /tmp/mgr-dashboard.html --open
+python3 mgr-dashboard/mgr_dashboard.py -o /tmp/mgr-dashboard.html --open
 ```
 
 `-o` output path (default `mgr-dashboard.html`) · `--open` opens it · `--projects-root` override transcript dir.
@@ -44,11 +47,17 @@ open "claude://resume?session=<a-high-confidence-uuid>"          # single fire
 python3 -m remote_control sessions --json > /tmp/after.json    # snapshot
 diff <(jq -r '.[].id' /tmp/before.json|sort) <(jq -r '.[].id' /tmp/after.json|sort)
 ```
-A new `cse_` in `after` ⇒ **imports a duplicate**; no new id ⇒ **focuses**.
+A new `cse_` in `after` ⇒ **imports a duplicate**; no new id ⇒ **no new session**.
 
-**Finding:** _PENDING — recorded here after the single manual fire (see issue #158)._
+**Finding (one boss-approved fire against a live #158 session, 2026-07-31):**
+**no duplicate server-side session is created** — the session list stayed 26→26
+with no new `cse_` across ~20 polls of `GET /v1/code/sessions`. That is exactly
+the acceptance criterion (the deep link does not spawn a duplicate cloud
+session). Scope of the claim: only the *server-side* no-duplicate behavior was
+verified; the GUI focus-vs-read-only-import *view* was **not** visually
+observed, so we don't claim "focuses the window."
 
 ## Files
 
 `mgr_dashboard.py` — parser + mapper + renderer + CLI ·
-`../../tests/test_mgr_dashboard.py` — `python3 -m unittest tests.test_mgr_dashboard` (20 tests).
+`../tests/test_mgr_dashboard.py` — `python3 -m unittest tests.test_mgr_dashboard` (20 tests).

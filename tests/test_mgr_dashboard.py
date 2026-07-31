@@ -1,7 +1,7 @@
 """Tests for the sessions-by-manager dashboard: title parsing, grouping, and the
 cse_ -> transcript-uuid nearest-timestamp mapper.
 
-The tool lives under ``skills/mgr-dashboard/`` (a tool dir, not a package), so we
+The tool lives in the top-level ``mgr-dashboard/`` dir (not a package), so we
 add it to ``sys.path`` before importing. Pure-logic only — no harness, no API,
 no network; the mapper is exercised with synthetic timestamps and a tmp
 transcript tree so the whole suite is hermetic. Run with:
@@ -13,7 +13,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-_TOOL = Path(__file__).resolve().parents[1] / "skills" / "mgr-dashboard"
+_TOOL = Path(__file__).resolve().parents[1] / "mgr-dashboard"
 sys.path.insert(0, str(_TOOL))
 
 import mgr_dashboard as md  # noqa: E402

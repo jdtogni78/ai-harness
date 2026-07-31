@@ -504,8 +504,8 @@ _PAGE = """<!doctype html>
 DEEPLINK_NOTE = (
     "Deep links use claude://resume?session=<uuid>. Confidence = |API last_event "
     "- transcript last-ts|: high ≤5s, medium ≤60s, low ≤300s. "
-    "'unmapped' rows had no confident transcript match. See README for the "
-    "focus-vs-import finding."
+    "'unmapped' rows had no confident transcript match. Firing a link creates no "
+    "duplicate server-side session (verified). See README."
 )
 
 
