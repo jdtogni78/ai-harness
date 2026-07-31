@@ -720,23 +720,32 @@ def plan_renames(
         # linkage) and therefore the watcher's to apply. The nick is still
         # re-derived every pass, which is the watcher's actual job: skipping
         # these titles entirely would have frozen a stale nick forever.
-        # Which token leads. extract_sub_tokens strips leading NICKS, so its
-        # first entry is the linkage for an old-format title
-        # (`[FE.m5][MGR13-W5]...`). But it returns [] for a SINGLE-bracket title,
-        # so a manager titled just `[MGR-20] task` would look unmanaged and have
-        # its linkage replaced by NOMRG -- silently destroying what this format
-        # exists to surface. Fall back to the raw leading brackets in that case.
+        # ORDER MATTERS. The body-contradiction case is tested FIRST because
+        # NOMRG is itself a linkage token: once stamped it would satisfy the
+        # preserve-branch below and perpetuate its own wrong claim forever.
+        if unbracketed_linkage(old, nick=token, nicks=nmap.values(), host=host):
+            # The body claims linkage (`MGR7-W21`) that is not bracketed. Do NOT
+            # stamp NOMRG: asserting "no manager" while the text says otherwise
+            # is wrong-but-plausible, worse than a missing tag because it reads
+            # as deliberate. Nor may the watcher promote body text to a bracket:
+            # an unbracketed tag is a self-ASSERTION, not an allocated one, and
+            # stamping it would fabricate ownership (#129). Render nick-led and
+            # let `titles list` keep reporting it UNBRACKETED for a human.
+            plan.append(Rename(sid, repo, token, old,
+                               apply_prefix(old, token,
+                                            subs=[t for t in subs
+                                                  if t != NO_MANAGER_TOKEN])))
+            continue
+        # extract_sub_tokens strips leading NICKS, so its first entry is the
+        # linkage for an old-format title. But it returns [] for a SINGLE-bracket
+        # title, so a manager titled just `[MGR-20] task` would look unmanaged
+        # and have its linkage replaced by NOMRG -- silently destroying what this
+        # format exists to surface. Fall back to the raw leading brackets.
         _cand = subs if subs else _leading_brackets(old)
         if _cand and is_linkage_token(_cand[0]):
             lead_tok, rest = _cand[0], [t for t in subs if t != _cand[0]]
         else:
             lead_tok, rest = NO_MANAGER_TOKEN, subs
-        # Drop any STALE nick sitting inside the chain before appending the
-        # fresh one. extract_sub_tokens only strips nicks from the LEADING run,
-        # and under manager-first the nick is no longer leading -- so
-        # `[MGR-20][AH.m5]` would otherwise accrete to `[MGR-20][AH.m5][FE.m5]`,
-        # one nick per pass. Exactly the unbounded-stacking shape #110/#117
-        # fixed for the old layout, reappearing because the layout moved.
         known_bases = {nick_base(n) for n in nmap.values() if n}
         known_bases.add(nick_base(token))
         rest = [t for t in rest
