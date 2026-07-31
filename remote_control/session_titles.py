@@ -354,6 +354,23 @@ def _leading_brackets(title: str) -> List[str]:
     return brackets
 
 
+# A leading bracket that is manager/worker LINKAGE (``MGR-13``, ``MGR13-W5``)
+# rather than a repo nick. Under the manager-first title format the linkage
+# token OWNS the leading slot, so the watcher must preserve it instead of
+# replacing it with the repo nick -- without this it rewrote
+# ``[MGR-13] W5 ...`` to ``[FE.m5] W5 ...`` on every pass, DELETING the very
+# linkage the format exists to surface.
+_LINKAGE_LEAD_RE = re.compile(r"^(?:MGR-\d+|MGR\d+-W\d+)$")
+
+
+def is_linkage_token(token: str) -> bool:
+    """True if *token* is a manager/worker linkage tag rather than a repo nick.
+    Linkage is allocator-issued and identifies WHO owns the session; a nick
+    identifies WHAT repo it belongs to. Only the former may lead a
+    manager-first title."""
+    return bool(_LINKAGE_LEAD_RE.match((token or "").strip()))
+
+
 def nick_base(token: str) -> str:
     """The bare nickname segment of a rendered prefix token: everything before
     the first host/branch separator. ``DEV.m5`` -> ``DEV``; ``DEV`` -> ``DEV``;
@@ -662,6 +679,14 @@ def plan_renames(
         # log tail -> would overwrite to ``.<host-b>``). A non-claim title
         # (``[AH]`` or no prefix) is still re-prefixed, since adding a fresh
         # claim is fine.
+        # MANAGER-FIRST titles are owned by the manage helpers, not by this
+        # watcher: their leading bracket is linkage (``[MGR-13]``), which the
+        # watcher has no source for and must never overwrite with a repo nick.
+        # Leave them untouched -- re-rendering would destroy the linkage.
+        lead = _leading_brackets(old)
+        if lead and is_linkage_token(lead[0]):
+            plan.append(Rename(sid, repo, None, old, old))
+            continue
         claimed_by = existing_prefix_host(old)
         if claimed_by and claimed_by != host:
             plan.append(Rename(sid, repo, None, old, old))

@@ -23,6 +23,7 @@ from remote_control.session_titles import (
     parse_cmd_session_id,
     parse_format_line,
     parse_nickname_map,
+    is_linkage_token,
     plan_renames,
     unbracketed_linkage,
     render_template,
@@ -577,6 +578,46 @@ class HandAssertedOrdinalWarningTest(unittest.TestCase):
         # retitle-worker derives the tag from mgr-id, so it marks the call.
         self.assertEqual(
             self._warn({"subs": ["MGR7-W20", "#66"]}, env_marker="1"), [])
+
+
+class ManagerFirstTitleTest(unittest.TestCase):
+    """Manager-first titles (`[MGR-13][W5][#44] desc`) are owned by the manage
+    helpers, not by the watcher: their leading bracket is LINKAGE, which the
+    watcher has no source for. Before this guard it treated that bracket as a
+    repo nick and REPLACED it -- rewriting `[MGR-13] W5 ...` to `[FE.m5] W5 ...`
+    every pass, deleting the linkage the format exists to surface."""
+
+    def _pass(self, title, repo="fin-export"):
+        plan = plan_renames([{"id": "cse_x", "title": title, "config": {}}],
+                            {"cse_x": repo}, build_nickname_map(), host="m5")
+        return {r.id: r for r in plan}["cse_x"]
+
+    def test_watcher_does_not_overwrite_leading_linkage(self):
+        for t in ("[MGR-13][W5][#44] spend v2",
+                  "[MGR-20] skill-manager — skills domain",
+                  "[MGR13-W5][#44] worker form"):
+            r = self._pass(t)
+            self.assertFalse(r.changed, f"watcher rewrote {t!r} -> {r.new_title!r}")
+            self.assertEqual(r.new_title, t)
+
+    def test_manager_first_is_idempotent_across_passes(self):
+        # The property that catches flapping: repeated passes must converge,
+        # not accrete or erode.
+        t = "[MGR-13][W5][#44] spend v2 — WF gap"
+        for _ in range(5):
+            t = self._pass(t).new_title
+        self.assertEqual(t, "[MGR-13][W5][#44] spend v2 — WF gap")
+
+    def test_unmanaged_sessions_keep_the_repo_nick(self):
+        # ~1/3 of live sessions have no manager; they keep [NICK.host].
+        r = self._pass("[FE.m5] no manager here")
+        self.assertEqual(r.new_title, "[FE.m5] no manager here")
+
+    def test_linkage_predicate_distinguishes_nicks_from_linkage(self):
+        for tok in ("MGR-13", "MGR13-W5"):
+            self.assertTrue(is_linkage_token(tok), tok)
+        for tok in ("FE.m5", "AH", "DEV.mini", "#44", "W5"):
+            self.assertFalse(is_linkage_token(tok), tok)
 
 
 class RepoDerivationTest(unittest.TestCase):

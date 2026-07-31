@@ -848,7 +848,7 @@ cmd_retitle() {
     MANAGER_ORDINAL_ALLOCATED=1 \
     python3 -m remote_control titles set \
       --id "$mgr" \
-      --sub "MGR-${ord}" \
+      --nick "MGR-${ord}" \
       "${task} (${count} worker${plural})" )
 }
 
@@ -881,7 +881,8 @@ cmd_retitle_worker() {
       MANAGER_ORDINAL_ALLOCATED=1 \
       python3 -m remote_control titles set \
         --id "$worker" --cwd "$wdir" \
-        --sub "MGR${ord}-W${wk}" \
+        --nick "MGR-${ord}" \
+        --sub "W${wk}" \
         "$brief" )
     return 0
   fi
@@ -889,7 +890,8 @@ cmd_retitle_worker() {
     MANAGER_ORDINAL_ALLOCATED=1 \
     python3 -m remote_control titles set \
       --id "$worker" --cwd "$wdir" \
-      --sub "MGR${ord}-W${wk}" \
+      --nick "MGR-${ord}" \
+      --sub "W${wk}" \
       --sub "#${ticket}" \
       "$brief" )
 }
