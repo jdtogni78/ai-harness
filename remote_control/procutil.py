@@ -291,12 +291,12 @@ def spawn_env(cfg: SupervisorConfig, base_env: Mapping[str, str]) -> Dict[str, s
     # pass-through instead is how both bugs below happened.
     #
     #   CLAUDE_CODE_SESSION_ACCESS_TOKEN -- a JWT whose `session_id` claim IS
-    #   the caller's cse_id, decoded by everything that asks "who am I?"
+    #   the caller's cse_id, read as the FALLBACK answer to "who am I?"
     #   (session_list.own_session_id_from_env -> workers.sh
-    #   resolve_manager_id). Inheriting it made a spawned session report its
-    #   PARENT's cse_id as its own: it allocated ordinals for the parent, wrote
-    #   its worker roster into the parent's state log, and retitled the
-    #   parent's session row instead of its own (#147).
+    #   resolve_manager_id). Dropped on principle; note that in every #147 case
+    #   actually tested (n=4, including a session spawned by an affected
+    #   parent) this token was CLEAN and MANAGER_CSE_ID below was the poisoned
+    #   one -- "inherited session token" was a misnomer for the whole incident.
     #
     #   REMOTE_CONTROL_REPLY_TO -- "who do I report back to". A STALE inherited
     #   value silently misroutes every reply: sending to a dead reply-to does
@@ -312,8 +312,19 @@ def spawn_env(cfg: SupervisorConfig, base_env: Mapping[str, str]) -> Dict[str, s
     #
     # A child receives its own identity from the app when it registers, so an
     # inherited one is never the right answer.
+    #   MANAGER_CSE_ID -- an explicit "I am this session" override, and the
+    #   most literal "who am I?" variable in the system: workers.sh and
+    #   registry.sh consult it FIRST and only fall back to the JWT, so it
+    #   OUTRANKS the token. It has consumers but no producer -- nothing sets it
+    #   for a child -- so inheriting it is never intended. It is also the
+    #   variable operators are told to set as a workaround, which made the
+    #   remedy itself a transmission vector: set it, spawn a worker in the same
+    #   call, and the worker now asserts its parent's identity. Every affected
+    #   session examined was poisoned HERE, with a clean token -- the two
+    #   variables dropped before this one were not the ones causing it.
     for _identity_var in ("CLAUDE_CODE_SESSION_ACCESS_TOKEN",
-                          "REMOTE_CONTROL_REPLY_TO"):
+                          "REMOTE_CONTROL_REPLY_TO",
+                          "MANAGER_CSE_ID"):
         env.pop(_identity_var, None)
     return env
 

@@ -429,8 +429,17 @@ _manager_id_is_active() {
 # owned by a non-active cse. Self-check for breadth, audit for residue; neither
 # alone is complete.
 cmd_whoami() {
-  local mgr ids path_id first
+  local mgr ids path_id jwt_id src
   mgr="$(resolve_manager_id)" || return $?
+  # WHICH source answered decides the remedy, so report it. MANAGER_CSE_ID
+  # outranks the JWT, and in every case tested (n=4, incl. a spawned worker)
+  # the poison was the OVERRIDE while the token was CLEAN -- so "inherited
+  # session token" is a misnomer and the fix differs by source.
+  if [[ -n "${MANAGER_CSE_ID:-}" ]]; then src="MANAGER_CSE_ID (override)"; else src="JWT session_id"; fi
+  jwt_id="$(cd "$AI_HARNESS_DIR" && python3 -c "
+import os
+from remote_control.session_list import own_session_id_from_env
+print(own_session_id_from_env(dict(os.environ)) or '')" 2>/dev/null)"
 
   # An ENV-INDEPENDENT second opinion: a bridge worktree's dir name IS the
   # session id (`.../worktrees/bridge-<cse>`), so when we're inside one the
@@ -446,8 +455,8 @@ from remote_control.session_titles import session_id_from_path
 print(session_id_from_path(os.environ.get('WHOAMI_CWD','')) or '')" \
     WHOAMI_CWD="$PWD" 2>/dev/null)"
   [[ -n "$path_id" && "$path_id" != "$mgr" ]] && {
-    printf 'MISMATCH %s expected=%s\n' "$mgr" "$path_id"
-    _whoami_remedy; return 1
+    printf 'MISMATCH %s expected=%s source=%s\n' "$mgr" "$path_id" "$src"
+    _whoami_remedy "$jwt_id"; return 1
   }
 
   ids="$(cd "$AI_HARNESS_DIR" && python3 -m remote_control sessions list --ids-only 2>/dev/null)"
@@ -456,13 +465,13 @@ print(session_id_from_path(os.environ.get('WHOAMI_CWD','')) or '')" \
     return 0
   fi
   if grep -qx "$mgr" <<<"$ids"; then
-    printf 'OK %s\n' "$mgr"
+    printf 'OK %s source=%s\n' "$mgr" "$src"
     printf '  identity is ACTIVE, so it is your own.\n'
     [[ -z "$path_id" ]] && printf '  note: no bridge-worktree path to cross-check against, so this\n        cannot rule out inheriting a STILL-ACTIVE predecessor;\n        mgr-audit covers that residue.\n'
     return 0
   fi
-  printf 'MISMATCH %s expected=unknown\n' "$mgr"
-  _whoami_remedy
+  printf 'MISMATCH %s expected=%s source=%s\n' "$mgr" "${jwt_id:-unknown}" "$src"
+  _whoami_remedy "$jwt_id"
   return 1
 }
 
@@ -470,13 +479,27 @@ print(session_id_from_path(os.environ.get('WHOAMI_CWD','')) or '')" \
 # line so `head -1` is a clean verdict for scripted sweeps and the operator
 # still gets the actionable detail.
 _whoami_remedy() {
-  printf '  meaning  : you inherited your parent session'"'"'s identity, so ordinals,\n'
-  printf '             worker records and retitles all address your PREDECESSOR.\n'
-  printf '  remedy   : RESTART this session (the only thing that truly clears it),\n'
-  printf '             or prefix EVERY workers.sh call with MANAGER_CSE_ID=<your id>.\n'
-  printf '  IMPORTANT: exporting it ONCE IS NOT ENOUGH -- shell env does not persist\n'
-  printf '             between a session'"'"'s tool calls (observed in the wild), so a\n'
-  printf '             later call silently resolves back to the dead identity.\n'
+  local jwt_id="${1:-}"
+  printf '  meaning  : ordinals, worker records and retitles all address the id\n'
+  printf '             above instead of this session.\n'
+  if [[ -n "${MANAGER_CSE_ID:-}" ]]; then
+    printf '  cause    : MANAGER_CSE_ID is set and OUTRANKS the token.\n'
+    [[ -n "$jwt_id" ]] && printf '             your token says you are: %s\n' "$jwt_id"
+    printf '  remedy   : prefix calls with `env -u MANAGER_CSE_ID` -- UNSETTING is\n'
+    printf '             self-correcting (it needs no knowledge of your own id,\n'
+    printf '             whereas asserting one requires already knowing it, and a\n'
+    printf '             session wrong about its identity is least able to supply\n'
+    printf '             it). Per-invocation, so it survives the shell-state reset\n'
+    printf '             that `export` does not.\n'
+    printf '  THEN     : re-run `whoami` to VERIFY -- never unset alone. If the\n'
+    printf '             token were also poisoned, unsetting falls through to it\n'
+    printf '             and yields a wrong-but-plausible id silently.\n'
+  else
+    printf '  cause    : the JWT session_id itself resolves to a non-active session.\n'
+    printf '  remedy   : RESTART this session, or pass an explicit correct id.\n'
+    printf '             `env -u MANAGER_CSE_ID` will NOT help here -- the token is\n'
+    printf '             the poisoned source.\n'
+  fi
 }
 
 cmd_mgr_id() {
@@ -507,10 +530,10 @@ cmd_mgr_id() {
   THIS session has almost certainly inherited its parent's identity
   (CLAUDE_CODE_SESSION_ACCESS_TOKEN) and is acting as its predecessor (#147).
   Check with: workers.sh whoami
-  Remedy: restart this session, OR prefix EVERY workers.sh call with
-  MANAGER_CSE_ID=<your own cse_id>. Exporting it ONCE IS NOT ENOUGH -- shell
-  env does not persist between a session's tool calls, so a later call
-  silently resolves back to the dead identity."
+  Remedy: prefix calls with \`env -u MANAGER_CSE_ID\` (unsetting is
+  self-correcting -- it needs no knowledge of your own id), THEN verify with
+  \`workers.sh whoami\`. Never unset alone. A restart also clears it but is not
+  required. Note \`export\` does NOT persist between a session's tool calls."
   fi
   file="$(ordinals_path)" || return $?
   # Fast path: already allocated, no lock needed (append-only file, and a
@@ -666,7 +689,7 @@ for f in glob.glob(os.path.join(LOG_DIR, "cse_*.jsonl")):
         problems.append(
             f"{owner}: manager log written {age_days:.1f}d ago but that cse is "
             f"NOT active -- a live session is acting as this dead identity "
-            f"(inherited session token, #147). EXTENT: {evts} events, "
+            f"(inherited MANAGER_CSE_ID / identity, #147). EXTENT: {evts} events, "
             f"{len(actors)} distinct actor(s) recorded in this log")
 
 # A `superseded_by` must mean "that cse holds THIS ordinal" -- not merely "the
