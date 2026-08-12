@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import Any, Callable, List, Mapping, Optional, Tuple
 
 from .config import SupervisorConfig, UsageLimitConfig
-from .procutil import git_usable_worktree, spawn_env
+from .procutil import git_usable_worktree, run_marker_line, spawn_env
 
 
 USAGE = (
@@ -525,34 +525,6 @@ def _get_token_default(cfg, log):
     return monitor.get_token(cfg, log)
 
 
-def _submit_prompt(
-    sid: str,
-    message: str,
-    log,
-    *,
-    submit: Optional[Callable[..., Any]] = None,
-    get_token: Optional[Callable[..., Any]] = None,
-) -> int:
-    """POST the first user turn into *sid*. Hooks into the same code path as
-    ``sessions submit`` (same wrapped-event body, same auth) so spawn + first
-    turn is genuinely one-shot, not two CLIs glued together. Returns
-    exit-status semantics (0 on 200, 1 otherwise)."""
-    from .usage_limit import monitor
-    submit = submit or monitor.submit_user_message
-    get_token = get_token or monitor.get_token
-    cfg = UsageLimitConfig.from_env()
-    token = get_token(cfg, log)
-    if not token:
-        log("could not read OAuth token from keychain")
-        return 1
-    code, body = submit(cfg, token, sid, message, log)
-    if code == 200:
-        print(f"submitted {sid} ({len(message)} chars)")
-        return 0
-    log(f"FAILED {sid} (http={code}) body={str(body)[:200]}")
-    return 1
-
-
 # A freshly ``--create-session-in-dir`` pre-created session is NOT immediately
 # submittable: the API 409s ("Session is not active") until the dev server's
 # TUI actually attaches it. And the log's FIRST session_<id> link can be a
@@ -582,6 +554,67 @@ _DEAD_STATUSES = frozenset({
 # Distinct rc for "the harvested session is dead/terminal" so the supervisor can
 # tell a poisoned-log failure (recycle the dev server) from a benign timeout.
 RC_DEAD_SESSION = 2
+
+# Distinct rc for "--spawn worktree was requested but the session got NO isolated
+# worktree" -- it is running in the launch dir itself (the #165 data-loss
+# incident: a worker writing into the manager's live checkout). Surfaced apart
+# from a generic failure so a caller can special-case the isolation breach.
+RC_NO_ISOLATION = 3
+
+
+def git_worktrees(directory: Path) -> set:
+    """The set of resolved worktree paths git knows for the repo at *directory*
+    (``git worktree list --porcelain`` -> every ``worktree <path>`` line).
+
+    Returns an EMPTY set when git can't enumerate them (not a repo, git absent,
+    non-zero exit): the isolation check reads an empty ``before`` as "couldn't
+    verify" and fails OPEN, so a non-git launch dir never blocks a spawn."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(directory), "worktree", "list", "--porcelain"],
+            capture_output=True, text=True)
+    except OSError:
+        return set()
+    if out.returncode != 0:
+        return set()
+    paths = set()
+    for line in out.stdout.splitlines():
+        if line.startswith("worktree "):
+            raw = line[len("worktree "):].strip()
+            if raw:
+                paths.add(str(Path(raw).resolve()))
+    return paths
+
+
+def verify_worktree_isolation(
+    launch_dir: Path, before: set, after: set, log,
+) -> Optional[str]:
+    """Return an error string if a ``--spawn worktree`` spawn produced NO new
+    isolated worktree (the session is running in *launch_dir* itself), else None.
+
+    The signal is the set difference of worktrees the launch repo knew BEFORE the
+    spawn vs AFTER the session registered: an isolated ``--spawn worktree``
+    session materialises a fresh worktree dir (cwd != launch dir), so a non-empty
+    ``after - before`` whose new path isn't the launch dir means isolation held.
+
+    Fails OPEN when *before* is empty: git couldn't enumerate worktrees (the
+    launch dir isn't a usable git repo), so worktree isolation was neither
+    requested-meaningfully nor verifiable -- same "authority only where it can
+    actually see" contract as :func:`_session_is_active`. A real repo always
+    lists at least its main worktree, so ``before`` is only empty in the
+    can't-verify case."""
+    if not before:
+        return None  # can't enumerate worktrees -> can't verify -> fail open
+    launch = str(Path(launch_dir).resolve())
+    new_isolated = {p for p in (set(after) - set(before)) if p != launch}
+    if new_isolated:
+        return None
+    return (
+        f"--spawn worktree was requested but NO isolated worktree was "
+        f"provisioned for the session -- git still lists only {sorted(after)}. "
+        f"The worker would write directly into the launch dir {launch} "
+        f"(data-loss risk: writing into the manager's own checkout, issue "
+        f"#165). Refusing to hand work to a non-isolated session.")
 
 
 def submit_active_with_retry(
@@ -786,11 +819,13 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
          submit: Optional[Callable[..., Any]] = None,
          get_token: Optional[Callable[..., Any]] = None,
          set_title: Optional[Callable[..., Any]] = None,
-         fetch_state: Optional[Callable[..., Any]] = None) -> int:
+         fetch_state: Optional[Callable[..., Any]] = None,
+         list_worktrees: Optional[Callable[[Path], set]] = None) -> int:
     popen = subprocess.Popen if popen is None else popen
     git_probe = git_usable_worktree if git_probe is None else git_probe
     env = os.environ if env is None else env
     waiter = wait_for_session_id if waiter is None else waiter
+    list_worktrees = git_worktrees if list_worktrees is None else list_worktrees
     argv = list(sys.argv[1:] if argv is None else argv)
     log = lambda m: print(m, file=sys.stderr)  # noqa: E731
     try:
@@ -970,6 +1005,28 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
     except OSError:
         out = subprocess.DEVNULL
 
+    # Run-anchor: stamp the log with a run-start marker BEFORE exec, written
+    # through the same fd the child inherits, so its bytes precede the server's
+    # own output. ``extract_session_id`` only harvests ids AT OR AFTER the last
+    # marker, so a reconnected/preserved (stale, possibly archived) session id
+    # left in the log by an earlier run for this dir can never be harvested as
+    # THIS run's session (issue #165 symptom B). Mirrors procutil.spawn (467).
+    if hasattr(out, "write"):
+        try:
+            out.write(run_marker_line())
+            out.flush()
+        except OSError:
+            pass
+
+    # Snapshot the launch repo's worktrees BEFORE spawning: a genuine
+    # ``--spawn worktree`` materialises a NEW worktree dir, so the set diff
+    # after the session registers tells us whether isolation actually held
+    # (issue #165 symptom A). Only needed on the verified path (worktree +
+    # we'll wait for registration).
+    wt_before: set = set()
+    if spawn_mode == "worktree" and want_wait:
+        wt_before = list_worktrees(cwd)
+
     child_env = spawn_env(cfg, env)
     if reply_to:
         # Survives any user-side editing of the prompt header on the receiving
@@ -1042,6 +1099,20 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
         return 1
     print(f"  session: {sid}")
 
+    # Worktree-isolation guard (issue #165 symptom A): if --spawn worktree was
+    # requested, the registered session MUST have got a fresh isolated worktree
+    # -- not be running in the launch dir. A reconnected preserved Environment
+    # keeps its OLD spawn mode (same-dir) and provisions no worktree, so the
+    # worker would write straight into the launch dir (the manager's checkout).
+    # Verify BEFORE we submit the first turn: never hand work to a session that
+    # isn't isolated. Fail LOUD (distinct rc) instead of returning success.
+    if spawn_mode == "worktree":
+        wt_after = list_worktrees(cwd)
+        iso_err = verify_worktree_isolation(cwd, wt_before, wt_after, log)
+        if iso_err:
+            print(f"new-session: {iso_err}", file=sys.stderr)
+            return RC_NO_ISOLATION
+
     # Tag the subsession's title with [SUB] (preserved across watcher re-renders
     # via session_titles.extract_sub_token). Best-effort: a failure here logs
     # and continues -- the spawn + prompt itself is what matters.
@@ -1057,8 +1128,17 @@ def main(argv: Optional[List[str]] = None, popen=None, git_probe=None,
         from .session_list import format_reply_header
         prompt_body = format_reply_header(reply_to, prompt_body)
 
-    return _submit_prompt(sid, prompt_body, log,
-                          submit=submit, get_token=get_token)
+    # Harden the submit (issue #165 symptom B): route through the same
+    # active-gate / supersession re-harvest / 409-retry / dead-status-bail path
+    # the --inject-into flow uses, instead of a naive single POST. A reconnected/
+    # archived/superseded session is then detected (RC_DEAD_SESSION, no phantom
+    # "submitted") rather than silently 409'd or submitted-into-a-corpse.
+    rc, sid = submit_active_with_retry(
+        initial_sid=sid, message=prompt_body, logpath=logpath,
+        timeout_secs=opts["wait_timeout"], log=log,
+        submit=submit, get_token=get_token, fetch_state=fetch_state,
+    )
+    return rc
 
 
 if __name__ == "__main__":

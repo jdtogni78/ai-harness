@@ -571,7 +571,10 @@ class WaitAndPromptTest(unittest.TestCase):
                     rng=lambda n: "abc",
                     waiter=lambda lp, to, **_: "cse_WORKER",
                     submit=fake_submit,
-                    get_token=lambda cfg, log: "TOKEN")
+                    get_token=lambda cfg, log: "TOKEN",
+                    set_title=lambda *a, **k: (200, {}),
+                    fetch_state=lambda c, t, s, log: (200, "active", "connected"),
+                    list_worktrees=lambda p: set())
         self.assertEqual(rc, 0)
         self.assertEqual(submitted, [("cse_WORKER", "do the thing")])
 
@@ -592,7 +595,10 @@ class WaitAndPromptTest(unittest.TestCase):
                     rng=lambda n: "abc",
                     waiter=lambda lp, to, **_: "cse_WORKER",
                     submit=fake_submit,
-                    get_token=lambda cfg, log: "TOKEN")
+                    get_token=lambda cfg, log: "TOKEN",
+                    set_title=lambda *a, **k: (200, {}),
+                    fetch_state=lambda c, t, s, log: (200, "active", "connected"),
+                    list_worktrees=lambda p: set())
         self.assertEqual(rc, 0)
         body = submitted[0]
         self.assertTrue(body.startswith("[from cse_MANAGER"),
@@ -613,7 +619,10 @@ class WaitAndPromptTest(unittest.TestCase):
                     rng=lambda n: "abc",
                     waiter=lambda lp, to, **_: "cse_WORKER",
                     submit=lambda c, t, sid, msg, log: (submitted.append(msg) or (200, {})),
-                    get_token=lambda cfg, log: "TOKEN")
+                    get_token=lambda cfg, log: "TOKEN",
+                    set_title=lambda *a, **k: (200, {}),
+                    fetch_state=lambda c, t, s, log: (200, "active", "connected"),
+                    list_worktrees=lambda p: set())
         self.assertEqual(rc, 0)
         self.assertEqual(submitted, ["from a file\n"])
 
@@ -643,7 +652,10 @@ class WaitAndPromptTest(unittest.TestCase):
                     rng=lambda n: "abc",
                     waiter=lambda lp, to, **_: "cse_WORKER",
                     submit=lambda c, t, sid, msg, log: (500, {"err": "x"}),
-                    get_token=lambda cfg, log: "TOKEN")
+                    get_token=lambda cfg, log: "TOKEN",
+                    set_title=lambda *a, **k: (200, {}),
+                    fetch_state=lambda c, t, s, log: (200, "active", "connected"),
+                    list_worktrees=lambda p: set())
         self.assertEqual(rc, 1)
 
     def test_dry_run_shows_wait_and_prompt_lines(self):  # noqa: E501  (test helper anchor)
@@ -1186,6 +1198,195 @@ class DevRootTitleFallbackTest(unittest.TestCase):
             self.assertIsNone(initial_subname_title(
                 elsewhere, host="mini", subname="x", dev_root=dev,
                 nicknames_file="/no/such/file"))
+
+
+class RunAnchorSpawnTest(unittest.TestCase):
+    """#165 symptom B, end-to-end through main(): the spawn path must write a
+    run-start marker BEFORE exec so ``extract_session_id`` harvests only THIS
+    run's fresh id -- never a stale/archived ``session_<id>`` a preserved
+    Environment left in the (append-mode) per-dir log from a prior run. Without
+    the marker, the FIRST link in the log wins and the spawn submits into a
+    reconnected corpse."""
+
+    def test_spawn_writes_marker_and_harvests_current_run_id_not_stale(self):
+        submitted: list = []
+
+        def child_writes_fresh_id(cmd, **kw):
+            # Emulate the `claude` child: after main stamped the marker through
+            # this same fd, the server prints its fresh session link.
+            kw["stdout"].write(
+                b"Continue coding in https://claude.ai/code/session_01Fresh\n")
+            kw["stdout"].flush()
+            return mock.Mock(pid=4242)
+
+        with tempfile.TemporaryDirectory() as d:
+            logpath = Path(d) / "local-mini-abc.log"
+            # A preserved Environment left a STALE, now-archived id in the log
+            # from a prior run for this dir (append-mode accumulation).
+            logpath.write_bytes(b"session_01StaleArchived?from=cli\n")
+            with mock.patch.dict(os.environ, _env(d), clear=False):
+                rc = new_session.main(
+                    ["--dir", d, "--spawn", "same-dir",
+                     "--prompt", "do the work", "--no-reply-to"],
+                    popen=child_writes_fresh_id, git_probe=lambda p: True,
+                    rng=lambda n: "abc",
+                    # NOTE: real waiter + real read_log_tail on purpose -- this
+                    # is the anchoring we are exercising, not a stub.
+                    submit=lambda c, t, sid, msg, log: (
+                        submitted.append(sid) or (200, {})),
+                    get_token=lambda cfg, log: "TOKEN",
+                    set_title=lambda *a, **k: (200, {}),
+                    fetch_state=lambda c, t, s, log: (200, "active", "connected"))
+                self.assertEqual(rc, 0)
+                # The submitted id is the CURRENT run's fresh id, not the stale.
+                self.assertEqual(submitted, ["cse_01Fresh"])
+                # And the marker really landed in the log, ahead of the fresh
+                # link (so extract_session_id anchors past the stale id).
+                blob = logpath.read_bytes()
+                self.assertIn(new_session._RUN_MARKER_PREFIX, blob)
+                self.assertLess(blob.index(new_session._RUN_MARKER_PREFIX),
+                                blob.index(b"session_01Fresh"))
+
+
+class WorktreeIsolationTest(unittest.TestCase):
+    """#165 symptom A (the data-loss guard): a ``--spawn worktree`` spawn whose
+    session ends up in the launch dir itself (a reconnected preserved
+    Environment kept its old same-dir mode, provisioning NO worktree) must FAIL
+    LOUD -- never return success and never submit the first turn -- so a worker
+    can't silently write into the manager's own checkout."""
+
+    def _lister(self, before, after):
+        """A list_worktrees seam that returns *before* on its first call
+        (pre-spawn snapshot) and *after* on the second (post-registration)."""
+        seq = iter([before, after])
+        return lambda p: next(seq)
+
+    def test_no_new_worktree_fails_loud_and_submits_nothing(self):
+        submitted: list = []
+        with tempfile.TemporaryDirectory() as d:
+            launch = str(Path(d).resolve())
+            env = _env(d)
+            buf = io.StringIO()
+            with mock.patch.dict(os.environ, env, clear=False), \
+                 mock.patch("sys.stderr", buf):
+                rc = new_session.main(
+                    ["--dir", d, "--spawn", "worktree",
+                     "--prompt", "do the work", "--no-reply-to"],
+                    popen=_FakePopen(), git_probe=lambda p: True,
+                    rng=lambda n: "abc",
+                    waiter=lambda lp, to, **_: "cse_WORKER",
+                    submit=lambda c, t, sid, msg, log: (
+                        submitted.append(sid) or (200, {})),
+                    get_token=lambda cfg, log: "TOKEN",
+                    fetch_state=lambda c, t, s, log: (200, "active", "connected"),
+                    # Same worktree set before and after -> no isolation.
+                    list_worktrees=self._lister({launch}, {launch}))
+        self.assertEqual(rc, new_session.RC_NO_ISOLATION)
+        self.assertEqual(submitted, [])              # never handed work
+        err = buf.getvalue()
+        self.assertIn("NO isolated worktree", err)
+        self.assertIn("#165", err)
+
+    def test_fresh_worktree_appears_passes_and_submits(self):
+        submitted: list = []
+        with tempfile.TemporaryDirectory() as d:
+            launch = str(Path(d).resolve())
+            wt = launch + "-165"     # the fresh isolated worktree git created
+            env = _env(d)
+            with mock.patch.dict(os.environ, env, clear=False):
+                rc = new_session.main(
+                    ["--dir", d, "--spawn", "worktree",
+                     "--prompt", "do the work", "--no-reply-to"],
+                    popen=_FakePopen(), git_probe=lambda p: True,
+                    rng=lambda n: "abc",
+                    waiter=lambda lp, to, **_: "cse_WORKER",
+                    submit=lambda c, t, sid, msg, log: (
+                        submitted.append(sid) or (200, {})),
+                    get_token=lambda cfg, log: "TOKEN",
+                    set_title=lambda *a, **k: (200, {}),
+                    fetch_state=lambda c, t, s, log: (200, "active", "connected"),
+                    list_worktrees=self._lister({launch}, {launch, wt}))
+        self.assertEqual(rc, 0)
+        self.assertEqual(submitted, ["cse_WORKER"])
+
+    def test_unverifiable_worktrees_fail_open(self):
+        # git can't enumerate worktrees (empty before -> not a usable repo):
+        # the guard must fail OPEN, not block a legitimate spawn.
+        submitted: list = []
+        with tempfile.TemporaryDirectory() as d:
+            with mock.patch.dict(os.environ, _env(d), clear=False):
+                rc = new_session.main(
+                    ["--dir", d, "--spawn", "worktree",
+                     "--prompt", "do the work", "--no-reply-to"],
+                    popen=_FakePopen(), git_probe=lambda p: True,
+                    rng=lambda n: "abc",
+                    waiter=lambda lp, to, **_: "cse_WORKER",
+                    submit=lambda c, t, sid, msg, log: (
+                        submitted.append(sid) or (200, {})),
+                    get_token=lambda cfg, log: "TOKEN",
+                    set_title=lambda *a, **k: (200, {}),
+                    fetch_state=lambda c, t, s, log: (200, "active", "connected"),
+                    list_worktrees=lambda p: set())
+        self.assertEqual(rc, 0)
+        self.assertEqual(submitted, ["cse_WORKER"])
+
+
+class WaitSubmitHardenedPathTest(unittest.TestCase):
+    """#165 symptom B: the --wait submit no longer does a single naive POST. It
+    routes through submit_active_with_retry, so it gates on active+connected,
+    retries the POST on HTTP 409, and bails FAST with RC_DEAD_SESSION on a
+    reconnected/archived (terminal) session instead of a phantom 'submitted'."""
+
+    def test_wait_submit_retries_on_409_then_succeeds(self):
+        # First POST 409s ('not active'); the retry (still active) 200s. A naive
+        # single-submit path would have failed here.
+        submits = iter([(409, {"error": "Session is not active"}), (200, {})])
+        n = {"submit": 0}
+
+        def submit(c, t, sid, msg, log):
+            n["submit"] += 1
+            return next(submits)
+
+        clock = _StepClock(step=1.0)
+        with tempfile.TemporaryDirectory() as d:
+            with mock.patch.dict(os.environ, _env(d), clear=False), \
+                 mock.patch.object(new_session.time, "sleep", clock.sleep), \
+                 mock.patch.object(new_session.time, "monotonic", clock.now):
+                rc = new_session.main(
+                    ["--dir", d, "--spawn", "same-dir",
+                     "--prompt", "do the work", "--no-reply-to"],
+                    popen=_FakePopen(), git_probe=lambda p: True,
+                    rng=lambda n_: "abc",
+                    waiter=lambda lp, to, **_: "cse_WORKER",
+                    submit=submit, get_token=lambda cfg, log: "TOKEN",
+                    set_title=lambda *a, **k: (200, {}),
+                    fetch_state=lambda c, t, s, log: (200, "active", "connected"))
+        self.assertEqual(rc, 0)
+        self.assertEqual(n["submit"], 2)     # retried, didn't give up on the 409
+
+    def test_wait_submit_bails_dead_session_with_distinct_rc(self):
+        # The registered id is terminal (archived: a reconnected preserved
+        # session). The path must bail with RC_DEAD_SESSION and submit NOTHING
+        # -- not burn the window nor emit a phantom success.
+        submitted: list = []
+        clock = _StepClock(step=1.0)
+        with tempfile.TemporaryDirectory() as d:
+            with mock.patch.dict(os.environ, _env(d), clear=False), \
+                 mock.patch.object(new_session.time, "sleep", clock.sleep), \
+                 mock.patch.object(new_session.time, "monotonic", clock.now):
+                rc = new_session.main(
+                    ["--dir", d, "--spawn", "same-dir",
+                     "--prompt", "do the work", "--no-reply-to"],
+                    popen=_FakePopen(), git_probe=lambda p: True,
+                    rng=lambda n_: "abc",
+                    waiter=lambda lp, to, **_: "cse_WORKER",
+                    submit=lambda c, t, sid, msg, log: (
+                        submitted.append(sid) or (200, {})),
+                    get_token=lambda cfg, log: "TOKEN",
+                    set_title=lambda *a, **k: (200, {}),
+                    fetch_state=lambda c, t, s, log: (200, "archived", "connected"))
+        self.assertEqual(rc, new_session.RC_DEAD_SESSION)
+        self.assertEqual(submitted, [])
 
 
 if __name__ == "__main__":
