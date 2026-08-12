@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user2.claude-telegram-bridge</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>-m</string>
+        <string>remote_control</string>
+        <string>telegram-bridge</string>
+    </array>
+
+    <!-- Telegram inbound bridge (#163). Long-polls getUpdates and lands the
+         boss's messages into the durable answers feed + phone push. The bot
+         token is NEVER in this plist: the bridge reads it fresh from the
+         chmod-600 file TELEGRAM_TOKEN_FILE (default ~/.ai-harness/telegram/
+         bot_token) each cycle. Until that file exists the bridge idles (live
+         poll gated) -- so it is safe to load before the boss drops the token.
+
+         TELEGRAM_DRY_RUN 1 = land inbound to the feed but send no replies;
+         set 0 to enable outbound sendMessage (Phase-B / #164).
+         TELEGRAM_ALLOWED_CHAT_IDS (comma-separated) restricts inbound to the
+         boss's chat id(s); empty accepts all (spike default).
+         PYTHONPATH puts the repo's remote_control package on the path for
+         `python3 -m` (launchd's bare env / cwd won't find it). -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>TELEGRAM_DRY_RUN</key>
+        <string>1</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/user2/dev/ai-harness</string>
+    </dict>
+
+    <!-- Start at login, KeepAlive: a separate daemon from the supervisor and
+         the usage monitor on purpose (independent blast radius). SIGTERM-trap
+         inside the loop lets launchd deliver TERM at logout/reboot so the
+         offset state file is left consistent (no AbandonProcessGroup). -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/user2/dev/ai-harness/logs/telegram-bridge.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/user2/dev/ai-harness/logs/telegram-bridge.err.log</string>
+</dict>
+</plist>

@@ -30,6 +30,12 @@ AGENTS = [
     "com.user2.claude-remote-control.plist",
     "com.user2.claude-usage-limit-monitor.plist",
     "com.user2.claude-titles-monitor.plist",
+    # NOTE (#163): com.<user>.claude-telegram-bridge.plist is intentionally NOT
+    # auto-enrolled here for the Phase-1 spike. The plists + `python3 -m
+    # remote_control telegram-bridge` support ship, but the bridge stays
+    # install-on-demand (bootstrap the plist manually, or `install <plist>`)
+    # until it's validated with a real token; enroll it in AGENTS as a
+    # follow-up once proven.
 ]
 
 REPO_DIR = Path(__file__).resolve().parent.parent

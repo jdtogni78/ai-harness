@@ -8,7 +8,7 @@ from __future__ import annotations
 import sys
 from typing import List, Optional
 
-USAGE = "usage: python3 -m remote_control <supervisor|usage-monitor|manager|manager-ui|perm-gate|install|codex-import|titles|sessions|work|fork|fork-all|resume|new-session|relaunch|takeover|eval> [args]"
+USAGE = "usage: python3 -m remote_control <supervisor|usage-monitor|telegram-bridge|manager|manager-ui|perm-gate|install|codex-import|titles|sessions|work|fork|fork-all|resume|new-session|relaunch|takeover|eval> [args]"
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -23,6 +23,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         return run(rest)
     if cmd == "usage-monitor":
         from .usage_limit.monitor import main as run
+        return run(rest)
+    if cmd == "telegram-bridge":
+        from .telegram.bridge import main as run
         return run(rest)
     if cmd == "manager":
         from .manager import main as run
