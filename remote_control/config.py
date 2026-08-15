@@ -229,6 +229,82 @@ class SupervisorConfig:
 
 
 @dataclass(frozen=True)
+class TelegramConfig:
+    """The Telegram inbound-bridge loop (``python3 -m remote_control
+    telegram-bridge``): a supervised long-poll over the Bot API ``getUpdates``
+    that lands each of the boss's messages into the durable answers feed +
+    phone push, and can reply via ``sendMessage`` (Phase-1 spike, #163).
+
+    Same shape as :class:`UsageLimitConfig`: env -> frozen dataclass, a state
+    file + pid-lock in ``logdir``, a long-poll cadence. The bot token is NEVER
+    baked in here -- it is read fresh from a chmod-600 file (``token_file``) each
+    time it is needed, and never logged. ``dry_run`` (default ON) means "read +
+    route to the feed, but do not send outbound replies", mirroring the usage
+    monitor's detect-only default.
+    """
+    home: Path
+    logdir: Path
+    api_base: str
+    # chmod-600 file the boss drops the @BotFather token into. Read fresh, never
+    # logged, never committed. Absent file => live poll is gated (bridge idles).
+    token_file: Path
+    # Long-poll timeout handed to getUpdates (server holds the request open this
+    # long waiting for a message) + the client-side socket timeout margin on top.
+    poll_timeout: int
+    http_timeout: int
+    # Cap on inbound message length before it reaches the feed / render / shell.
+    max_message_len: int
+    # Only accept messages from these Telegram chat ids (the boss's). Empty =>
+    # accept all (spike default). Untrusted-input defense-in-depth.
+    allowed_chat_ids: FrozenSet[str]
+    # Path to the durable-feed poster (answers.sh). Routed via argv (no shell).
+    answers_script: Path
+    # Manager tag + subject the inbound message is filed under in the feed.
+    feed_tag: str
+    # dry_run ON => route inbound to the feed but do NOT send outbound replies.
+    dry_run: bool
+
+    @property
+    def state_file(self) -> Path:
+        return self.logdir / "telegram-bridge-state.json"
+
+    @property
+    def log_file(self) -> Path:
+        return self.logdir / "telegram-bridge.log"
+
+    @property
+    def lock_file(self) -> Path:
+        return self.logdir / "telegram-bridge.lock"
+
+    @classmethod
+    def from_env(cls, env: Optional[Mapping[str, str]] = None) -> "TelegramConfig":
+        env = os.environ if env is None else env
+        home = Path(env["HOME"])
+        allowed = frozenset(
+            s.strip() for s in env.get("TELEGRAM_ALLOWED_CHAT_IDS", "").split(",")
+            if s.strip()
+        )
+        return cls(
+            home=home,
+            logdir=Path(env.get("REMOTE_CONTROL_LOGDIR", LOGDIR)),
+            api_base=env.get("TELEGRAM_API_BASE", "https://api.telegram.org"),
+            token_file=Path(env.get(
+                "TELEGRAM_TOKEN_FILE", str(home / ".ai-harness/telegram/bot_token"))),
+            poll_timeout=int(env.get("TELEGRAM_POLL_TIMEOUT_SECS", "30")),
+            http_timeout=int(env.get("TELEGRAM_HTTP_TIMEOUT_SECS", "45")),
+            max_message_len=int(env.get("TELEGRAM_MAX_MESSAGE_LEN", "2000")),
+            allowed_chat_ids=allowed,
+            answers_script=Path(env.get(
+                "TELEGRAM_ANSWERS_SCRIPT",
+                str(Path(REPO) / "skills/manage/scripts/answers.sh"))),
+            feed_tag=env.get("TELEGRAM_FEED_TAG", "TELEGRAM"),
+            # Default ON: land inbound to the feed, but don't send replies until
+            # explicitly enabled (TELEGRAM_DRY_RUN=0). #164 flips this on.
+            dry_run=_truthy(env.get("TELEGRAM_DRY_RUN", "1")),
+        )
+
+
+@dataclass(frozen=True)
 class UsageLimitConfig:
     home: Path
     logdir: Path
