@@ -201,8 +201,24 @@ _post_to_inbox() {
 }
 
 # ---- desktop notification (this Mac only; phone push rides the inbox brief) --
+# Prefer terminal-notifier when present: it posts under its own app identity
+# (fr.julienxx.oss.terminal-notifier), which macOS lists in System Settings >
+# Notifications, so the boss can set it to "Alerts" (persistent — stays until
+# dismissed = requires ack). `osascript display notification` fired from a
+# detached manager session has no toggleable owning app, so it can only ever
+# banner-and-vanish. Fall back to osascript when terminal-notifier is absent.
 _notify_desktop() {
-  local snippet="$1"
+  local snippet="$1" subtitle="${2:-}"
+  if command -v terminal-notifier >/dev/null 2>&1; then
+    if [[ -n "$subtitle" ]]; then
+      terminal-notifier -title "Boss answers feed" -subtitle "$subtitle" \
+        -message "$snippet" -sound Ping >/dev/null 2>&1 || true
+    else
+      terminal-notifier -title "Boss answers feed" \
+        -message "$snippet" -sound Ping >/dev/null 2>&1 || true
+    fi
+    return 0
+  fi
   command -v osascript >/dev/null 2>&1 || return 0
   osascript -e "display notification \"${snippet//\"/\\\"}\" with title \"Boss answers feed\"" \
     >/dev/null 2>&1 || true
@@ -255,7 +271,7 @@ cmd_post() {
   if $do_notify; then
     local snippet="New answer · [${tag}] · ${q}"
     snippet="${snippet:0:180}"
-    _notify_desktop "$snippet"
+    _notify_desktop "$snippet" "${subject}"
     echo "answers.sh: desktop notification fired"
   fi
 }
