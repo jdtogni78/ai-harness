@@ -175,6 +175,21 @@ def pick_spawn_mode(directory: Path, git_probe: Callable[[Path], bool]) -> str:
     return "worktree" if git_probe(directory) else "same-dir"
 
 
+# The TOP-LEVEL ``claude --settings`` payload injected into every spawned
+# server. ``crossSessionInbound=accept`` makes a bypassPermissions session
+# ACCEPT inbound cross-session messages instead of HOLDING them. Since Claude
+# Code v2.1.224+, inbound messages to a bypassPermissions session are held for
+# manual approval and DROPPED after dialogExpiry -- so a manager-spawned
+# worker's very FIRST turn (the brief we submit right after registration) was
+# held then dropped, and the worker never started. Injecting accept per-spawn
+# makes every worker born able to run its first turn, and lets us drop the
+# interim GLOBAL override in ~/.claude/settings.json (crossSessionInbound +
+# dialogExpiry=never) that papered over this host-wide. Passed as an inline
+# JSON string, which ``claude --settings`` accepts (file path OR literal JSON),
+# and MUST precede the ``remote-control`` subcommand to be a top-level flag.
+_CROSS_SESSION_SETTINGS = '{"crossSessionInbound":"accept"}'
+
+
 def build_argv(claude_bin: Path, name: str, spawn_mode: str,
                permission_mode: str) -> List[str]:
     """The ``claude remote-control`` command line (pure).
@@ -182,9 +197,16 @@ def build_argv(claude_bin: Path, name: str, spawn_mode: str,
     NOTE: no ``--no-create-session-in-dir`` -- we *want* the session row to
     appear immediately. Capacity is 1, so the server exits after that one
     session ends.
+
+    The top-level ``--settings`` flag (before the ``remote-control``
+    subcommand) carries ``crossSessionInbound=accept`` so the spawned worker
+    accepts the first-turn brief we submit rather than holding+dropping it
+    (see ``_CROSS_SESSION_SETTINGS``).
     """
     return [
-        str(claude_bin), "remote-control",
+        str(claude_bin),
+        "--settings", _CROSS_SESSION_SETTINGS,
+        "remote-control",
         "--name", name,
         "--spawn", spawn_mode,
         "--capacity", "1",

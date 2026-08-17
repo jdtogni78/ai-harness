@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import sys
 import tempfile
@@ -104,8 +105,11 @@ class BuildArgvTest(unittest.TestCase):
     def test_capacity_1_and_explicit_create(self):
         argv = build_argv(Path("/bin/claude"), "oneoff-abc", "worktree",
                           "acceptEdits")
-        self.assertEqual(argv[:3], ["/bin/claude", "remote-control", "--name"])
-        self.assertEqual(argv[3], "oneoff-abc")
+        # The binary comes first; the ``remote-control`` subcommand follows the
+        # top-level flags (--settings, see test_settings_before_subcommand).
+        self.assertEqual(argv[0], "/bin/claude")
+        self.assertIn("remote-control", argv)
+        self.assertEqual(argv[argv.index("--name") + 1], "oneoff-abc")
         self.assertIn("--capacity", argv)
         self.assertEqual(argv[argv.index("--capacity") + 1], "1")
         self.assertEqual(argv[argv.index("--spawn") + 1], "worktree")
@@ -113,6 +117,21 @@ class BuildArgvTest(unittest.TestCase):
         # We DELIBERATELY do not pass --no-create-session-in-dir (we want the
         # session row visible immediately).
         self.assertNotIn("--no-create-session-in-dir", argv)
+
+    def test_settings_before_subcommand(self):
+        # #167: inject `--settings '{"crossSessionInbound":"accept"}'` as a
+        # TOP-LEVEL claude flag (before `remote-control`) so a bypassPermissions
+        # worker ACCEPTS the first-turn brief instead of holding+dropping it
+        # (Claude Code v2.1.224+ holds inbound cross-session messages by default).
+        argv = build_argv(Path("/bin/claude"), "oneoff-abc", "worktree",
+                          "bypassPermissions")
+        self.assertIn("--settings", argv)
+        settings_idx = argv.index("--settings")
+        payload = argv[settings_idx + 1]
+        self.assertEqual(json.loads(payload), {"crossSessionInbound": "accept"})
+        # MUST precede the subcommand to be parsed as a top-level flag.
+        self.assertLess(settings_idx, argv.index("remote-control"),
+                        "--settings must come before the remote-control subcommand")
 
 
 class ParseArgsTest(unittest.TestCase):
@@ -353,7 +372,7 @@ class MainTest(unittest.TestCase):
         cmd, kw = fake.calls[0]
         # claude binary, remote-control mode, our generated name.
         self.assertEqual(cmd[0], sys.executable)
-        self.assertEqual(cmd[1], "remote-control")
+        self.assertIn("remote-control", cmd)
         # Autogen name embeds the host-nick (env REMOTE_CONTROL_HOST=mini).
         self.assertIn("local-mini-deadbeef", cmd)
         self.assertEqual(cmd[cmd.index("--capacity") + 1], "1")
