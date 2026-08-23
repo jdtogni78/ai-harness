@@ -205,6 +205,44 @@ def build(inv, dup):
     return rows
 
 
+def _relpath(folder, root):
+    """Strip the leading root label from a folder key → its in-repo relpath."""
+    if folder == root:
+        return "."
+    prefix = root + "/"
+    return folder[len(prefix):] if folder.startswith(prefix) else folder
+
+
+def collapse_worktrees(rows):
+    """Collapse folders that exist at the same relpath across roots into one
+    logical row (A4). Identical grades → a single tidy row; divergent grades →
+    one row flagged with the per-root spread so real drift stays visible."""
+    groups = defaultdict(list)
+    for r in rows:
+        groups[_relpath(r["folder"], r["root"])].append(r)
+    out = []
+    for rel, members in groups.items():
+        grades = {m["grade"] for m in members}
+        roots = sorted(m["root"] for m in members)
+        rep = min(members, key=lambda m: m["composite"])  # worst-case wins
+        mean_comp = round(sum(m["composite"] for m in members) / len(members), 2)
+        out.append({
+            "relpath": rel,
+            "n_worktrees": len(members),
+            "roots": roots,
+            "identical": len(grades) == 1,
+            "grade": rep["grade"] if len(grades) == 1 else "/".join(sorted(grades)),
+            "composite": mean_comp,
+            "axes": rep["axes"],
+            "n_files": rep["n_files"],
+            "classes": rep["classes"],
+            "per_root": {m["root"]: {"grade": m["grade"], "composite": m["composite"]}
+                         for m in members} if len(grades) > 1 else None,
+        })
+    out.sort(key=lambda r: (r["composite"], r["relpath"]))
+    return out
+
+
 AX_ORDER = ["duplication", "naming", "objective", "loss_risk",
             "searchability", "reduction"]
 AX_SHORT = {"duplication": "dup", "naming": "name", "objective": "obj",
@@ -232,9 +270,11 @@ def print_report(inv, dup, rows):
             print(f"  {r}  (not a git repo)")
     if dup:
         s = dup.get("summary", {})
-        print(f"duplication: {s.get('n_exact_groups', 0)} exact groups, "
-              f"{s.get('wasted_bytes', 0)} wasted bytes "
-              f"({s.get('n_near_groups', 0)} near-dup groups)")
+        print(f"duplication: {s.get('n_within_root_groups', 0)} within-root groups, "
+              f"{s.get('wasted_bytes_within_root', s.get('wasted_bytes', 0)):,} "
+              f"actionable bytes  |  {s.get('n_cross_root_groups', 0)} "
+              f"cross-worktree groups, {s.get('wasted_bytes_cross_root', 0):,} "
+              f"expected bytes  ({s.get('n_near_groups', 0)} near-dup)")
 
     hdr = f"\n{'grade':5} {'score':>5}  " + "  ".join(
         f"{AX_SHORT[a]:>4}" for a in AX_ORDER) + f"  {'files':>5}  folder"
@@ -260,6 +300,34 @@ def print_report(inv, dup, rows):
             print(f"  {r['grade']}  {r['folder']}  (weakest: {weak_s})")
 
 
+def print_collapsed_report(inv, dup, collapsed):
+    print(f"===== ORGANIZER RATED REPORT — collapsed worktrees "
+          f"({len(collapsed)} logical folders) =====")
+    print(f"generated_at: {inv.get('generated_at')}")
+    roots = inv.get("roots", [])
+    print(f"roots collapsed: {len(roots)}")
+    if dup:
+        s = dup.get("summary", {})
+        print(f"duplication: {s.get('n_within_root_groups', 0)} within-root groups, "
+              f"{s.get('wasted_bytes_within_root', 0):,} actionable bytes  "
+              f"(cross-worktree copies excluded)")
+    hdr = f"\n{'grade':7} {'score':>5}  " + "  ".join(
+        f"{AX_SHORT[a]:>4}" for a in AX_ORDER) + f"  {'wt':>2} {'files':>5}  folder"
+    print(hdr)
+    print("-" * len(hdr))
+    for r in collapsed:
+        axes = "  ".join(f"{r['axes'][a]:>4.1f}" for a in AX_ORDER)
+        flag = "" if r["identical"] else " *DIVERGENT*"
+        print(f"{r['grade']:7} {r['composite']:>5.2f}  {axes}  "
+              f"{r['n_worktrees']:>2} {r['n_files']:>5}  {r['relpath']}{flag}")
+    div = [r for r in collapsed if not r["identical"]]
+    print(f"\nlogical folders: {len(collapsed)}   divergent across worktrees: {len(div)}")
+    for r in div:
+        spread = ", ".join(f"{root}={pr['grade']}({pr['composite']})"
+                           for root, pr in r["per_root"].items())
+        print(f"  {r['relpath']}: {spread}")
+
+
 def main():
     ap = argparse.ArgumentParser(description="folder organization rubric (A-F)")
     ap.add_argument("-i", "--in", dest="inp", default="-",
@@ -267,14 +335,43 @@ def main():
     ap.add_argument("-d", "--dups", help="dup-detect JSON (optional)")
     ap.add_argument("--json", action="store_true",
                    help="emit grade JSON instead of the text report")
+    ap.add_argument("--collapse-worktrees", action="store_true",
+                   help="collapse same-relpath folders across roots into one "
+                        "logical row (A4); flags per-root grade divergence")
     ap.add_argument("-o", "--out", help="write output here instead of stdout")
     a = ap.parse_args()
 
     inv = load(a.inp, required=True)
     dup = load(a.dups, required=False) if a.dups else None
     rows = build(inv, dup)
+    if a.collapse_worktrees:
+        collapsed = collapse_worktrees(rows)
 
     if a.json:
+        if a.collapse_worktrees:
+            grade_of = lambda r: r["grade"][0]  # first letter for divergent rows
+            doc = {
+                "generated_at": inv.get("generated_at"),
+                "tool": "folder-rater",
+                "view": "collapsed-worktrees",
+                "folders": collapsed,
+                "summary": {
+                    "n_folders": len(collapsed),
+                    "n_divergent": sum(1 for r in collapsed if not r["identical"]),
+                    "mean_composite": round(
+                        sum(r["composite"] for r in collapsed) / len(collapsed), 2)
+                        if collapsed else 0,
+                },
+            }
+            text = json.dumps(doc, indent=2)
+            if a.out:
+                with open(a.out, "w") as f:
+                    f.write(text + "\n")
+                print(f"folder-rater: wrote {a.out} ({len(collapsed)} collapsed folders)",
+                      file=sys.stderr)
+            else:
+                print(text)
+            return
         doc = {
             "generated_at": inv.get("generated_at"),
             "tool": "folder-rater",
@@ -296,16 +393,19 @@ def main():
             print(text)
         return
 
+    printer = ((lambda: print_collapsed_report(inv, dup, collapsed))
+               if a.collapse_worktrees
+               else (lambda: print_report(inv, dup, rows)))
     if a.out:
         import io, contextlib
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
-            print_report(inv, dup, rows)
+            printer()
         with open(a.out, "w") as f:
             f.write(buf.getvalue())
         print(f"folder-rater: wrote {a.out}", file=sys.stderr)
     else:
-        print_report(inv, dup, rows)
+        printer()
 
 
 if __name__ == "__main__":

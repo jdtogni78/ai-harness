@@ -36,7 +36,11 @@ PRUNE_DIRS = {
 
 # File classification by extension / basename. Order: junk wins, then the rest.
 JUNK_NAMES = {".DS_Store", "Thumbs.db", ".localized"}
-JUNK_EXTS = {".tmp", ".bak", ".swp", ".swo", ".orig", ".pyc", ".pyo", ".log"}
+JUNK_EXTS = {".tmp", ".bak", ".swp", ".swo", ".orig", ".pyc", ".pyo"}
+# Logs are their OWN class, not junk: they're often real runtime output the
+# user wants to keep, and in this repo they dominate the byte count (~644 MB).
+# Classing them as junk both mis-advised deletion and skewed the reduction axis.
+LOG_EXTS = {".log"}
 DOC_EXTS = {".md", ".rst", ".txt", ".pdf", ".adoc"}
 DOC_NAMES = {"README", "LICENSE", "COPYING", "CHANGELOG", "NOTICE", "AUTHORS"}
 SCRIPT_EXTS = {".py", ".sh", ".bash", ".zsh", ".js", ".mjs", ".ts", ".tsx",
@@ -76,6 +80,8 @@ def classify(name):
     base_no_ext = stem  # e.g. README (from README.md), or the whole name
     if name in JUNK_NAMES or ext in JUNK_EXTS or name.endswith("~"):
         return "junk"
+    if ext in LOG_EXTS:
+        return "log"
     if ext in DOC_EXTS or name in DOC_NAMES or base_no_ext.upper() in DOC_NAMES:
         return "doc"
     if ext in SCRIPT_EXTS:
@@ -186,7 +192,7 @@ def scan_root(root, label, do_hash, max_hash_bytes, files_out, folders_out,
                 "mtime": round(st.st_mtime, 1),
                 "class": cls,
             }
-            if do_hash and cls != "junk":
+            if do_hash and cls not in ("junk", "log"):
                 rec["sha256"] = sha256_of(fp, max_hash_bytes)
             files_out.append(rec)
         if n_files or fkey not in folders_out:

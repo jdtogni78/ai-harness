@@ -66,12 +66,31 @@ python3 dup-detect.py -i /tmp/org-inv.json -o /tmp/org-dups.json
 `untracked`, `stashes`, and the full `worktree list`. `--no-hash` / `--max-hash-mb`
 tune the hashing cost; hashing is what makes exact dedup reliable.
 
+**Cross-worktree correction (important).** When the scope spans a repo *and* its
+git worktrees, the same file exists at the same relpath in every worktree —
+that's how worktrees check out, not waste. `dup-detect.py` classifies every
+group as **within-root** (2+ copies inside one root → actionable) or
+**cross-root** (spread across worktrees → expected) and headlines the
+within-root bytes; pure cross-root groups are dropped by default when >1 root
+is scanned (`--all-groups` keeps them). Files are classed doc/script/data/
+artifact/**log**/junk — logs are their *own* class (real runtime output, never
+auto-deleted), not junk.
+
 ### 2. Rate
 
 ```bash
 python3 folder-rater.py -i /tmp/org-inv.json -d /tmp/org-dups.json          # rated report
 python3 folder-rater.py -i /tmp/org-inv.json -d /tmp/org-dups.json --json   # grade JSON
+# collapse the 3x-redundant per-worktree rows into one logical row per relpath,
+# flagging any folder whose grade actually diverges between worktrees:
+python3 folder-rater.py -i /tmp/org-inv.json -d /tmp/org-dups.json --collapse-worktrees
 ```
+
+The `duplication` axis counts **within-root** duplicated bytes only, so a folder
+is never penalized for existing in a sibling worktree. `--collapse-worktrees`
+gives the "one logical repo" view: identical folders across worktrees fold into
+a single row, and genuine divergence (e.g. one worktree carrying uncommitted
+work) is flagged `*DIVERGENT*`.
 
 **Rubric — 0-5 each, composite → A-F** (worst-first in the report):
 
