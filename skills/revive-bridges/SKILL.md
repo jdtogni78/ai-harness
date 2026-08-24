@@ -6,7 +6,9 @@ description: >-
   had its `claude remote-control` processes killed. Reattaches the ORIGINAL
   `cse_*` in place (`claude remote-control --session-id <cse> ` from the
   session's own cwd), which preserves the thread, its manager/worker roster,
-  and drains any user turns queued while it was down. Use when the user says
+  and drains any user turns queued while it was down. Also diagnoses the
+  look-alike failure where the HOST was signed out ("Your computer needs to
+  sign in again") and every bridge dies at the same instant. Use when the user says
   "the picker is all warning triangles", "my sessions can't reach my
   computer", "revive/reattach the dead bridges", "everything went
   disconnected after the reboot", or names one dead `cse_*` to bring back.
