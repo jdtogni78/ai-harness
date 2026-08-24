@@ -133,6 +133,38 @@ whole sweep from step 1. Reattach one session first and give it ~60s to prove
 it holds before batch-spawning the rest, so a still-bad token costs one process
 instead of a dozen.
 
+## Laptop sleep — the recurring cause, and the cron fix
+
+On a **notebook** this is not a one-off. Every lid-close / network change
+severs all bridges at once, and they never come back on their own; on wake the
+CLI refreshes its token, which is why the app blames a sign-out. The tell is
+the same as above (deaths clustered in one second) — check `pmset -g log` and
+ask where the machine has been before concluding anything about credentials.
+
+A sleep-killed bridge also **releases any session lock it held**, so the
+"already being served by pid N" cases from step 4 tend to resolve themselves
+after a sleep cycle. Wait one out before considering a kill.
+
+Rather than hand-sweeping after every commute, run the unattended sweeper:
+
+```bash
+~/dev/ai-harness/skills/revive-bridges/scripts/auto_revive.sh --dry-run
+```
+
+It only ever *adds* a transport — never kills, archives, or runs `takeover` —
+skips any cwd outside `$HOME` (other host) or already served, and applies a
+per-session backoff (3 failures/hour) so a real outage cannot turn into a spawn
+storm. Install it as a LaunchAgent (5-minute interval; launchd fires it shortly
+after wake, which is the case that matters):
+
+```bash
+cp ~/dev/ai-harness/skills/revive-bridges/scripts/com.dtogni.claude-bridge-revive.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.dtogni.claude-bridge-revive.plist
+```
+
+Log: `~/.ai-harness/auto-revive/auto-revive.log`. To stop it:
+`launchctl bootout gui/$UID/com.dtogni.claude-bridge-revive`.
+
 ## Fallback (only when reattach truly errors)
 
 ```bash
