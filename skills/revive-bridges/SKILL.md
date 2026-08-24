@@ -100,6 +100,37 @@ Check whether that pid is real: `ps -o pid=,lstart=,command= -p NNNN`.
 
 Do not kill a pool server to "clean up" a session that is already connected.
 
+### 5. Mass simultaneous death = host signed out
+
+If bridges reattach fine, run for hours, then **all die within a second or two
+of each other**, the cause is not the bridges — the host's Claude Code
+credentials were invalidated. Signature in every log:
+
+```
+[01:27:39] Session failed: Process exited with error <cse_id>
+```
+
+The transport connects, but the inner `claude` worker cannot authenticate and
+exits, so the session flips back to `conn=disconnected` and the app shows
+**"Your computer needs to sign in again"**. Confirm by correlating death times
+across logs and checking when the credential store was last written:
+
+```bash
+grep -ahoE "\[[0-9:]+\] Session failed" /tmp/reattach-*.log | sort | uniq -c
+security find-generic-password -s "Claude Code-credentials" 2>&1 | grep mdat
+```
+
+Deaths clustered in one second + a `mdat` older than the deaths = signed out.
+**Never print or copy the credential value — metadata only.**
+
+Fix: the boss signs in again in a terminal (`claude` on the host; the app will
+not prompt for this and cannot do it for them — only they can complete the
+sign-in). That rewrites the Keychain entry; verify `mdat` is now recent. The
+already-dead bridges do **not** pick the new token up on their own — rerun the
+whole sweep from step 1. Reattach one session first and give it ~60s to prove
+it holds before batch-spawning the rest, so a still-bad token costs one process
+instead of a dozen.
+
 ## Fallback (only when reattach truly errors)
 
 ```bash
