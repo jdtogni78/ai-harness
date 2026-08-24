@@ -1,0 +1,129 @@
+---
+name: revive-bridges
+description: >-
+  Revive Claude Code bridge sessions that show `conn=disconnected` / "Can't
+  reach your computer" after the host was rebooted, slept, lost network, or
+  had its `claude remote-control` processes killed. Reattaches the ORIGINAL
+  `cse_*` in place (`claude remote-control --session-id <cse> ` from the
+  session's own cwd), which preserves the thread, its manager/worker roster,
+  and drains any user turns queued while it was down. Use when the user says
+  "the picker is all warning triangles", "my sessions can't reach my
+  computer", "revive/reattach the dead bridges", "everything went
+  disconnected after the reboot", or names one dead `cse_*` to bring back.
+  Distinct from [[relaunch]] and [[takeover]], which spawn NEW sessions and
+  abandon the old id — use this FIRST; those are fallbacks.
+---
+
+# revive-bridges (reattach disconnected bridges in place)
+
+A bridge session lives server-side; the local `claude remote-control` process
+is only the transport. When that process dies (reboot, sleep, kill, network
+drop) the session shows `conn=disconnected` and the app says "Can't reach your
+computer". The session **cannot self-recover** — but nothing is lost. Starting
+a new `remote-control` process bound to the same `--session-id` restores the
+transport and the session drains whatever turns queued in the meantime.
+
+## Why NOT relaunch/takeover first
+
+- [[relaunch]] and [[takeover]] mint a **new `cse_*`**. Any manager roster
+  (`~/.ai-harness/manager/<cse>.jsonl`) and any worker that reports back via
+  `--reply-to <old cse>` still point at the dead id, so you inherit a
+  re-pointing chore for every manager thread you touch.
+- `python3 -m remote_control takeover` additionally **classifies** each stale
+  session and marks trivial-looking ones archive-only from a single last turn
+  ("community", "resume", "ok"). Run on a picker full of freshly-disconnected
+  bridges it will archive **live manager threads**. Never batch-takeover a
+  post-reboot picker.
+
+Reattach in place. Relaunch only if reattach genuinely errors on something
+other than a stale lock.
+
+## Procedure
+
+### 1. Inventory
+
+```bash
+cd ~/dev/ai-harness && python3 -m remote_control sessions
+```
+
+Every `conn=disconnected` row is a candidate.
+
+**The `host:` column lies.** It infers host from the *git repo name*, so a
+session whose cwd dir name differs from its repo name (e.g. cwd
+`~/dev/divorcio`, repo `divorce-prep`) is mislabelled `bridge -> other host`
+when it is local. Never skip a row on the strength of that label — resolve the
+real cwd instead (step 2). After a successful reattach the row flips to
+`bridge -> this host` on its own.
+
+### 2. Resolve each session's cwd
+
+```bash
+python3 -m remote_control relaunch --from <cse_id> --dry-run --show-brief | grep '^  cwd'
+```
+
+`--dry-run` spawns nothing. A cwd under another user's home (e.g.
+`/Users/claudio1/...`) is the genuine other host — leave it for that host's
+dispatcher. Confirm the dir still exists before reattaching (worktrees get
+removed by /close-work).
+
+### 3. Reattach
+
+```bash
+cd <cwd> && nohup claude remote-control --session-id <cse_id> \
+    --permission-mode bypassPermissions > /tmp/reattach-<short>.log 2>&1 &
+```
+
+One process per session; they can all be launched in one batch. Verify after
+~60s — `conn=connected` is success:
+
+```bash
+python3 -m remote_control sessions | grep -B4 conn=disconnected
+```
+
+On failure the log is the whole story: `cat /tmp/reattach-<short>.log`.
+
+### 4. Stale-lock failures
+
+```
+Error: Session <cse> is already being served by another `claude remote-control`
+instance (pid NNNN) in <dir>. Use that terminal, or stop it first.
+```
+
+Check whether that pid is real: `ps -o pid=,lstart=,command= -p NNNN`.
+
+- **Pid gone** → stale lock. Reattach again; the lock clears.
+- **Pid alive** → a supervisor pool server (`--name local-m5-*`) is holding the
+  session lock but its own connection went stale. Reattaching requires killing
+  that pool server first. That is a **live process on the boss's box** — ask
+  before killing, and check `worker=idle` first so nothing is in flight. The
+  supervisor generally respawns the pool server afterwards.
+
+Do not kill a pool server to "clean up" a session that is already connected.
+
+## Fallback (only when reattach truly errors)
+
+```bash
+cd ~/dev/ai-harness
+RC_NO_CROSS_SESSION_SETTINGS=1 python3 -m remote_control relaunch \
+    --from <cse_id> --max-turns 10 --wait-timeout 120 --force
+```
+
+`RC_NO_CROSS_SESSION_SETTINGS=1` is **required** — without it the spawn dies
+with `unknown option '--name'` (the top-level `--settings` flag placed before
+the `remote-control` subcommand makes claude 2.1.2xx reject the following
+`--name`; documented at `remote_control/new_session.py:206`).
+
+Taking this path mints a new `cse_*`, so afterwards re-point the manager
+roster: `~/.ai-harness/manager/<old_cse>.jsonl` does not follow the new id, and
+every worker spawned with `--reply-to <old_cse>` still reports to the dead one.
+
+## Report back
+
+Which sessions reconnected, which needed the fallback (with their new
+`cse_*`), and which stayed dead with the log output that explains why.
+
+## Related
+
+- [[list-sessions]] — friendlier inventory of what is live
+- [[relaunch]] / [[takeover]] — fresh-session fallbacks, not first resort
+- [[session-triage]] — for sessions that died mid-task, not mid-transport
