@@ -19,6 +19,9 @@ LOCK="$STATE/.lock.d"
 MAX_SPAWNS="${MAX_SPAWNS:-8}"     # cap per run
 FAIL_WINDOW=3600                  # backoff window, seconds
 FAIL_LIMIT=3                      # give up after N failures in the window
+FLAP_WINDOW=7200                  # flap detection window, seconds
+FLAP_LIMIT=6                      # this many revives in the window == flapping
+FLAP_COOLDOWN=1800                # once flapping, retry at most this often
 
 DRY=0
 while [ $# -gt 0 ]; do
@@ -67,6 +70,24 @@ record_fail() {
 }
 clear_fail() { rm -f "$STATE/fail-$1"; }
 
+# A session that reconnects cleanly and then dies again scores OK every time,
+# so FAIL_LIMIT never trips and we respawn it every interval forever (seen:
+# 17 revives of one session overnight). Track REVIVES too, and once a session
+# is judged flapping, drop to FLAP_COOLDOWN so a genuinely sick session gets
+# retried occasionally instead of hammered -- and say so in the log, since a
+# silent spin reads exactly like a healthy quiet.
+revive_count() {
+  local f="$STATE/revive-$1"
+  [ -f "$f" ] || { echo 0; return; }
+  awk -v now="$now" -v w="$FLAP_WINDOW" '$1 > now-w' "$f" | wc -l | tr -d ' '
+}
+record_revive() {
+  local f="$STATE/revive-$1"
+  echo "$now" >>"$f"
+  awk -v now="$now" -v w="$FLAP_WINDOW" '$1 > now-w' "$f" >"$f.tmp" 2>/dev/null && mv "$f.tmp" "$f"
+}
+last_revive() { tail -1 "$STATE/revive-$1" 2>/dev/null || echo 0; }
+
 # --- collect disconnected sessions --------------------------------------
 listing=$(python3 -m remote_control sessions 2>/dev/null) || { log "FATAL: sessions call failed"; exit 1; }
 
@@ -94,6 +115,16 @@ for sid in $disconnected; do
     continue
   fi
 
+  flaps=$(revive_count "$sid")
+  if [ "$flaps" -ge "$FLAP_LIMIT" ]; then
+    since=$(( now - $(last_revive "$sid") ))
+    if [ "$since" -lt "$FLAP_COOLDOWN" ]; then
+      log "SKIP $sid — FLAPPING ($flaps revives in $((FLAP_WINDOW/3600))h), cooling down $(( (FLAP_COOLDOWN-since)/60 ))m"
+      continue
+    fi
+    log "WARN $sid — still flapping ($flaps revives in $((FLAP_WINDOW/3600))h); retrying on cooldown cadence"
+  fi
+
   cwd=$(python3 -m remote_control relaunch --from "$sid" --dry-run --show-brief 2>/dev/null \
         | awk '/^  cwd/ { print $3; exit }')
 
@@ -115,6 +146,7 @@ for sid in $disconnected; do
   ( cd "$cwd" && nohup claude remote-control --session-id "$sid" \
         --permission-mode bypassPermissions >"$out" 2>&1 & )
   log "reattach $sid in $cwd"
+  record_revive "$sid"
   attempted="$attempted $sid"
   spawned=$((spawned+1))
 done
