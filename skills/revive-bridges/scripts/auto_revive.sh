@@ -70,6 +70,32 @@ record_fail() {
 }
 clear_fail() { rm -f "$STATE/fail-$1"; }
 
+# cwd resolution. The events API only reports a cwd while the session-init
+# event is still inside the fetched window, so for any long-lived session it
+# eventually returns nothing -- permanently. Cache every cwd we ever resolve
+# and fall back to the session's own transcript, which records cwd on line 1.
+cached_cwd() { cat "$STATE/cwd-$1" 2>/dev/null; }
+cache_cwd()  { [ -n "$2" ] && printf '%s\n' "$2" >"$STATE/cwd-$1"; }
+
+# Historical fallback: this log records "reattach <sid> in <cwd>" for every
+# reattach that previously worked, so the newest such line is an authoritative
+# cwd for a session whose session-init has aged out of the API window.
+# NOTE: deliberately NOT a transcript grep -- any session that merely MENTIONS
+# a cse id (a dispatcher thread discussing it) matches, which resolved two
+# different sessions to this dispatcher's own cwd in testing.
+logged_cwd() {
+  grep -aF "reattach $1 in " "$LOG" 2>/dev/null | tail -1 | sed "s/.* in //"
+}
+
+resolve_cwd() {  # sid -> cwd on stdout, empty if truly unknown
+  local sid="$1" c
+  c=$(python3 -m remote_control relaunch --from "$sid" --dry-run --show-brief 2>/dev/null \
+      | awk '/^  cwd/ { print $3; exit }')
+  [ -z "$c" ] && c=$(cached_cwd "$sid")
+  [ -z "$c" ] && c=$(logged_cwd "$sid")
+  printf '%s' "$c"
+}
+
 # A session that reconnects cleanly and then dies again scores OK every time,
 # so FAIL_LIMIT never trips and we respawn it every interval forever (seen:
 # 17 revives of one session overnight). Track REVIVES too, and once a session
@@ -125,15 +151,17 @@ for sid in $disconnected; do
     log "WARN $sid — still flapping ($flaps revives in $((FLAP_WINDOW/3600))h); retrying on cooldown cadence"
   fi
 
-  cwd=$(python3 -m remote_control relaunch --from "$sid" --dry-run --show-brief 2>/dev/null \
-        | awk '/^  cwd/ { print $3; exit }')
+  cwd=$(resolve_cwd "$sid")
 
   case "$cwd" in
-    "")        log "SKIP $sid — cwd unresolved";               record_fail "$sid"; continue ;;
+    # NOT a failure: we never attempted a reattach, so recording one here just
+    # poisons the backoff and strands the session (observed on MGR-32).
+    "")        log "SKIP $sid — cwd unresolved (no api/cache/history answer)"; continue ;;
     "$HOME"/*) : ;;
     *)         log "SKIP $sid — cwd '$cwd' not under \$HOME (other host)"; continue ;;
   esac
   [ -d "$cwd" ] || { log "SKIP $sid — cwd '$cwd' is gone"; continue; }
+  cache_cwd "$sid" "$cwd"
 
   if [ "$DRY" = 1 ]; then
     log "WOULD reattach $sid in $cwd"
