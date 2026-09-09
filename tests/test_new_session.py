@@ -105,10 +105,10 @@ class BuildArgvTest(unittest.TestCase):
     def test_capacity_1_and_explicit_create(self):
         argv = build_argv(Path("/bin/claude"), "oneoff-abc", "worktree",
                           "acceptEdits")
-        # The binary comes first; the ``remote-control`` subcommand follows the
-        # top-level flags (--settings, see test_settings_before_subcommand).
+        # The binary comes first; ``remote-control`` leads the subcommand args
+        # (no top-level flags injected -- see test_no_settings_injection, #173).
         self.assertEqual(argv[0], "/bin/claude")
-        self.assertIn("remote-control", argv)
+        self.assertEqual(argv[1], "remote-control")
         self.assertEqual(argv[argv.index("--name") + 1], "oneoff-abc")
         self.assertIn("--capacity", argv)
         self.assertEqual(argv[argv.index("--capacity") + 1], "1")
@@ -118,20 +118,29 @@ class BuildArgvTest(unittest.TestCase):
         # session row visible immediately).
         self.assertNotIn("--no-create-session-in-dir", argv)
 
-    def test_settings_before_subcommand(self):
-        # #167: inject `--settings '{"crossSessionInbound":"accept"}'` as a
-        # TOP-LEVEL claude flag (before `remote-control`) so a bypassPermissions
-        # worker ACCEPTS the first-turn brief instead of holding+dropping it
-        # (Claude Code v2.1.224+ holds inbound cross-session messages by default).
+    def test_no_settings_injection(self):
+        # #173 (reverts #167): current claude builds REFUSE a top-level
+        # `--settings {...}` placed before the `remote-control` verb ("not
+        # carried over ... refuses to start"; earlier surfaced as "unknown
+        # option '--name'"), and `remote-control` has no `--settings` flag to
+        # relocate it after the verb. So build_argv injects NOTHING -- the
+        # per-host global ~/.claude/settings.json carries crossSessionInbound=
+        # accept, which is what actually delivers the first-turn brief.
         argv = build_argv(Path("/bin/claude"), "oneoff-abc", "worktree",
                           "bypassPermissions")
+        self.assertNotIn("--settings", argv)
+        self.assertEqual(argv[1], "remote-control",
+                         "remote-control must be the first arg after the binary")
+
+    def test_settings_injection_is_opt_in(self):
+        # The opt-in escape hatch (RC_INJECT_CROSS_SESSION) re-adds the flag for
+        # a hypothetical future CLI that accepts it -- OFF by default.
+        with mock.patch.dict(os.environ, {"RC_INJECT_CROSS_SESSION": "1"}):
+            argv = build_argv(Path("/bin/claude"), "oneoff-abc", "worktree",
+                              "bypassPermissions")
         self.assertIn("--settings", argv)
-        settings_idx = argv.index("--settings")
-        payload = argv[settings_idx + 1]
-        self.assertEqual(json.loads(payload), {"crossSessionInbound": "accept"})
-        # MUST precede the subcommand to be parsed as a top-level flag.
-        self.assertLess(settings_idx, argv.index("remote-control"),
-                        "--settings must come before the remote-control subcommand")
+        self.assertEqual(json.loads(argv[argv.index("--settings") + 1]),
+                         {"crossSessionInbound": "accept"})
 
 
 class ParseArgsTest(unittest.TestCase):

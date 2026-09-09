@@ -202,16 +202,32 @@ def build_argv(claude_bin: Path, name: str, spawn_mode: str,
     subcommand) carries ``crossSessionInbound=accept`` so the spawned worker
     accepts the first-turn brief we submit rather than holding+dropping it
     (see ``_CROSS_SESSION_SETTINGS``).
+
+    #167 REGRESSION FIX (MGR-24, ticket #173): #167 injected a top-level
+    ``--settings {crossSessionInbound:accept}`` BEFORE the ``remote-control``
+    verb. On current claude builds (2.1.233..2.1.251+) the CLI REFUSES that
+    ordering ("--settings before remote-control is not carried over ... refuses
+    to start"; earlier surfaced as "unknown option '--name'") -- so the spawn
+    server never comes up and the submitted first-turn brief goes nowhere. And
+    ``remote-control --help`` shows NO ``--settings`` flag, so relocating it
+    after the verb can't work either. The injection is redundant anyway: the
+    per-host global ~/.claude/settings.json already carries
+    crossSessionInbound=accept, which is what actually delivers the brief.
+    So we DROP the injection by default (clean command line). Set
+    ``RC_INJECT_CROSS_SESSION=1`` to opt back in only if a future CLI supports
+    top-level ``--settings`` before the subcommand.
     """
-    return [
-        str(claude_bin),
-        "--settings", _CROSS_SESSION_SETTINGS,
+    argv = [str(claude_bin)]
+    if os.environ.get("RC_INJECT_CROSS_SESSION"):
+        argv += ["--settings", _CROSS_SESSION_SETTINGS]
+    argv += [
         "remote-control",
         "--name", name,
         "--spawn", spawn_mode,
         "--capacity", "1",
         "--permission-mode", permission_mode,
     ]
+    return argv
 
 
 def name_is_safe(name: str, host: str) -> Optional[str]:
