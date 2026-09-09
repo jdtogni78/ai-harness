@@ -217,3 +217,65 @@ belong here.
 - **Source:** `ai-harness/skills/manage/SKILL.md` ("Worker roster" section);
   `ai-harness/skills/new-session/brief-template.md`;
   `ai-harness/skills/new-session/SKILL.md` ("Multi-worker dispatches").
+
+## GD-0010 — Datadir↔Secret coupling: track & preserve dev DB credentials
+
+- **Date:** 2026-08 · **Status:** Accepted · **Scope:** any persisted DB
+  datadir paired with a SOPS-managed secret (AppThree, AppFour, future) ·
+  prod-gated, non-destructive. **Shared tooling, per-datadir separation:** the
+  shared pieces across apps are the `launch_docker.sh <nickname>` launcher +
+  per-nickname compose overlay + secrets-repo LAYOUT — NOT one physical
+  datadir. On **DEV**, apps use separate per-app instances (each its own
+  MariaDB + `datadir_<nick>`); on shared **STAGE/PROD**, ONE MariaDB instance
+  may co-host multiple app schemas (by design). The separation this convention
+  relies on is the per-datadir **PATH** (+ compose + secrets-repo), NOT
+  schema-exclusivity — so the convention (nicknamed datadir + per-nick
+  immutable keys + co-located registry) applies **per datadir** regardless of
+  how many app schemas share an instance.
+- **Context:** AppThree's dev DB became **permanently locked**: a DB
+  password was rotated in the SOPS secret **after** the MariaDB datadir was
+  initialized. MariaDB ignores the env/secret password on a pre-existing
+  datadir, so the persisted datadir kept its original (unknown,
+  never-committed) password — diverging from the secret — and nothing mapped
+  datadir→password. The root cause: the SOPS password keys were **global**
+  (shared across all nicknames), so a single rotation orphaned every datadir.
+  Both dev datadirs + the reachable backups were unrecoverable. The identical
+  divergence risk exists for AppFour and any persisted-datadir + SOPS setup.
+- **Decision (5 rules):**
+  1. **Nicknamed datadirs — MANDATORY, fail-loud.** Name `datadir_<nickname>`,
+     provisioned via a parameterized launcher (`launch_docker.sh <nickname>` →
+     per-nickname datadir + DB + port-offset). Nicknames meaningful and unique
+     per run; never reuse a nickname whose datadir is locked. **Enforcement
+     (fleet-wide hard rule):** the launcher's nickname arg (`$1`) is REQUIRED —
+     error out if missing; compose the datadir as `${<APP>_DATADIR:?}` with NO
+     default; remove all hardcoded datadir paths. This eliminates the
+     wrong-datadir footgun.
+  2. **PER-NICKNAME SOPS keys (the root-cause fix), immutable per nickname.**
+     The bug was global keys (`<APP>_DB_ROOT_PASSWORD` /
+     `<APP>_DB_USER_PASSWORD`) shared across all nicknames — one rotation
+     orphaned every datadir. Convention: per-nickname immutable keys named
+     `<VAR>__<nick>` (double-underscore), written at datadir creation (BEFORE
+     the first `docker up`). The launcher resolves the per-nick key **fail-loud**
+     — error if the per-nick key is absent, with **no** silent fallback to the
+     generic `<VAR>`. Never rotate a live datadir's key without also
+     `ALTER USER` (or provision a new nicknamed datadir instead).
+  3. **Never delete; retire in place.** Retired/locked datadirs stay in place,
+     marked `status=locked` in the registry; never `rm` an inaccessible
+     datadir. A new nickname inherently preserves old datadirs — no move needed.
+  4. **Datadir registry (NEW, co-located per-stack).** Create a
+     `datadir-registry.md` **next to each launcher** (per stack — NOT a single
+     shared file, NOT the security-SOP `sync-archives/runs.md`, which is an
+     audit manifest). Identical columns on both stacks:
+     `stack | nickname | datadir | init_date | sops_cred_key | schema_version |
+     status(active/locked/archived-in-place) | port_offset | host`.
+     **Public-safe by design:** store cred KEY-NAMES only (never values), and
+     service names for `host`.
+  5. **Multiple concurrent runs** via the parameterized launcher's params
+     (per-nickname datadir + DB + port-offset) + the registry's port map.
+- **Consequences:** Dev DB credentials are never lost; old data is always
+  preserved (even if inaccessible); the datadir↔secret divergence failure
+  class is eliminated. `app-three-secrets` and `app-four-secrets` both cite
+  this GD.
+- **Owners:** AppThree side — MGR-33; AppFour side — MGR-25.
+- **Source:** Authored from a dev-DB lockout postmortem; the two affected app
+  secrets repos cite it. Ratified by MGR-25 + MGR-28 + MGR-33.
