@@ -36,7 +36,7 @@ import uuid
 from pathlib import Path
 from typing import Iterable, List, NamedTuple, Optional
 
-from .config import DEV, UsageLimitConfig
+from .config import DEV
 from .session_titles import (
     NICKNAMES_FILE,
     apply_prefix,
@@ -46,7 +46,8 @@ from .session_titles import (
     set_title,
     strip_prefix,
 )
-from .usage_limit import monitor
+from . import api_client
+from .api_client import ApiClientConfig
 
 # A `cse_` bridge session's id, as it survives the project-dir encoding: the
 # worktree basename `bridge-cse_<tail>` becomes `bridge-cse-<tail>`.
@@ -226,7 +227,7 @@ def do_fork(
 
 
 def mark_source_moved(
-    cfg: UsageLimitConfig, token: str, res: ForkResult, dev: str,
+    cfg: ApiClientConfig, token: str, res: ForkResult, dev: str,
     text: Optional[str], log,
 ) -> int:
     """Retitle the source cloud session to point at the fork (idempotent prefix
@@ -235,7 +236,7 @@ def mark_source_moved(
     if not res.cse_source:
         log("--mark: source has no cloud (cse_) session to retitle; skipping")
         return 1
-    sessions = monitor.list_sessions(cfg, token, log) or []
+    sessions = api_client.list_sessions(cfg, token, log) or []
     cur = next((s for s in sessions if s.get("id") == res.cse_source), None)
     base = strip_prefix((cur or {}).get("title") or "")
     marker = text or f"→ forked to {res.new_sid[:8]}"
@@ -353,8 +354,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     rc = 0
     if opts["mark"] and not opts["dry_run"]:
-        cfg = UsageLimitConfig.from_env()
-        token = monitor.get_token(cfg, log)
+        cfg = ApiClientConfig.from_env()
+        token = api_client.get_token(cfg, log)
         if not token:
             log("could not read OAuth token from keychain; skipping --mark")
             rc = 1

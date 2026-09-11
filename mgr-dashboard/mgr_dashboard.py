@@ -367,13 +367,13 @@ def fetch_live_sessions() -> List[dict]:
     so the pure logic above stays importable without the harness present."""
     import logging
 
-    from remote_control.config import UsageLimitConfig
-    from remote_control.usage_limit import monitor
+    from remote_control.api_client import ApiClientConfig
+    from remote_control import api_client
 
     log = logging.getLogger("mgr_dashboard")
-    cfg = UsageLimitConfig.from_env()
-    token = monitor.get_token(cfg, log)
-    sessions = monitor.list_sessions(cfg, token, log)
+    cfg = ApiClientConfig.from_env()
+    token = api_client.get_token(cfg, log)
+    sessions = api_client.list_sessions(cfg, token, log)
     return [s for s in sessions if s.get("status") == "active"]
 
 

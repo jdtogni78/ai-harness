@@ -47,7 +47,8 @@ import time
 from pathlib import Path
 from typing import Any, Callable, List, Mapping, Optional, Tuple
 
-from .config import SupervisorConfig, UsageLimitConfig
+from .config import SupervisorConfig
+from .api_client import ApiClientConfig
 from .procutil import git_usable_worktree, run_marker_line, spawn_env
 
 
@@ -415,14 +416,13 @@ def _session_is_active(sid: str) -> bool:
     same contract as the workers.sh identity guard: authority only where it can
     actually see the roster."""
     try:
-        from .config import UsageLimitConfig
         from .session_list import is_active
-        from .usage_limit import monitor
-        cfg = UsageLimitConfig.from_env()
-        token = monitor.get_token(cfg, lambda _m: None)
+        from . import api_client
+        cfg = ApiClientConfig.from_env()
+        token = api_client.get_token(cfg, lambda _m: None)
         if not token:
             return True
-        rows = monitor.list_sessions(cfg, token, lambda _m: None)
+        rows = api_client.list_sessions(cfg, token, lambda _m: None)
     except Exception:
         return True
     if not rows:
@@ -544,7 +544,7 @@ def _post_subname_title(
     from .session_titles import set_title as _set_title
     set_title = set_title or _set_title
     get_token = get_token or _get_token_default
-    cfg = UsageLimitConfig.from_env()
+    cfg = ApiClientConfig.from_env()
     token = get_token(cfg, log)
     if not token:
         log(f"could not set [{subname}] title: keychain OAuth missing")
@@ -559,8 +559,8 @@ def _post_subname_title(
 def _get_token_default(cfg, log):
     """Default keychain-OAuth fetcher; injectable via the ``get_token`` arg of
     the helpers above so tests don't have to mock the monitor module."""
-    from .usage_limit import monitor
-    return monitor.get_token(cfg, log)
+    from . import api_client
+    return api_client.get_token(cfg, log)
 
 
 # A freshly ``--create-session-in-dir`` pre-created session is NOT immediately
@@ -690,15 +690,15 @@ def submit_active_with_retry(
     the deadline -- never a hang. A dead harvested id returns FAST (no full-window
     poll), so a poisoned log can't cost the whole timeout per tick.
     """
-    from .usage_limit import monitor
-    submit = submit or monitor.submit_user_message
-    get_token = get_token or monitor.get_token
-    fetch_state = fetch_state or monitor.fetch_session_state
+    from . import api_client
+    submit = submit or api_client.submit_user_message
+    get_token = get_token or api_client.get_token
+    fetch_state = fetch_state or api_client.fetch_session_state
     # Resolve clock/sleep at call time (not as def-time defaults) so a test can
     # patch ``new_session.time`` and have the change take effect here.
     sleep = sleep if sleep is not None else time.sleep
     clock = clock if clock is not None else time.monotonic
-    cfg = UsageLimitConfig.from_env()
+    cfg = ApiClientConfig.from_env()
     token = get_token(cfg, log)
     if not token:
         log("could not read OAuth token from keychain")

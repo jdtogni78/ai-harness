@@ -77,7 +77,7 @@ class ForkAndArchiveOneTest(unittest.TestCase):
     def test_dry_run_never_archives(self):
         with mock.patch("remote_control.session_fork_all.do_fork",
                         return_value=self._fake_fork_result(self._make_dest())) as do_fork, \
-             mock.patch("remote_control.session_fork_all.monitor") as monitor:
+             mock.patch("remote_control.session_fork_all.api_client") as monitor:
             r = fork_and_archive_one(
                 "cse_x", projects_root=Path("/"), dev="/dev",
                 into_main=True, archive=True, write=False,
@@ -91,7 +91,7 @@ class ForkAndArchiveOneTest(unittest.TestCase):
     def test_fork_failure_skips_archive(self):
         with mock.patch("remote_control.session_fork_all.do_fork",
                         side_effect=FileNotFoundError("nope")) as do_fork, \
-             mock.patch("remote_control.session_fork_all.monitor") as monitor:
+             mock.patch("remote_control.session_fork_all.api_client") as monitor:
             r = fork_and_archive_one(
                 "cse_x", projects_root=Path("/"), dev="/dev",
                 into_main=True, archive=True, write=True,
@@ -105,7 +105,7 @@ class ForkAndArchiveOneTest(unittest.TestCase):
         # If do_fork says success but the file isn't on disk, treat as failure.
         with mock.patch("remote_control.session_fork_all.do_fork",
                         return_value=self._fake_fork_result(self._make_dest(exists=False))), \
-             mock.patch("remote_control.session_fork_all.monitor") as monitor:
+             mock.patch("remote_control.session_fork_all.api_client") as monitor:
             r = fork_and_archive_one(
                 "cse_x", projects_root=Path("/"), dev="/dev",
                 into_main=True, archive=True, write=True,
@@ -117,7 +117,7 @@ class ForkAndArchiveOneTest(unittest.TestCase):
     def test_archive_runs_after_successful_fork(self):
         with mock.patch("remote_control.session_fork_all.do_fork",
                         return_value=self._fake_fork_result(self._make_dest())), \
-             mock.patch("remote_control.session_fork_all.monitor") as monitor:
+             mock.patch("remote_control.session_fork_all.api_client") as monitor:
             monitor.archive_session.return_value = (200, {})
             r = fork_and_archive_one(
                 "cse_x", projects_root=Path("/"), dev="/dev",
@@ -131,7 +131,7 @@ class ForkAndArchiveOneTest(unittest.TestCase):
     def test_archive_failure_does_not_invalidate_fork(self):
         with mock.patch("remote_control.session_fork_all.do_fork",
                         return_value=self._fake_fork_result(self._make_dest())), \
-             mock.patch("remote_control.session_fork_all.monitor") as monitor:
+             mock.patch("remote_control.session_fork_all.api_client") as monitor:
             monitor.archive_session.return_value = (503, "down")
             r = fork_and_archive_one(
                 "cse_x", projects_root=Path("/"), dev="/dev",
@@ -147,7 +147,7 @@ class ForkAndArchiveOneTest(unittest.TestCase):
         # noted as not-done with a clear reason rather than crashing.
         with mock.patch("remote_control.session_fork_all.do_fork",
                         return_value=self._fake_fork_result(self._make_dest())), \
-             mock.patch("remote_control.session_fork_all.monitor") as monitor:
+             mock.patch("remote_control.session_fork_all.api_client") as monitor:
             r = fork_and_archive_one(
                 "cse_x", projects_root=Path("/"), dev="/dev",
                 into_main=True, archive=True, write=True,

@@ -17,8 +17,8 @@ from remote_control.session_list import (
     parse_duration,
     summarize,
 )
-from remote_control.usage_limit import monitor as monitor_mod
-from remote_control.usage_limit.detect import resume_event_body
+from remote_control import api_client as monitor_mod
+from remote_control.api_client import resume_event_body
 
 
 def _session(**kw) -> dict:
@@ -332,7 +332,7 @@ class RunSubmitDryRunTest(unittest.TestCase):
         self.fake_cfg = mock.Mock()
         self.fake_cfg.api_base = "https://api.test"
         self._cfg_patch = mock.patch(
-            "remote_control.session_list.UsageLimitConfig.from_env",
+            "remote_control.session_list.ApiClientConfig.from_env",
             return_value=self.fake_cfg)
         self._cfg_patch.start()
 
@@ -340,7 +340,7 @@ class RunSubmitDryRunTest(unittest.TestCase):
         self._cfg_patch.stop()
 
     def test_dry_run_message_prints_body_and_never_calls_api_request(self):
-        with mock.patch("remote_control.session_list.monitor") as monitor, \
+        with mock.patch("remote_control.session_list.api_client") as monitor, \
                 _capture() as (out, _err):
             rc = _run_submit(
                 ["cse_x", "--message", "hello", "--dry-run", "--no-reply-to"],
@@ -357,7 +357,7 @@ class RunSubmitDryRunTest(unittest.TestCase):
 
     def test_dry_run_stdin_reads_stdin_and_prints_body(self):
         # --stdin reads sys.stdin; patch it for determinism.
-        with mock.patch("remote_control.session_list.monitor") as monitor, \
+        with mock.patch("remote_control.session_list.api_client") as monitor, \
                 mock.patch("sys.stdin", io.StringIO("from-stdin")), \
                 _capture() as (out, _err):
             rc = _run_submit(
@@ -377,7 +377,7 @@ class RunSubmitNetworkTest(unittest.TestCase):
 
     def setUp(self):
         self._cfg_patch = mock.patch(
-            "remote_control.session_list.UsageLimitConfig.from_env",
+            "remote_control.session_list.ApiClientConfig.from_env",
             return_value=mock.Mock(api_base="https://api.test"))
         self._cfg_patch.start()
 
@@ -385,7 +385,7 @@ class RunSubmitNetworkTest(unittest.TestCase):
         self._cfg_patch.stop()
 
     def test_happy_path_returns_0_and_calls_submit(self):
-        with mock.patch("remote_control.session_list.monitor") as monitor, \
+        with mock.patch("remote_control.session_list.api_client") as monitor, \
                 _capture() as (out, _err):
             monitor.get_token.return_value = "tok"
             monitor.submit_user_message.return_value = (200, {"ok": True})
@@ -401,7 +401,7 @@ class RunSubmitNetworkTest(unittest.TestCase):
         self.assertIn("submitted cse_x", out.getvalue())
 
     def test_non_200_returns_1_and_logs_to_stderr(self):
-        with mock.patch("remote_control.session_list.monitor") as monitor, \
+        with mock.patch("remote_control.session_list.api_client") as monitor, \
                 _capture() as (_out, err):
             monitor.get_token.return_value = "tok"
             monitor.submit_user_message.return_value = (503, "down")
@@ -412,7 +412,7 @@ class RunSubmitNetworkTest(unittest.TestCase):
         self.assertIn("503", err.getvalue())
 
     def test_missing_token_returns_1(self):
-        with mock.patch("remote_control.session_list.monitor") as monitor:
+        with mock.patch("remote_control.session_list.api_client") as monitor:
             monitor.get_token.return_value = None
             with _capture():
                 rc = _run_submit(
@@ -423,7 +423,7 @@ class RunSubmitNetworkTest(unittest.TestCase):
     def test_reply_to_prepends_header_to_submitted_message(self):
         # Explicit --reply-to should embed the [from <sender>] header in the
         # message that monitor.submit_user_message ultimately receives.
-        with mock.patch("remote_control.session_list.monitor") as monitor:
+        with mock.patch("remote_control.session_list.api_client") as monitor:
             monitor.get_token.return_value = "tok"
             monitor.submit_user_message.return_value = (200, {})
             with _capture():

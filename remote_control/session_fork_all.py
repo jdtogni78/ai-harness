@@ -19,9 +19,10 @@ import sys
 from pathlib import Path
 from typing import List, NamedTuple, Optional
 
-from .config import DEV, UsageLimitConfig
+from .config import DEV
 from .session_fork import default_projects_root, do_fork
-from .usage_limit import monitor
+from . import api_client
+from .api_client import ApiClientConfig
 
 
 class IdResult(NamedTuple):
@@ -41,7 +42,7 @@ def fork_and_archive_one(
     into_main: bool,
     archive: bool,
     write: bool,
-    cfg: UsageLimitConfig,
+    cfg: ApiClientConfig,
     token: Optional[str],
     log,
 ) -> IdResult:
@@ -62,7 +63,7 @@ def fork_and_archive_one(
     if not token:
         return IdResult(cse_id, res.new_sid, True, archived=False,
                         archive_err="no OAuth token (fork done; archive skipped)")
-    code, body = monitor.archive_session(cfg, token, cse_id, log)
+    code, body = api_client.archive_session(cfg, token, cse_id, log)
     if code == 200:
         return IdResult(cse_id, res.new_sid, True, archived=True)
     return IdResult(cse_id, res.new_sid, True, archived=False,
@@ -168,10 +169,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     log = lambda m: print(m, file=sys.stderr)  # noqa: E731 (API client diagnostics)
     projects = Path(opts["projects"]) if opts["projects"] else default_projects_root()
-    cfg = UsageLimitConfig.from_env()
+    cfg = ApiClientConfig.from_env()
     token = None
     if opts["archive"] and not opts["dry_run"]:
-        token = monitor.get_token(cfg, log)
+        token = api_client.get_token(cfg, log)
         if not token:
             log("could not read OAuth token; --archive will be skipped per id")
 

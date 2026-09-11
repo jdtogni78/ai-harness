@@ -1161,8 +1161,8 @@ class FetchSessionStateTest(unittest.TestCase):
     409s) out of the GET /sessions/{id} body, including under response_shape."""
 
     def _call(self, api_return):
-        from remote_control.usage_limit import monitor
-        from remote_control.config import UsageLimitConfig
+        from remote_control import api_client as monitor
+        from remote_control.api_client import ApiClientConfig as UsageLimitConfig
         with tempfile.TemporaryDirectory() as d:
             with mock.patch.dict(os.environ, _env(d), clear=False):
                 cfg = UsageLimitConfig.from_env()

@@ -63,8 +63,9 @@ from pathlib import Path
 from typing import (Callable, Dict, Iterable, List, NamedTuple, Optional,
                     Tuple)
 
-from .config import DEV, LOGDIR, REPO, UsageLimitConfig, host_nickname
-from .usage_limit import monitor
+from .config import DEV, LOGDIR, REPO, host_nickname
+from . import api_client
+from .api_client import ApiClientConfig
 
 # Built-in repo -> nickname map (keys matched case-insensitively). The editable
 # `session-nicknames.txt` at the repo root and the SESSION_TITLE_NICKNAMES env
@@ -1076,8 +1077,8 @@ def merged_repo_index(
     return idx
 
 
-def set_title(cfg: UsageLimitConfig, token: str, sid: str, title: str):
-    return monitor.api_request(cfg, "PUT", f"/sessions/{sid}", token, {"title": title})
+def set_title(cfg: ApiClientConfig, token: str, sid: str, title: str):
+    return api_client.api_request(cfg, "PUT", f"/sessions/{sid}", token, {"title": title})
 
 
 def _load_nickname_text(path: str) -> str:
@@ -1088,7 +1089,7 @@ def _load_nickname_text(path: str) -> str:
 
 
 def apply_prefixes(
-    cfg: UsageLimitConfig,
+    cfg: ApiClientConfig,
     token: str,
     log,
     *,
@@ -1106,7 +1107,7 @@ def apply_prefixes(
     already correct or with an undeterminable repo are skipped. Host-local bridge
     sessions render their ``{host}``/``{branch}`` tokens for *host* (default: this
     machine); see title_format for the template."""
-    sessions = monitor.list_sessions(cfg, token, log)
+    sessions = api_client.list_sessions(cfg, token, log)
     if sessions is None:
         return (0, 0)
     sessions = [s for s in sessions if is_active_session(s)]
@@ -1315,7 +1316,7 @@ def unbracketed_linkage(title: str, nick: Optional[str] = None,
     return m.group(1)
 
 
-def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
+def _run_set(cfg: ApiClientConfig, token: str, opts: dict, log) -> int:
     """`titles set`: set ONE session's title to ``[NICK] <description>``.
 
     Resolve the repo (hence the nickname prefix) highest-confidence source first:
@@ -1402,7 +1403,7 @@ def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
             repo = cwd_repo
             host_local = True
     if repo is None:  # authoritative fallback: the session's own git source URL
-        s = next((x for x in (monitor.list_sessions(cfg, token, log) or [])
+        s = next((x for x in (api_client.list_sessions(cfg, token, log) or [])
                   if x.get("id") == sid), None)
         repo = repo_for_session(s, index) if s else None
         if not host_local:  # don't downgrade a confirmed --self
@@ -1453,25 +1454,25 @@ def _run_set(cfg: UsageLimitConfig, token: str, opts: dict, log) -> int:
     return 1
 
 
-def _titles_watcher_lock_file(cfg: UsageLimitConfig) -> Path:
+def _titles_watcher_lock_file(cfg: ApiClientConfig) -> Path:
     """Lockfile path for the ``titles watch`` daemon. Distinct from the
     usage-limit monitor's lockfile so the two services run side by side."""
     return cfg.logdir / "titles-monitor.lock"
 
 
-def _titles_watcher_log_file(cfg: UsageLimitConfig) -> Path:
+def _titles_watcher_log_file(cfg: ApiClientConfig) -> Path:
     """Log file for the ``titles watch`` daemon."""
     return cfg.logdir / "titles-monitor.log"
 
 
-def _title_locks_file(cfg: Optional[UsageLimitConfig]) -> Path:
+def _title_locks_file(cfg: Optional[ApiClientConfig]) -> Path:
     """Session ids whose title is force-set (``set --raw``) and must be left
     verbatim -- the watcher/apply passes skip these so the exact title sticks
     instead of being re-prefixed. One ``cse_`` id per line."""
     return cfg.logdir / "title-locks.txt"
 
 
-def read_title_locks(cfg: Optional[UsageLimitConfig]) -> set:
+def read_title_locks(cfg: Optional[ApiClientConfig]) -> set:
     """Set of session ids currently locked to a verbatim title (empty if none)."""
     if cfg is None:
         return set()
@@ -1483,7 +1484,7 @@ def read_title_locks(cfg: Optional[UsageLimitConfig]) -> set:
             and not ln.strip().startswith("#")}
 
 
-def _set_title_lock(cfg: Optional[UsageLimitConfig], sid: str,
+def _set_title_lock(cfg: Optional[ApiClientConfig], sid: str,
                     locked: bool) -> None:
     """Add (``locked=True``) or remove (``locked=False``) ``sid`` from the lock
     list. Best-effort; never raises into the caller.
@@ -1507,7 +1508,7 @@ def _set_title_lock(cfg: Optional[UsageLimitConfig], sid: str,
         pass
 
 
-def _run_watch(cfg: UsageLimitConfig, log, interval: int,
+def _run_watch(cfg: ApiClientConfig, log, interval: int,
                *, sleep=__import__("time").sleep,
                clock=__import__("time").time) -> int:
     """The ``titles watch`` daemon loop. Periodically re-applies the
@@ -1515,7 +1516,7 @@ def _run_watch(cfg: UsageLimitConfig, log, interval: int,
     counterweight to the platform's auto-titler, which strips our prefix
     mid-session. Single-instance via lockfile. Clean SIGTERM shutdown.
 
-    Mirrors ``usage_limit.monitor.main``'s daemon pattern (lockfile +
+    Mirrors the classic supervised-daemon pattern (lockfile +
     signal handler + 1s tick) so the two services have the same operational
     feel. Separate from usage-limit detection because (a) different
     cadences (titles ~ 10min vs detect ~ 60s), (b) different failure modes
@@ -1552,7 +1553,7 @@ def _run_watch(cfg: UsageLimitConfig, log, interval: int,
             now = clock()
             if now - last >= interval:
                 last = now
-                token = monitor.get_token(cfg, log)
+                token = api_client.get_token(cfg, log)
                 if token:
                     try:
                         ok, fail = apply_prefixes(cfg, token, log)
@@ -1587,7 +1588,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(USAGE)
         return 0
 
-    cfg = UsageLimitConfig.from_env()
+    cfg = ApiClientConfig.from_env()
     if opts["cmd"] == "watch":
         # Daemon mode: log to file (rotates with the rest of the runtime logs),
         # not stderr. Interval precedence: --interval > SESSION_TITLE_APPLY_SECS
@@ -1600,13 +1601,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _run_watch(cfg, log, interval)
 
     log = lambda m: print(m, file=sys.stderr)  # noqa: E731  (API client diagnostics)
-    token = monitor.get_token(cfg, log)
+    token = api_client.get_token(cfg, log)
     if not token:
         log("could not read OAuth token from keychain")
         return 1
     if opts["cmd"] == "set":
         return _run_set(cfg, token, opts, log)
-    sessions = monitor.list_sessions(cfg, token, log)
+    sessions = api_client.list_sessions(cfg, token, log)
     if sessions is None:
         return 1
     if not opts["all"]:

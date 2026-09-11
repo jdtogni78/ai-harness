@@ -110,12 +110,12 @@ def api_stuck(cfg: ManagerConfig, *, get_token=None, scan=None,
     """Live read-only detection of every stuck thread, joined with its cached
     analysis (recommendation/analysis), feedback, and any in-flight job."""
     from . import manager
-    from .config import UsageLimitConfig
-    from .usage_limit import monitor as _monitor
-    get_token = get_token or _monitor.get_token
+    from .api_client import ApiClientConfig
+    from . import api_client
+    get_token = get_token or api_client.get_token
     scan = scan or manager.scan_actions
 
-    ucfg = UsageLimitConfig.from_env()
+    ucfg = ApiClientConfig.from_env()
     log: List[str] = []
     token = get_token(ucfg, log.append)
     if not token:
@@ -169,12 +169,12 @@ def run_analysis(cfg: ManagerConfig, session_id: str, *, force: bool = False,
     Reuses the cached analysis unless *force*. Synchronous core of /api/analyze."""
     import subprocess
     from . import manager
-    from .config import UsageLimitConfig
-    from .usage_limit import monitor as _monitor
-    get_token = get_token or _monitor.get_token
+    from .api_client import ApiClientConfig
+    from . import api_client
+    get_token = get_token or api_client.get_token
     runner = runner or subprocess.run
 
-    ucfg = UsageLimitConfig.from_env()
+    ucfg = ApiClientConfig.from_env()
     log: List[str] = []
     token = get_token(ucfg, log.append)
     if not token:
@@ -232,8 +232,8 @@ def api_save_test_case(cfg: ManagerConfig, payload: dict, *, get_token=None,
     first); the transcript tail is read from disk *now* and embedded so the
     case survives session archival. Returns ``{ok, case_id, sig, path}``."""
     from . import manager
-    from .config import UsageLimitConfig
-    from .usage_limit import monitor as _monitor
+    from .api_client import ApiClientConfig
+    from . import api_client
     from . import eval_cases as _ec
 
     sid = (payload or {}).get("session_id")
@@ -246,9 +246,9 @@ def api_save_test_case(cfg: ManagerConfig, payload: dict, *, get_token=None,
     if not isinstance(tags, list):
         return 400, {"error": "tags must be a list of strings"}
 
-    get_token = get_token or _monitor.get_token
+    get_token = get_token or api_client.get_token
     scan = scan or manager.scan_actions
-    ucfg = UsageLimitConfig.from_env()
+    ucfg = ApiClientConfig.from_env()
     log: List[str] = []
     token = get_token(ucfg, log.append)
     if not token:
@@ -315,15 +315,15 @@ def api_send(cfg: ManagerConfig, payload: dict, *, get_token=None, api=None) -> 
     before calling. (For an AskUserQuestion-waiting session, free text is delivered
     but won't resolve the tool call -- the submit-shape blocker, #22.)"""
     from . import manager
-    from .config import UsageLimitConfig
-    from .usage_limit import monitor as _monitor
-    get_token = get_token or _monitor.get_token
-    api = api or _monitor.api_request
+    from .api_client import ApiClientConfig
+    from . import api_client
+    get_token = get_token or api_client.get_token
+    api = api or api_client.api_request
     sid = (payload or {}).get("session_id")
     text = ((payload or {}).get("text") or "").strip()
     if not sid or not text:
         return 400, {"error": "need {session_id, text}"}
-    ucfg = UsageLimitConfig.from_env()
+    ucfg = ApiClientConfig.from_env()
     log: List[str] = []
     token = get_token(ucfg, log.append)
     if not token:
@@ -341,12 +341,12 @@ def run_execution(cfg: ManagerConfig, session_id: str, *, get_token=None,
     -> shadow-logs without spawning)."""
     import subprocess
     from . import manager
-    from .config import UsageLimitConfig
-    from .usage_limit import monitor as _monitor
-    get_token = get_token or _monitor.get_token
+    from .api_client import ApiClientConfig
+    from . import api_client
+    get_token = get_token or api_client.get_token
     runner = runner or subprocess.run
 
-    ucfg = UsageLimitConfig.from_env()
+    ucfg = ApiClientConfig.from_env()
     log: List[str] = []
     token = get_token(ucfg, log.append)
     if not token:

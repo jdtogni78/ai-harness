@@ -395,7 +395,7 @@ class ServerSmokeTest(unittest.TestCase):
         self.assertEqual(body["feedback"][-1]["text"], "nice")
 
     def test_stuck_no_token_is_graceful(self):
-        with mock.patch("remote_control.usage_limit.monitor.get_token", return_value=""):
+        with mock.patch("remote_control.api_client.get_token", return_value=""):
             body = json.loads(self._get("/api/stuck")[1])
         self.assertFalse(body["ok"])
         self.assertEqual(body["rows"], [])

@@ -31,9 +31,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, NamedTuple, Optional
 
-from .config import DEV, UsageLimitConfig
+from .config import DEV
 from .session_titles import build_worktree_index, parse_cmd_session_id, repo_for_session
-from .usage_limit import monitor
+from . import api_client
+from .api_client import ApiClientConfig
 
 ARCHIVED_STATUS = "archived"
 CLOUD_KIND = "anthropic_cloud"
@@ -314,8 +315,8 @@ def _run_archive(argv: List[str], log) -> int:
     if not ids:
         print(f"archive requires at least one CSE_ID\n{USAGE}", file=sys.stderr)
         return 2
-    cfg = UsageLimitConfig.from_env()
-    token = monitor.get_token(cfg, log)
+    cfg = ApiClientConfig.from_env()
+    token = api_client.get_token(cfg, log)
     if not token:
         log("could not read OAuth token from keychain")
         return 1
@@ -324,7 +325,7 @@ def _run_archive(argv: List[str], log) -> int:
         if dry:
             print(f"would archive {sid}")
             continue
-        code, _ = monitor.archive_session(cfg, token, sid, log)
+        code, _ = api_client.archive_session(cfg, token, sid, log)
         if code == 200:
             print(f"archived {sid}")
         else:
@@ -337,7 +338,7 @@ def _run_submit(argv: List[str], log) -> int:
     """``sessions submit <id> --message TEXT | --stdin`` — POST a user turn.
 
     The body is the same wrapped-event shape the usage-limit monitor uses to
-    nudge a paused session (see :func:`usage_limit.detect.resume_event_body`).
+    nudge a paused session (see :func:`api_client.resume_event_body`).
     Side-effecting on a live session, so it requires one of ``--message`` /
     ``--stdin`` (no defaults) and rejects an empty message.
 
@@ -413,17 +414,17 @@ def _run_submit(argv: List[str], log) -> int:
                 "receiver won't know where to reply — pass --reply-to CSE_ID or "
                 "--no-reply-to to silence this")
 
-    cfg = UsageLimitConfig.from_env()
+    cfg = ApiClientConfig.from_env()
     if dry:
-        from .usage_limit.detect import resume_event_body
+        from .api_client import resume_event_body
         print(f"would POST {cfg.api_base}/sessions/{sid}/events")
         print(json.dumps(resume_event_body(message), indent=2))
         return 0
-    token = monitor.get_token(cfg, log)
+    token = api_client.get_token(cfg, log)
     if not token:
         log("could not read OAuth token from keychain")
         return 1
-    code, body = monitor.submit_user_message(cfg, token, sid, message, log)
+    code, body = api_client.submit_user_message(cfg, token, sid, message, log)
     if code == 200:
         print(f"submitted {sid} ({len(message)} chars)")
         return 0
@@ -447,12 +448,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(USAGE)
         return 0
 
-    cfg = UsageLimitConfig.from_env()
-    token = monitor.get_token(cfg, log)
+    cfg = ApiClientConfig.from_env()
+    token = api_client.get_token(cfg, log)
     if not token:
         log("could not read OAuth token from keychain")
         return 1
-    sessions = monitor.list_sessions(cfg, token, log)
+    sessions = api_client.list_sessions(cfg, token, log)
     if sessions is None:
         return 1
 

@@ -12,7 +12,7 @@ Per candidate the manual flow was:
   3. classify: a trivial last turn ("hi", empty, few words) -> archive-only;
      anything else -> relaunch
   4. relaunch (:func:`relaunch.main`) or archive the original
-     (:func:`usage_limit.monitor.archive_session`)
+     (:func:`api_client.archive_session`)
   5. for a relaunched session, re-title the spawn with the source's own
      ``[NICK...]`` bracket verbatim (:func:`session_titles.set_title` via
      the ``--nick`` escape hatch) -- the titles watcher can't derive a repo
@@ -32,12 +32,13 @@ from pathlib import Path
 from typing import List, NamedTuple, Optional
 
 from . import relaunch
-from .config import DEV, UsageLimitConfig
+from .config import DEV
 from .handoff import extract_user_turns, extract_user_turns_from_events
 from .session_fork import default_projects_root
 from .session_list import DEFAULT_STALE_AGE_SECS, is_stale, parse_duration
 from .session_titles import apply_prefix, set_title, strip_prefix
-from .usage_limit import monitor
+from . import api_client
+from .api_client import ApiClientConfig
 
 # A last turn at or under this many words is judged trivial ("hi", "here",
 # empty, or any other short one-liner that isn't real work in progress).
@@ -231,12 +232,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(USAGE)
         return 0
 
-    cfg = UsageLimitConfig.from_env()
-    token = monitor.get_token(cfg, log)
+    cfg = ApiClientConfig.from_env()
+    token = api_client.get_token(cfg, log)
     if not token:
         log("could not read OAuth token from keychain")
         return 1
-    sessions = monitor.list_sessions(cfg, token, log)
+    sessions = api_client.list_sessions(cfg, token, log)
     if sessions is None:
         return 1
 
@@ -276,7 +277,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             continue
 
         if c.decision == ARCHIVE_ONLY:
-            code, _ = monitor.archive_session(cfg, token, c.id, log)
+            code, _ = api_client.archive_session(cfg, token, c.id, log)
             if code == 200:
                 print(f"    archived {c.id}")
                 archived += 1
@@ -308,7 +309,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         nick = leading_nick(c.title)
         if nick:
-            new_code, new_body = monitor.api_request(
+            new_code, new_body = api_client.api_request(
                 cfg, "GET", f"/sessions/{new_cse}", token)
             new_record = (new_body or {}).get("response_shape", new_body) \
                 if new_code == 200 and isinstance(new_body, dict) else {}
@@ -321,7 +322,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 print(f"    retitle FAILED {new_cse} http={code} "
                       f"body={str(resp)[:160]}")
 
-        arc_code, _ = monitor.archive_session(cfg, token, c.id, log)
+        arc_code, _ = api_client.archive_session(cfg, token, c.id, log)
         if arc_code == 200:
             print(f"    archived original {c.id}")
         else:
