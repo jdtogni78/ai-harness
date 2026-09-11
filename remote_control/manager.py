@@ -99,11 +99,11 @@ def classify(
     ("freshness", within a grace window) is reported separately by :func:`is_fresh`
     and only governs whether the *auto-loop* jumps in ahead of a human; it no
     longer hides a thread from the actionable list. Only a busy ``running`` worker,
-    an unknown state, or a usage-limit pause are non-actionable (the last is owned
-    by the usage-monitor). Priority: usage-limit, then a question, then a dead
+    an unknown state, or a usage-limit pause are non-actionable (native Claude
+    auto-resume owns the last). Priority: usage-limit, then a question, then a dead
     connection, then idle."""
     if limit_paused:
-        return SKIP, "usage-limit paused (usage-monitor owns it)"  # == DEFER, rendered as skip
+        return SKIP, "usage-limit paused (native auto-resume owns it)"  # == DEFER, rendered as skip
     if idle_secs is None:
         return SKIP, "unknown last-event time"
     if worker_status == "requires_action":
@@ -556,7 +556,7 @@ def suggest_guidelines(cfg: ManagerConfig, *, log, runner=subprocess.run) -> dic
 
 def answer_request(session_id: str, text: str) -> Tuple[str, str, dict]:
     """(method, path, body) to deliver *text* into a session as a user turn --
-    the same /events shape the usage-monitor resumes with."""
+    the same /events shape a usage-limit resume uses."""
     return "POST", f"/sessions/{session_id}/events", api_client.resume_event_body(text)
 
 

@@ -11,7 +11,7 @@ import os
 import socket
 from dataclasses import dataclass
 from pathlib import Path
-from typing import FrozenSet, Mapping, Optional, Tuple
+from typing import FrozenSet, Mapping, Optional
 
 from .discovery import nickname_from_hostname, normalize_host
 
@@ -235,7 +235,7 @@ class TelegramConfig:
     that lands each of the boss's messages into the durable answers feed +
     phone push, and can reply via ``sendMessage`` (Phase-1 spike, #163).
 
-    Same shape as :class:`UsageLimitConfig`: env -> frozen dataclass, a state
+    Same shape as the other service configs: env -> frozen dataclass, a state
     file + pid-lock in ``logdir``, a long-poll cadence. The bot token is NEVER
     baked in here -- it is read fresh from a chmod-600 file (``token_file``) each
     time it is needed, and never logged. ``dry_run`` (default ON) means "read +
@@ -301,64 +301,6 @@ class TelegramConfig:
             # Default ON: land inbound to the feed, but don't send replies until
             # explicitly enabled (TELEGRAM_DRY_RUN=0). #164 flips this on.
             dry_run=_truthy(env.get("TELEGRAM_DRY_RUN", "1")),
-        )
-
-
-@dataclass(frozen=True)
-class UsageLimitConfig:
-    home: Path
-    logdir: Path
-    api_base: str
-    keychain_service: str
-    detect_interval: int
-    resume_interval: int
-    http_timeout: int
-    gc_age_secs: int
-    # Repeated re-limits on resume -> wait this long before retrying, capped at
-    # the last entry so a persistent monthly limit just retries every 30 min.
-    backoffs_secs: Tuple[int, ...]
-    # 0 = unlimited attempts (a monthly limit may need many until it resets).
-    max_attempts: int
-    resume_message: str
-    resume_verify_secs: int
-    dry_run: bool
-    skip_session_ids: FrozenSet[str]
-
-    @property
-    def state_file(self) -> Path:
-        return self.logdir / "paused-sessions.json"
-
-    @property
-    def log_file(self) -> Path:
-        return self.logdir / "usage-limit-monitor.log"
-
-    @property
-    def lock_file(self) -> Path:
-        return self.logdir / "usage-limit-monitor.lock"
-
-    @classmethod
-    def from_env(cls, env: Optional[Mapping[str, str]] = None) -> "UsageLimitConfig":
-        env = os.environ if env is None else env
-        skip = frozenset(
-            s.strip() for s in env.get("USAGE_LIMIT_SKIP_SIDS", "").split(",") if s.strip()
-        )
-        return cls(
-            home=Path(env["HOME"]),
-            logdir=Path(env.get("REMOTE_CONTROL_LOGDIR", LOGDIR)),
-            api_base="https://api.anthropic.com/v1/code",
-            keychain_service=env.get("REMOTE_CONTROL_KEYCHAIN_SERVICE",
-                                     "Claude Code-credentials"),
-            detect_interval=int(env.get("USAGE_LIMIT_DETECT_SECS", "60")),
-            resume_interval=int(env.get("USAGE_LIMIT_RESUME_SECS", "300")),
-            http_timeout=int(env.get("USAGE_LIMIT_HTTP_TIMEOUT_SECS", "30")),
-            gc_age_secs=7 * 24 * 3600,
-            backoffs_secs=(5 * 60, 15 * 60, 30 * 60),
-            max_attempts=int(env.get("USAGE_LIMIT_MAX_ATTEMPTS", "0")),
-            resume_message=env.get("USAGE_LIMIT_RESUME_MESSAGE", "continue"),
-            resume_verify_secs=int(env.get("USAGE_LIMIT_VERIFY_SECS", "8")),
-            # Default ON: detect + log only, no POST. Set 0/false to actually resume.
-            dry_run=_truthy(env.get("USAGE_LIMIT_DRY_RUN", "1")),
-            skip_session_ids=skip,
         )
 
 
@@ -598,77 +540,27 @@ class PermGateConfig:
 
 @dataclass(frozen=True)
 class CodexConfig:
-    """Codex (local CLI) usage-limit monitoring -- the local-process sibling of
-    UsageLimitConfig.
+    """The non-deprecated Codex (local CLI) knobs still used across the fleet:
+    the ``codex`` binary path (the ``work-start`` codex engine and the eval
+    codex judge) and the rate-limit ``block_threshold`` the inventory view uses
+    to flag a Codex session as limit-paused (see :mod:`codex_rollout`).
 
-    Codex sessions are NOT cloud-hosted: there is no "events" endpoint to POST a
-    resume into. Detection reads ``~/.codex/sessions/**/rollout-*.jsonl`` (each
-    ``token_count`` event carries a ``rate_limits`` block), and a resume spawns a
-    local ``codex exec resume <uuid> "<msg>"`` in the session's recorded cwd.
+    The Codex *auto-resume monitor* that once owned the rest of this config
+    (detect/resume intervals, backoffs, dry-run, state/lock files, ...) was
+    removed with the usage-limit monitor in #175 -- native Claude auto-resume
+    superseded the Claude path, and this fleet has never run a Codex session.
     """
-    codex_home: Path
     codex_bin: Path
-    logdir: Path
-    enabled: bool
-    dry_run: bool
     # used_percent >= this on any window counts as blocked (rate_limit_reached_type
-    # being set always counts). 100 = only act on a truly-exhausted window.
+    # being set always counts). 100 = only flag a truly-exhausted window.
     block_threshold: float
-    # Ignore rollouts older than this -- a session whose log went quiet long ago
-    # is abandoned, not waiting-to-resume. Generous enough to cover the 5h window.
-    recent_secs: int
-    detect_interval: int
-    resume_interval: int
-    backoffs_secs: Tuple[int, ...]
-    max_attempts: int
-    # A spawned `codex exec resume` runs the whole turn; treat its pid as alive
-    # (don't re-fire) until it exits or this long elapses, whichever is first.
-    max_runtime: int
-    gc_age_secs: int
-    resume_message: str
-    skip_session_ids: FrozenSet[str]
-
-    @property
-    def sessions_dir(self) -> Path:
-        return self.codex_home / "sessions"
-
-    @property
-    def index_file(self) -> Path:
-        return self.codex_home / "session_index.jsonl"
-
-    @property
-    def state_file(self) -> Path:
-        return self.logdir / "paused-codex-sessions.json"
-
-    @property
-    def resume_logdir(self) -> Path:
-        return self.logdir / "codex-resume"
 
     @classmethod
     def from_env(cls, env: Optional[Mapping[str, str]] = None) -> "CodexConfig":
         env = os.environ if env is None else env
-        skip = frozenset(
-            s.strip() for s in env.get("USAGE_LIMIT_CODEX_SKIP_SIDS", "").split(",")
-            if s.strip()
-        )
-        home = Path(env["HOME"])
         return cls(
-            codex_home=Path(env.get("CODEX_HOME", str(home / ".codex"))),
             codex_bin=Path(env.get(
                 "REMOTE_CONTROL_CODEX_BIN",
                 "/Applications/Codex.app/Contents/Resources/codex")),
-            logdir=Path(env.get("REMOTE_CONTROL_LOGDIR", LOGDIR)),
-            enabled=_truthy(env.get("USAGE_LIMIT_CODEX_ENABLED", "1")),
-            # Shares the global dry-run switch with the Claude monitor.
-            dry_run=_truthy(env.get("USAGE_LIMIT_DRY_RUN", "1")),
             block_threshold=float(env.get("USAGE_LIMIT_CODEX_THRESHOLD", "100")),
-            recent_secs=int(env.get("USAGE_LIMIT_CODEX_RECENT_SECS", str(6 * 3600))),
-            detect_interval=int(env.get("USAGE_LIMIT_DETECT_SECS", "60")),
-            resume_interval=int(env.get("USAGE_LIMIT_RESUME_SECS", "300")),
-            backoffs_secs=(5 * 60, 15 * 60, 30 * 60),
-            max_attempts=int(env.get("USAGE_LIMIT_MAX_ATTEMPTS", "0")),
-            max_runtime=int(env.get("USAGE_LIMIT_CODEX_MAX_RUNTIME", "1800")),
-            gc_age_secs=7 * 24 * 3600,
-            resume_message=env.get("USAGE_LIMIT_RESUME_MESSAGE", "continue"),
-            skip_session_ids=skip,
         )

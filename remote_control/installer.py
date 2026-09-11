@@ -25,10 +25,8 @@ from typing import List, Optional, Tuple
 # absent: that service was retired during the Python port.
 AGENTS = [
     "com.user.claude-remote-control.plist",
-    "com.user.claude-usage-limit-monitor.plist",
     "com.user.claude-titles-monitor.plist",
     "com.user2.claude-remote-control.plist",
-    "com.user2.claude-usage-limit-monitor.plist",
     "com.user2.claude-titles-monitor.plist",
     # NOTE (#163): com.<user>.claude-telegram-bridge.plist is intentionally NOT
     # auto-enrolled here for the Phase-1 spike. The plists + `python3 -m
