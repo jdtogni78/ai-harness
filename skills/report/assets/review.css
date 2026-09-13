@@ -1,0 +1,168 @@
+/* review.css — screen styles + @media print for the report-v2 review renderer.
+   Colour tokens intentionally match cos-console/presentation-poc/deck so the
+   review page and the exec deck read as one system. Palette is accessible in
+   both the dark screen theme and the light print theme (see @media print). */
+:root{
+  --bg:#0e1117; --panel:#161b22; --panel2:#1c232d; --ink:#e6edf3; --muted:#8b949e;
+  --line:#30363d; --accent:#4c9be8;
+  --done:#3fb950; --todo:#d29922; --prog:#4c9be8; --blocked:#f85149; --nodata:#6e7681;
+  --verified:#3fb950; --claimed:#d29922;
+  --shadow:0 8px 30px rgba(0,0,0,.35);
+  --sidebar-w:248px;
+}
+*{box-sizing:border-box}
+[x-cloak]{display:none !important}  /* hide the app until Alpine initializes */
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
+kbd{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+
+/* ---- layout: sidebar + main ------------------------------------------- */
+.app{display:flex;min-height:100dvh}
+.sidebar{width:var(--sidebar-w);flex:0 0 var(--sidebar-w);position:sticky;top:0;height:100dvh;
+  overflow:auto;background:var(--panel);border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:6px}
+.sidebar .brand{font-weight:700;font-size:16px;padding:4px 10px 2px}
+.sidebar .brand small{display:block;color:var(--muted);font-weight:500;font-size:11px;letter-spacing:.04em;text-transform:uppercase;margin-top:3px}
+.navlink{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;color:var(--ink);
+  cursor:pointer;border:1px solid transparent;font-size:14px;user-select:none}
+.navlink:hover{background:var(--panel2)}
+.navlink.on{background:var(--panel2);border-color:var(--line);font-weight:600}
+.navlink .ico{width:18px;text-align:center;opacity:.85}
+.navlink .badge{margin-left:auto;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sidebar .sep{height:1px;background:var(--line);margin:8px 4px}
+.sidebar .foot{margin-top:auto;font-size:11px;color:var(--muted);padding:8px 10px;line-height:1.4}
+
+.main{flex:1 1 auto;min-width:0;padding:26px clamp(20px,4vw,52px) 80px;max-width:1100px}
+.topbar{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.topbar .meta{flex:1 1 auto;min-width:0}
+.topbar h1{font-size:clamp(20px,3vw,28px);margin:0 0 4px;line-height:1.15}
+.topbar .subtle{color:var(--muted);font-size:13px}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+.btn{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:9px;
+  padding:8px 13px;font-size:13px;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:#0e1117;border-color:var(--accent);font-weight:600}
+
+/* ---- freshness banner ------------------------------------------------- */
+.freshness{border-radius:12px;padding:12px 16px;margin:0 0 22px;font-size:13.5px;
+  display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line)}
+.freshness .tag{font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:11px;
+  padding:3px 9px;border-radius:999px;white-space:nowrap}
+.freshness.stale{background:rgba(248,81,73,.10);border-color:rgba(248,81,73,.45)}
+.freshness.stale .tag{background:var(--blocked);color:#0e1117}
+.freshness.aging{background:rgba(210,153,34,.10);border-color:rgba(210,153,34,.45)}
+.freshness.aging .tag{background:var(--todo);color:#0e1117}
+.freshness.fresh{background:rgba(63,185,80,.08);border-color:rgba(63,185,80,.35)}
+.freshness.fresh .tag{background:var(--done);color:#0e1117}
+
+/* ---- generic widgets (shared vocab with the deck) --------------------- */
+.page{display:block}
+.page h2{font-size:20px;margin:0 0 4px}
+.page .lede{color:var(--muted);font-size:13.5px;margin:0 0 18px;max-width:70ch}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:24px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+.tile .n{font-size:32px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.tile .l{color:var(--muted);font-size:12.5px;margin-top:6px}
+.tile.na .n{color:var(--nodata)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}
+.card h3{margin:0 0 4px;font-size:15px}
+.card .muted{color:var(--muted);font-size:13px}
+
+/* dense scannable table (the Trackers_Index principle) */
+table.dense{width:100%;border-collapse:collapse;font-size:13.5px}
+table.dense th{text-align:left;color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;
+  letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--line)}
+table.dense td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.dense tr:last-child td{border-bottom:0}
+table.dense tr:hover td{background:var(--panel2)}
+
+.pill{font-size:11px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap;display:inline-block}
+.pill.done{color:var(--done);border-color:rgba(63,185,80,.4)}
+.pill.in-progress{color:var(--prog);border-color:rgba(76,155,232,.4)}
+.pill.todo{color:var(--todo);border-color:rgba(210,153,34,.4)}
+.pill.blocked{color:var(--blocked);border-color:rgba(248,81,73,.4)}
+.pill.verified{color:var(--verified);border-color:rgba(63,185,80,.45)}
+.pill.claimed{color:var(--claimed);border-color:rgba(210,153,34,.45)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle}
+
+/* progress bar */
+.bar{height:8px;border-radius:999px;background:var(--panel2);overflow:hidden;min-width:90px}
+.bar > span{display:block;height:100%;background:var(--accent)}
+.bar.done > span{background:var(--done)}
+.bar.blocked > span{background:var(--blocked)}
+
+/* checklist */
+ul.checks{list-style:none;padding:0;margin:.3em 0}
+ul.checks li{padding:7px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline}
+ul.checks li:last-child{border-bottom:0}
+ul.checks .box{font-size:14px;width:16px;flex:0 0 16px}
+ul.checks li.is-done{color:var(--muted);text-decoration:line-through}
+ul.checks .box.done{color:var(--done)}
+
+/* evidence gallery */
+.evidence{display:grid;gap:14px}
+.ev{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.ev .ev-head{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.ev .ev-head .kind{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.ev .ev-body{padding:14px}
+.ev img{max-width:100%;border-radius:8px;display:block;border:1px solid var(--line)}
+.ev iframe{width:100%;height:360px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.ev pre{margin:0;background:#0b0e13;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:12.5px}
+.ev pre .exit-ok{color:var(--done)} .ev pre .exit-bad{color:var(--blocked)}
+.unverified{border:2px dashed var(--blocked);border-radius:12px;padding:16px;
+  background:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(248,81,73,.06) 10px,rgba(248,81,73,.06) 20px)}
+.unverified .big{color:var(--blocked);font-weight:700}
+
+/* facts / memory */
+.fact{border-left:3px solid var(--todo);background:linear-gradient(90deg,rgba(210,153,34,.08),transparent);
+  border-radius:0 12px 12px 0;padding:14px 16px;margin-bottom:12px}
+.fact .st{font-weight:600;font-size:14.5px}
+.fact .meta{color:var(--muted);font-size:12px;margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}
+.callout{border:1px solid rgba(76,155,232,.4);background:rgba(76,155,232,.07);border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:13.5px}
+
+/* timeline */
+.timeline{border-left:2px solid var(--line);margin-left:8px;padding-left:18px}
+.tl{position:relative;padding:0 0 16px}
+.tl::before{content:"";position:absolute;left:-25px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+.tl .ts{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.tl .ev-t{font-weight:600}
+
+/* data page */
+pre.json{background:#0b0e13;border:1px solid var(--line);border-radius:12px;padding:16px;overflow:auto;
+  font-size:12.5px;max-height:70vh;white-space:pre}
+
+.nodata-panel{border:2px dashed var(--nodata);border-radius:12px;padding:20px;
+  background:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(110,118,129,.08) 10px,rgba(110,118,129,.08) 20px)}
+.nodata-panel .big{font-size:18px;font-weight:700;color:var(--nodata)}
+
+/* small screens: sidebar collapses to top */
+@media (max-width:720px){
+  .app{flex-direction:column}
+  .sidebar{width:auto;flex:none;position:static;height:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}
+  .sidebar .foot,.sidebar .sep{display:none}
+}
+
+/* ======================================================================
+   PRINT / PDF (req 3): un-hide EVERY page, one per printed page, drop the
+   sidebar + all interactive chrome. This is what the in-browser "Print/PDF"
+   button and the headless to_pdf.sh both rely on. Light theme for ink.
+   ====================================================================== */
+@media print{
+  :root{--bg:#fff;--panel:#fff;--panel2:#f3f5f8;--ink:#11151b;--muted:#586069;--line:#d0d7de;--shadow:none}
+  html,body{background:#fff;color:#11151b}
+  .sidebar,.controls,#toast{display:none !important}
+  .app{display:block}
+  .main{max-width:none;padding:0 8mm}
+  .topbar{border-bottom:2px solid var(--line);padding-bottom:8px}
+  /* KEY: Alpine sets x-show:none on hidden pages; force them all visible. */
+  .page{display:block !important;break-after:page;page-break-after:always;margin-bottom:10mm}
+  .page:last-child{break-after:auto}
+  .page > h2{border-bottom:1px solid var(--line);padding-bottom:4px}
+  .card,.tile,.ev,.fact{box-shadow:none;break-inside:avoid}
+  .ev iframe{height:300px}
+  a{color:#0b3d91}
+  a[href^="http"]::after{content:" (" attr(href) ")";font-size:10px;color:var(--muted);word-break:break-all}
+}
