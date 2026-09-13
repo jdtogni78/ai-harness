@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from remote_control.config import SupervisorConfig, UsageLimitConfig, host_nickname
+from remote_control.config import SupervisorConfig, host_nickname
 from remote_control.discovery import nickname_from_hostname
 
 
@@ -176,37 +176,6 @@ class HostNicknamePrecedenceTest(unittest.TestCase):
         self.host_file.write_text("# only a header, no value\n\n")
         nick = host_nickname({}, host_file=str(self.host_file))
         self.assertEqual(nick, nickname_from_hostname(socket.gethostname()))
-
-
-class UsageLimitConfigTest(unittest.TestCase):
-    def test_dry_run_default_on(self):
-        self.assertTrue(UsageLimitConfig.from_env({"HOME": "/Users/x"}).dry_run)
-
-    def test_dry_run_off_values(self):
-        for v in ("0", "false", "no", "", "  0  "):
-            with self.subTest(v=v):
-                c = UsageLimitConfig.from_env({"HOME": "/Users/x", "USAGE_LIMIT_DRY_RUN": v})
-                self.assertFalse(c.dry_run)
-
-    def test_dry_run_on_values(self):
-        for v in ("1", "true", "yes"):
-            with self.subTest(v=v):
-                c = UsageLimitConfig.from_env({"HOME": "/Users/x", "USAGE_LIMIT_DRY_RUN": v})
-                self.assertTrue(c.dry_run)
-
-    def test_paths_and_skip_and_constants(self):
-        c = UsageLimitConfig.from_env({
-            "HOME": "/Users/x",
-            "REMOTE_CONTROL_LOGDIR": "/tmp/l",
-            "USAGE_LIMIT_SKIP_SIDS": "cse_a, cse_b ,",
-        })
-        self.assertEqual(c.state_file, Path("/tmp/l/paused-sessions.json"))
-        self.assertEqual(c.log_file, Path("/tmp/l/usage-limit-monitor.log"))
-        self.assertEqual(c.lock_file, Path("/tmp/l/usage-limit-monitor.lock"))
-        self.assertEqual(c.skip_session_ids, frozenset({"cse_a", "cse_b"}))
-        self.assertEqual(c.backoffs_secs, (300, 900, 1800))
-        self.assertEqual(c.gc_age_secs, 7 * 24 * 3600)
-        self.assertEqual(c.max_attempts, 0)
 
 
 if __name__ == "__main__":

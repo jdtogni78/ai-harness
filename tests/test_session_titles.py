@@ -753,9 +753,9 @@ class RunSetRepoFallbackTest(unittest.TestCase):
             captured["sid"], captured["title"] = sid, title
             return 200, {}
 
-        orig_list = st.monitor.list_sessions
+        orig_list = st.api_client.list_sessions
         orig_set = st.set_title
-        st.monitor.list_sessions = lambda cfg, token, log: sessions
+        st.api_client.list_sessions = lambda cfg, token, log: sessions
         st.set_title = fake_set
         try:
             base = {"dev": "/nonexistent", "file": "/nonexistent", "map": "",
@@ -764,7 +764,7 @@ class RunSetRepoFallbackTest(unittest.TestCase):
             base.update(opts)
             rc = st._run_set(None, "tok", base, log=lambda m: None)
         finally:
-            st.monitor.list_sessions = orig_list
+            st.api_client.list_sessions = orig_list
             st.set_title = orig_set
         return rc, captured
 
@@ -904,10 +904,10 @@ class RunSetRepoFallbackTest(unittest.TestCase):
             return 200, {}
 
         orig_repo_cwd, orig_list, orig_set = (
-            st.repo_from_cwd, st.monitor.list_sessions, st.set_title)
+            st.repo_from_cwd, st.api_client.list_sessions, st.set_title)
         prev_host = os.environ.get("REMOTE_CONTROL_HOST")
         st.repo_from_cwd = lambda cwd, dev: "AppOne"
-        st.monitor.list_sessions = lambda cfg, token, log: []
+        st.api_client.list_sessions = lambda cfg, token, log: []
         st.set_title = fake_set
         os.environ["REMOTE_CONTROL_HOST"] = "mini"
         try:
@@ -918,7 +918,7 @@ class RunSetRepoFallbackTest(unittest.TestCase):
                     "subs": ["MGR-1"]}
             rc = st._run_set(None, "tok", opts, log=lambda m: None)
         finally:
-            st.repo_from_cwd, st.monitor.list_sessions, st.set_title = (
+            st.repo_from_cwd, st.api_client.list_sessions, st.set_title = (
                 orig_repo_cwd, orig_list, orig_set)
             if prev_host is None:
                 os.environ.pop("REMOTE_CONTROL_HOST", None)
@@ -1392,15 +1392,15 @@ class ApplyPrefixesTest(unittest.TestCase):
             calls.append((sid, title))
             return codes.get(sid, 200), {}
 
-        orig_list, orig_set = st.monitor.list_sessions, st.set_title
-        st.monitor.list_sessions = lambda cfg, token, log: sessions
+        orig_list, orig_set = st.api_client.list_sessions, st.set_title
+        st.api_client.list_sessions = lambda cfg, token, log: sessions
         st.set_title = fake_set
         try:
             res = st.apply_prefixes(None, "tok", lambda m: None,
                                     dev="/nonexistent", file="/nonexistent",
                                     projects="/nonexistent")
         finally:
-            st.monitor.list_sessions, st.set_title = orig_list, orig_set
+            st.api_client.list_sessions, st.set_title = orig_list, orig_set
         return res, calls
 
     def _ff(self, sid, title):
@@ -1428,13 +1428,13 @@ class ApplyPrefixesTest(unittest.TestCase):
 
     def test_none_sessions_is_noop(self):
         from remote_control import session_titles as st
-        orig = st.monitor.list_sessions
-        st.monitor.list_sessions = lambda cfg, token, log: None
+        orig = st.api_client.list_sessions
+        st.api_client.list_sessions = lambda cfg, token, log: None
         try:
             self.assertEqual(
                 st.apply_prefixes(None, "tok", lambda m: None), (0, 0))
         finally:
-            st.monitor.list_sessions = orig
+            st.api_client.list_sessions = orig
 
 
 class ParseCmdSessionIdTest(unittest.TestCase):
@@ -1576,8 +1576,8 @@ class TitlesWatchDaemonTest(unittest.TestCase):
         prev = os.environ.get("REMOTE_CONTROL_LOGDIR")
         os.environ["REMOTE_CONTROL_LOGDIR"] = tmp
         try:
-            from remote_control.config import UsageLimitConfig
-            return UsageLimitConfig.from_env()
+            from remote_control.api_client import ApiClientConfig
+            return ApiClientConfig.from_env()
         finally:
             if prev is None:
                 os.environ.pop("REMOTE_CONTROL_LOGDIR", None)
@@ -1595,9 +1595,9 @@ class TitlesWatchDaemonTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             cfg = self._cfg(tmp)
             calls = []
-            orig_apply, orig_token = st.apply_prefixes, st.monitor.get_token
+            orig_apply, orig_token = st.apply_prefixes, st.api_client.get_token
             st.apply_prefixes = lambda c, t, log: calls.append(t) or (0, 0)
-            st.monitor.get_token = lambda c, log: "tok"
+            st.api_client.get_token = lambda c, log: "tok"
             # interval=1 → inner loop sleeps just once between outer iterations.
             # Clocks 1000, 1001, 1002 → both pass the >= 1 threshold.
             ticks = iter([1000.0, 1001.0, 1002.0])
@@ -1612,7 +1612,7 @@ class TitlesWatchDaemonTest(unittest.TestCase):
             except KeyboardInterrupt:
                 pass
             finally:
-                st.apply_prefixes, st.monitor.get_token = orig_apply, orig_token
+                st.apply_prefixes, st.api_client.get_token = orig_apply, orig_token
             # 3 clock reads → 3 outer iterations → 3 apply_prefixes calls
             # (all token reads pass the threshold).
             self.assertGreaterEqual(len(calls), 2,
@@ -1645,13 +1645,13 @@ class TitlesWatchDaemonTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             cfg = self._cfg(tmp)
-            orig_apply, orig_token = st.apply_prefixes, st.monitor.get_token
+            orig_apply, orig_token = st.apply_prefixes, st.api_client.get_token
             calls = [0]
             def boom(c, t, log):
                 calls[0] += 1
                 raise RuntimeError("simulated api 500")
             st.apply_prefixes = boom
-            st.monitor.get_token = lambda c, log: "tok"
+            st.api_client.get_token = lambda c, log: "tok"
             logs = []
             ticks = iter([1000.0, 1001.0, 1002.0])
             def clock():
@@ -1665,7 +1665,7 @@ class TitlesWatchDaemonTest(unittest.TestCase):
             except KeyboardInterrupt:
                 pass
             finally:
-                st.apply_prefixes, st.monitor.get_token = orig_apply, orig_token
+                st.apply_prefixes, st.api_client.get_token = orig_apply, orig_token
             # Multiple calls means the loop kept ticking after the first raise.
             self.assertGreaterEqual(calls[0], 2,
                                     f"loop should survive exceptions; got {calls[0]} calls")
@@ -1743,8 +1743,8 @@ class RawTitlePinTest(unittest.TestCase):
         prev = os.environ.get("REMOTE_CONTROL_LOGDIR")
         os.environ["REMOTE_CONTROL_LOGDIR"] = tmp
         try:
-            from remote_control.config import UsageLimitConfig
-            return UsageLimitConfig.from_env()
+            from remote_control.api_client import ApiClientConfig
+            return ApiClientConfig.from_env()
         finally:
             if prev is None:
                 os.environ.pop("REMOTE_CONTROL_LOGDIR", None)
@@ -1763,8 +1763,8 @@ class RawTitlePinTest(unittest.TestCase):
             captured["sid"], captured["title"] = sid, title
             return 200, {}
 
-        orig_list, orig_set = st.monitor.list_sessions, st.set_title
-        st.monitor.list_sessions = lambda cfg_, token, log: sessions
+        orig_list, orig_set = st.api_client.list_sessions, st.set_title
+        st.api_client.list_sessions = lambda cfg_, token, log: sessions
         st.set_title = fake_set
         try:
             base = {"dev": "/nonexistent", "file": "/nonexistent", "map": "",
@@ -1773,7 +1773,7 @@ class RawTitlePinTest(unittest.TestCase):
             base.update(opts)
             rc = st._run_set(cfg, "tok", base, log=lambda m: None)
         finally:
-            st.monitor.list_sessions, st.set_title = orig_list, orig_set
+            st.api_client.list_sessions, st.set_title = orig_list, orig_set
         return rc, captured
 
     # A session whose repo DOES resolve -- so a normal set demonstrably adds a
@@ -1827,10 +1827,10 @@ class RawTitlePinTest(unittest.TestCase):
             self.assertTrue(all(r.changed for r in plan))
 
             sent = []
-            orig_list = st.monitor.list_sessions
+            orig_list = st.api_client.list_sessions
             orig_plan = st.plan_renames
             orig_set = st.set_title
-            st.monitor.list_sessions = lambda c, t, log: [
+            st.api_client.list_sessions = lambda c, t, log: [
                 {"id": r.id} for r in plan]
             st.plan_renames = lambda *a, **kw: plan
             st.set_title = lambda c, t, sid, title: (
@@ -1838,7 +1838,7 @@ class RawTitlePinTest(unittest.TestCase):
             try:
                 ok, fail = st.apply_prefixes(cfg, "tok", log=lambda m: None)
             finally:
-                st.monitor.list_sessions = orig_list
+                st.api_client.list_sessions = orig_list
                 st.plan_renames = orig_plan
                 st.set_title = orig_set
             self.assertEqual(sent, ["cse_free"])

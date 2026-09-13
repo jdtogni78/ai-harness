@@ -32,13 +32,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, NamedTuple, Optional
 
-from .config import DEV, CodexConfig, UsageLimitConfig
+from .config import DEV, CodexConfig
 from .session_list import build_rows
 from .session_titles import build_worktree_index
 from .session_port import codex as cx
 from .session_port import disk
-from .usage_limit import codex as uc
-from .usage_limit import detect, monitor
+from . import codex_rollout as uc
+from . import api_client
+from .api_client import ApiClientConfig
 
 # An agent's work is "active" if it saw activity within this window, else "idle".
 # Mirrors the multi-agent claim liveness TTL (AGENT_CLAIM_TTL_SECS, 1h).
@@ -139,7 +140,7 @@ def claude_rows_to_work(
     """Adapt :class:`session_list.Row` records into unified rows.
 
     *limit_paused_ids* are the session ids the usage-limit detector flagged as
-    paused on a usage/session limit (see :func:`usage_limit.detect.limit_pause_detail`)."""
+    paused on a usage/session limit (see :func:`api_client.limit_pause_detail`)."""
     out: List[WorkRow] = []
     for r in rows:
         activity = activity_of(r.last_event_at, now, ttl_secs)
@@ -295,25 +296,25 @@ def _codex_ts_resolver(now: datetime) -> Callable[["cx.CodexSession"], str]:
 def _collect_claude(opts: dict, now: datetime, log) -> Optional[List[WorkRow]]:
     """Fetch + adapt Claude sessions. None on a hard auth/API failure (so the
     caller can warn yet still show Codex)."""
-    cfg = UsageLimitConfig.from_env()
-    token = monitor.get_token(cfg, log)
+    cfg = ApiClientConfig.from_env()
+    token = api_client.get_token(cfg, log)
     if not token:
         log("could not read OAuth token from keychain (skipping Claude)")
         return None
-    sessions = monitor.list_sessions(cfg, token, log)
+    sessions = api_client.list_sessions(cfg, token, log)
     if sessions is None:
         log("could not list Claude sessions (skipping Claude)")
         return None
     index = build_worktree_index(Path(opts["dev"]))
     rows = build_rows(sessions, index, include_archived=opts["all"])
     limit_paused_ids = frozenset(
-        s.get("id") for s in sessions if s.get("id") and detect.limit_pause_detail(s))
+        s.get("id") for s in sessions if s.get("id") and api_client.limit_pause_detail(s))
     return claude_rows_to_work(rows, now, opts["ttl"], limit_paused_ids)
 
 
 def _codex_signals_resolver() -> Callable[["cx.CodexSession"], dict]:
     """Read an idle Codex rollout for its stale signals: ``limit_paused`` (a
-    rate-limit window is exhausted -- :mod:`usage_limit.codex`) and ``awaiting``
+    rate-limit window is exhausted -- :mod:`codex_rollout`) and ``awaiting``
     (the last conversation turn is the user's, so the agent never replied)."""
     threshold = CodexConfig.from_env().block_threshold
 

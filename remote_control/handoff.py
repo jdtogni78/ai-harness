@@ -17,7 +17,7 @@ Two existing primitives compose into the whole flow:
 
   * :mod:`new_session` -- spawn a fresh ``claude remote-control --capacity 1``
     bridge server in a target cwd; ``cse_*`` arrives on registration.
-  * :func:`usage_limit.monitor.submit_user_message` -- POST the brief as the
+  * :func:`api_client.submit_user_message` -- POST the brief as the
     new session's first user turn (the same path ``sessions submit`` uses).
 
 Idempotency is tracked in ``~/.ai-harness/handoffs/<new-cse>.json`` -- each
@@ -543,17 +543,17 @@ def spawn_and_seed_handoff(
 
     Composes :mod:`new_session`'s pure helpers (``autogen_name``,
     ``build_argv``, ``wait_for_session_id``) and the same code path
-    ``sessions submit`` uses (:func:`monitor.submit_user_message`). Drops a
+    ``sessions submit`` uses (:func:`api_client.submit_user_message`). Drops a
     oneoff checkpoint so the rehydrate sweep can recover this handoff's
     own transcript if its process dies before clean exit.
 
     Returns the new cse_* on full success (spawn + register + submit), or
     None on any failure along the way -- the dispatcher logs and continues."""
     from . import new_session
-    from .config import UsageLimitConfig
+    from .api_client import ApiClientConfig
     from .procutil import spawn_env
     from .rehydrate import write_oneoff_checkpoint
-    from .usage_limit import monitor
+    from . import api_client
 
     cwd = Path(candidate.run_dir)
     if not cwd.is_dir():
@@ -621,12 +621,12 @@ def spawn_and_seed_handoff(
             f"registration on {name}; see {logpath}")
         return None
 
-    ulim = UsageLimitConfig.from_env()
-    token = monitor.get_token(ulim, log)
+    ulim = ApiClientConfig.from_env()
+    token = api_client.get_token(ulim, log)
     if not token:
         log("handoff-spawn: could not read OAuth token from keychain")
         return None
-    code, body = monitor.submit_user_message(ulim, token, sid, brief, log)
+    code, body = api_client.submit_user_message(ulim, token, sid, brief, log)
     if code != 200:
         log(f"handoff-spawn: submit FAILED {sid} (http={code}) body={str(body)[:200]}")
         return None

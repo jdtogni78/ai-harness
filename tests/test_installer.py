@@ -32,9 +32,9 @@ class PlanInstallTest(unittest.TestCase):
         )
 
     def test_filter_by_plist_name(self):
-        pairs = plan_install(AGENTS, "com.user.claude-usage-limit-monitor.plist")
+        pairs = plan_install(AGENTS, "com.user.claude-titles-monitor.plist")
         self.assertEqual(len(pairs), 1)
-        self.assertEqual(pairs[0][1], "com.user.claude-usage-limit-monitor")
+        self.assertEqual(pairs[0][1], "com.user.claude-titles-monitor")
 
     def test_filter_no_match(self):
         self.assertEqual(plan_install(AGENTS, "nope"), [])
@@ -44,18 +44,16 @@ class PlanInstallTest(unittest.TestCase):
 
     def test_agent_user_token(self):
         self.assertEqual(agent_user("com.user2.claude-remote-control"), "user2")
-        self.assertEqual(agent_user("com.user.claude-usage-limit-monitor.plist"), "user")
+        self.assertEqual(agent_user("com.user.claude-titles-monitor.plist"), "user")
         self.assertEqual(agent_user("weird"), "")
 
     def test_default_filters_by_current_user(self):
         labels = {lbl for _, lbl in plan_install(AGENTS, current_user="user2")}
         self.assertEqual(labels, {"com.user2.claude-remote-control",
-                                  "com.user2.claude-usage-limit-monitor",
                                   "com.user2.claude-titles-monitor"})
         labels = {lbl for _, lbl in plan_install(AGENTS, current_user="user")}
         self.assertEqual(labels, {
             "com.user.claude-remote-control",
-            "com.user.claude-usage-limit-monitor",
             "com.user.claude-titles-monitor",
         })
 

@@ -2,11 +2,10 @@
 inbound sanitization + routing into the durable answers feed, and the supervised
 long-poll loop.
 
-Design mirrors ``remote_control/usage_limit/monitor.py`` on purpose (#163): a
-supervised long-poll loop, JSON state + a pid-lock, SIGTERM-clean shutdown, and
+Design follows the supervised long-poll daemon pattern (#163): a supervised
+long-poll loop, JSON state + a pid-lock, SIGTERM-clean shutdown, and
 env->config via :class:`~remote_control.config.TelegramConfig`. No webhook / no
-public URL -- the home host is behind NAT, so we poll (same reason the usage
-monitor polls the code-sessions API).
+public URL -- the home host is behind NAT, so we poll.
 
 Security posture (settled in #163):
   * The bot token is read FRESH from a chmod-600 file each time it's needed and

@@ -435,13 +435,13 @@ class Supervisor:
         self._last_reaper_sweep = now
         # Deferred for the same reason as _rehydrate_on_startup's imports: keep
         # the urllib monitor client out of a supervisor that never starts.
-        from .config import UsageLimitConfig
-        from .usage_limit import monitor
+        from .api_client import ApiClientConfig
+        from . import api_client
 
         try:
-            ulim = UsageLimitConfig.from_env()
-            token = monitor.get_token(ulim, self.log)
-            sessions = (monitor.list_sessions(ulim, token, self.log)
+            ulim = ApiClientConfig.from_env()
+            token = api_client.get_token(ulim, self.log)
+            sessions = (api_client.list_sessions(ulim, token, self.log)
                         if token else None)
             oneshot_reaper.sweep(
                 oneshots=self.proc.oneshot_servers(),
@@ -503,19 +503,19 @@ class Supervisor:
         # Imports deferred so a supervisor that never starts (e.g. an arg-parse
         # error in `main`) doesn't pull in the urllib monitor client.
         from . import handoff, rehydrate
-        from .config import UsageLimitConfig
+        from .api_client import ApiClientConfig
         from .session_fork import default_projects_root
-        from .usage_limit import monitor
+        from . import api_client
 
         try:
             projects_root = default_projects_root()
-            ulim = UsageLimitConfig.from_env()
-            token = monitor.get_token(ulim, self.log)
+            ulim = ApiClientConfig.from_env()
+            token = api_client.get_token(ulim, self.log)
 
             def list_sessions() -> Optional[List[dict]]:
                 if not token:
                     return None
-                return monitor.list_sessions(ulim, token, self.log)
+                return api_client.list_sessions(ulim, token, self.log)
 
             rehydrate.sweep_oneoff_checkpoints(
                 projects_root=projects_root,

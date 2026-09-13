@@ -1002,7 +1002,7 @@ class MonitorTickTest(unittest.TestCase):
                          last_event_at=_ts(10_000))]
         api = lambda *a, **k: (200, {"response_shape": _detail_with_question()})
         advise = "ANALYSIS: It is safe. More here.\nMANAGER: none\nSESSION: pick Skip them"
-        with mock.patch("remote_control.usage_limit.monitor.list_sessions",
+        with mock.patch("remote_control.api_client.list_sessions",
                         return_value=sessions), \
              mock.patch("remote_control.manager.build_worktree_index",
                         return_value={"cse_a": "myrepo"}):
@@ -1038,7 +1038,7 @@ class MonitorTickTest(unittest.TestCase):
             calls.append(cmd[-1])
             return _proc(stdout="closed it" if "EXECUTOR" in cmd[-1] else advise)
 
-        with mock.patch("remote_control.usage_limit.monitor.list_sessions",
+        with mock.patch("remote_control.api_client.list_sessions",
                         return_value=sessions), \
              mock.patch("remote_control.manager.build_worktree_index",
                         return_value={"cse_b": "myrepo"}):
@@ -1063,7 +1063,7 @@ class MonitorTickTest(unittest.TestCase):
             calls.append(cmd[-1])
             return _proc(stdout=advise)
 
-        with mock.patch("remote_control.usage_limit.monitor.list_sessions",
+        with mock.patch("remote_control.api_client.list_sessions",
                         return_value=sessions), \
              mock.patch("remote_control.manager.build_worktree_index",
                         return_value={"cse_b": "myrepo"}):
@@ -1074,7 +1074,7 @@ class MonitorTickTest(unittest.TestCase):
         self.assertEqual(len(calls), 1)                    # only the investigator spawned
 
     def test_empty_when_no_sessions(self):
-        with mock.patch("remote_control.usage_limit.monitor.list_sessions",
+        with mock.patch("remote_control.api_client.list_sessions",
                         return_value=None):
             self.assertEqual(monitor_tick(self.cfg, None, "tok", now=NOW,
                                           log=lambda m: None), [])

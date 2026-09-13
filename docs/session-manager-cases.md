@@ -24,7 +24,7 @@ order top to bottom:
 
 | Signal | Case | Default action |
 |---|---|---|
-| `post_turn_summary` = usage/session limit | **D. Limit-paused** | DEFER (usage-monitor owns it) |
+| `post_turn_summary` = usage/session limit | **D. Limit-paused** | DEFER (native auto-resume owns it) |
 | `worker_status == requires_action` (past answer-grace) | **A. Waiting on a question** | ANSWER (investigate → pick option) |
 | `connection_status == disconnected` (past rescue-grace) | **C. Broken / stale** | RESCUE (fork → resume → archive) |
 | `worker_status == idle` (past done-grace) | **B. Idle, no question** | REVIEW (done? → /close-work, else next) |

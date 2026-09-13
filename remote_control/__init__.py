@@ -4,7 +4,6 @@ A small, stdlib-only package (targets the system /usr/bin/python3) that replaces
 the former zsh scripts:
 
   - ``supervisor``     -- one ``claude remote-control`` server per allowlisted dir
-  - ``usage-monitor``  -- auto-resume sessions paused by the cloud usage limit
   - ``install``        -- (re)bootstrap the LaunchAgents in this repo
 
 Run a service with ``python3 -m remote_control <name>``.

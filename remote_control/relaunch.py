@@ -435,30 +435,30 @@ def default_retitle(
     No ``cse_*`` for the source (``--from-transcript`` flow) -> we have no
     title to inherit; the function returns ``(False, None)`` and the caller
     leaves ``auto-spawned`` in place."""
-    from .config import UsageLimitConfig
+    from .api_client import ApiClientConfig
     from .session_titles import set_title
-    from .usage_limit import monitor
+    from . import api_client
 
     if not source_cse:
         return False, None
-    cfg = UsageLimitConfig.from_env()
-    token = monitor.get_token(cfg, log)
+    cfg = ApiClientConfig.from_env()
+    token = api_client.get_token(cfg, log)
     if not token:
         log("retitle: keychain OAuth missing; leaving auto-spawned title")
         return False, None
-    src_code, src_body = monitor.api_request(
+    src_code, src_body = api_client.api_request(
         cfg, "GET", f"/sessions/{source_cse}", token)
     if src_code != 200 or not isinstance(src_body, dict):
         log(f"retitle: GET source {source_cse} http={src_code}; skipping")
         return False, None
-    new_code, new_body = monitor.api_request(
+    new_code, new_body = api_client.api_request(
         cfg, "GET", f"/sessions/{new_cse}", token)
     if new_code != 200 or not isinstance(new_body, dict):
         log(f"retitle: GET new {new_cse} http={new_code}; skipping")
         return False, None
     # Single-session GETs wrap the record in a ``response_shape`` envelope (the
     # ``/sessions`` list endpoint does not -- it returns flat records under
-    # ``data``). Mirror the unwrap monitor.still_limit_paused uses so the
+    # ``data``). Mirror the response_shape unwrap the session-state helpers use so the
     # title field resolves on both shapes.
     src_record = src_body.get("response_shape", src_body)
     new_record = new_body.get("response_shape", new_body)
@@ -480,20 +480,20 @@ def default_retitle(
 # main
 # --------------------------------------------------------------------------- #
 def _default_fetch_events(log) -> Callable[[str], Optional[FetchEventsResult]]:
-    """Production events-API fetcher: keychain OAuth + monitor.fetch_session_events.
+    """Production events-API fetcher: keychain OAuth + api_client.fetch_session_events.
 
     Returned as a closure so :func:`resolve_source` stays a pure
     ``(cse_id) -> result | None`` call; tests inject a no-network alternative.
     """
     def _fetch(cse_id: str) -> Optional[FetchEventsResult]:
-        from .config import UsageLimitConfig
-        from .usage_limit import monitor
-        cfg = UsageLimitConfig.from_env()
-        token = monitor.get_token(cfg, log)
+        from .api_client import ApiClientConfig
+        from . import api_client
+        cfg = ApiClientConfig.from_env()
+        token = api_client.get_token(cfg, log)
         if not token:
             log("events fallback: keychain OAuth missing; cannot reach API")
             return None
-        code, events = monitor.fetch_session_events(cfg, token, cse_id, log)
+        code, events = api_client.fetch_session_events(cfg, token, cse_id, log)
         if code != 200 or not events:
             log(f"events fallback: GET events http={code}; no events to use")
             return None

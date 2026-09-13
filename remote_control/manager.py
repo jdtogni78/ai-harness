@@ -36,7 +36,7 @@ The pure helpers (classification, cooldown, prompt + request building, transcrip
 parsing, rendering) live above ``main`` so they unit-test against plain values;
 the I/O (token, list, transcript read, state, spawn/POST) lives in ``main`` and
 its injectable seams. Detection deliberately reuses :mod:`inventory` /
-:mod:`session_list` / :mod:`usage_limit.detect` rather than re-deriving state.
+:mod:`session_list` / :mod:`api_client` rather than re-deriving state.
 """
 from __future__ import annotations
 
@@ -54,12 +54,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, NamedTuple, Optional, Tuple
 
-from .config import DEV, ManagerConfig, UsageLimitConfig
+from .config import DEV, ManagerConfig
 from .discovery import host_allows, load_allowlist
 from .inventory import parse_ts
 from .session_list import build_rows
 from .session_titles import build_worktree_index, repo_for_session
-from .usage_limit import detect, monitor
+from . import api_client
+from .api_client import ApiClientConfig
 
 # Action kinds (also the verbs printed in the plan).
 DEFER = "defer"      # usage-limit paused -> usage-limit monitor owns it
@@ -98,11 +99,11 @@ def classify(
     ("freshness", within a grace window) is reported separately by :func:`is_fresh`
     and only governs whether the *auto-loop* jumps in ahead of a human; it no
     longer hides a thread from the actionable list. Only a busy ``running`` worker,
-    an unknown state, or a usage-limit pause are non-actionable (the last is owned
-    by the usage-monitor). Priority: usage-limit, then a question, then a dead
+    an unknown state, or a usage-limit pause are non-actionable (native Claude
+    auto-resume owns the last). Priority: usage-limit, then a question, then a dead
     connection, then idle."""
     if limit_paused:
-        return SKIP, "usage-limit paused (usage-monitor owns it)"  # == DEFER, rendered as skip
+        return SKIP, "usage-limit paused (native auto-resume owns it)"  # == DEFER, rendered as skip
     if idle_secs is None:
         return SKIP, "unknown last-event time"
     if worker_status == "requires_action":
@@ -555,14 +556,14 @@ def suggest_guidelines(cfg: ManagerConfig, *, log, runner=subprocess.run) -> dic
 
 def answer_request(session_id: str, text: str) -> Tuple[str, str, dict]:
     """(method, path, body) to deliver *text* into a session as a user turn --
-    the same /events shape the usage-monitor resumes with."""
-    return "POST", f"/sessions/{session_id}/events", detect.resume_event_body(text)
+    the same /events shape a usage-limit resume uses."""
+    return "POST", f"/sessions/{session_id}/events", api_client.resume_event_body(text)
 
 
 def archive_request(session_id: str) -> Tuple[str, str, dict]:
     """(method, path, body) to archive a session via the verified live verb
     ``POST /sessions/{id}/archive`` (probed 2026-05; ``PUT`` with
-    ``status=archived`` returned 405). Mirrors ``monitor.archive_session``."""
+    ``status=archived`` returned 405). Mirrors ``api_client.archive_session``."""
     return "POST", f"/sessions/{session_id}/archive", {}
 
 
@@ -760,7 +761,7 @@ def plan_for_session(
     session it's helping."""
     sid = s.get("id") or ""
     title = s.get("title") or ""
-    limit_paused = detect.limit_pause_detail(s) is not None
+    limit_paused = api_client.limit_pause_detail(s) is not None
     idle_secs = idle_seconds(s.get("last_event_at") or "", now)
     kind, reason = classify(
         worker_status=s.get("worker_status") or "",
@@ -860,8 +861,8 @@ def run_investigator(cmd: List[str], run_dir: Optional[str], timeout: int,
     return (proc.stdout or "").strip() or None
 
 
-def post_answer(ucfg: UsageLimitConfig, token: str, sid: str, text: str,
-                *, api=monitor.api_request, log) -> bool:
+def post_answer(ucfg: ApiClientConfig, token: str, sid: str, text: str,
+                *, api=api_client.api_request, log) -> bool:
     """Deliver free-text *text* into a session as a user turn (POST /events).
     Used for REVIEW nudges (prose); NOT for answering a structured tool call."""
     method, path, body = answer_request(sid, text)
@@ -872,8 +873,8 @@ def post_answer(ucfg: UsageLimitConfig, token: str, sid: str, text: str,
     return False
 
 
-def get_session_detail(ucfg: UsageLimitConfig, token: str, sid: str,
-                       *, api=monitor.api_request, log=lambda m: None) -> Optional[dict]:
+def get_session_detail(ucfg: ApiClientConfig, token: str, sid: str,
+                       *, api=api_client.api_request, log=lambda m: None) -> Optional[dict]:
     """The session detail (unwrapped from ``response_shape``), or None. Carries
     ``requires_action_details`` -- the structured pending question."""
     code, data = api(ucfg, "GET", f"/sessions/{sid}", token)
@@ -903,9 +904,9 @@ def evaluate_answer(a: Action, *, cfg: ManagerConfig, log,
     return selections, "evaluated"
 
 
-def execute_answer(a: Action, *, ucfg: UsageLimitConfig, token: str,
+def execute_answer(a: Action, *, ucfg: ApiClientConfig, token: str,
                    cfg: ManagerConfig, state: dict, now_epoch: float, log,
-                   runner=subprocess.run, api=monitor.api_request) -> bool:
+                   runner=subprocess.run, api=api_client.api_request) -> bool:
     """Investigate, pick an option, and -- only when submission is enabled --
     submit it as a tool_result. Returns True only when actually submitted."""
     selections, note = evaluate_answer(a, cfg=cfg, log=log, runner=runner)
@@ -977,10 +978,10 @@ def dump_scenario(cfg: ManagerConfig, a: Action) -> None:
 
 
 def collect_actions(sessions: List[dict], *, cfg: ManagerConfig,
-                    ucfg: UsageLimitConfig, token: str, index: dict, allow: dict,
+                    ucfg: ApiClientConfig, token: str, index: dict, allow: dict,
                     consider_all: bool, want_repo: Optional[str], now: datetime,
                     now_epoch: float, state: dict, log,
-                    api=monitor.api_request, dump=False) -> List[Action]:
+                    api=api_client.api_request, dump=False) -> List[Action]:
     """Plan an action for every (non-archived, in-scope) session. Fetches the
     structured question only for waiting sessions; optionally dumps each to the
     scenario corpus."""
@@ -1011,10 +1012,10 @@ def collect_actions(sessions: List[dict], *, cfg: ManagerConfig,
     return actions
 
 
-def monitor_tick(cfg: ManagerConfig, ucfg: UsageLimitConfig, token: str, *,
+def monitor_tick(cfg: ManagerConfig, ucfg: ApiClientConfig, token: str, *,
                  now: datetime, log, consider_all: bool = False,
                  want_repo: Optional[str] = None, runner=subprocess.run,
-                 api=monitor.api_request) -> List[dict]:
+                 api=api_client.api_request) -> List[dict]:
     """One analyze(+execute) pass (the backup loop): classify all sessions and, for
     up to max-actions-per-tick stuck ones (answer/review/rescue), run the
     investigator WITH the guidelines to produce a recommendation (a MANAGER half +
@@ -1024,7 +1025,7 @@ def monitor_tick(cfg: ManagerConfig, ucfg: UsageLimitConfig, token: str, *,
     it is shadow-logged. The SESSION half is never auto-sent here (the manager-ui
     delivers it on human authorization). Cooldown-gated so it spreads work across
     ticks. Never submits a structured tool answer (that path is separate)."""
-    sessions = monitor.list_sessions(ucfg, token, log)
+    sessions = api_client.list_sessions(ucfg, token, log)
     if sessions is None:
         return []
     index = build_worktree_index(cfg.dev)
@@ -1085,17 +1086,17 @@ def monitor_tick(cfg: ManagerConfig, ucfg: UsageLimitConfig, token: str, *,
     return records
 
 
-def scan_actions(cfg: ManagerConfig, ucfg: UsageLimitConfig, token: str, *,
+def scan_actions(cfg: ManagerConfig, ucfg: ApiClientConfig, token: str, *,
                  now: datetime, consider_all: bool = False,
                  want_repo: Optional[str] = None, log=lambda m: None,
-                 api=monitor.api_request) -> List[Action]:
+                 api=api_client.api_request) -> List[Action]:
     """Read-only: list sessions and classify each into its (would-be) action,
     WITHOUT running any investigator, submitting, or persisting. Powers the
     manager-ui 'refresh / detect what's stuck right now' view.
 
     Uses a fresh (empty) cooldown state so detection reflects the true current
     state of every session, not what the monitor happened to act on recently."""
-    sessions = monitor.list_sessions(ucfg, token, log)
+    sessions = api_client.list_sessions(ucfg, token, log)
     if not sessions:
         return []
     index = build_worktree_index(cfg.dev)
@@ -1276,10 +1277,10 @@ def latest_decision_by_sig(cfg: ManagerConfig) -> Dict[str, dict]:
     return by
 
 
-def analyze_session(cfg: ManagerConfig, ucfg: UsageLimitConfig, token: str,
+def analyze_session(cfg: ManagerConfig, ucfg: ApiClientConfig, token: str,
                     session_id: str, *, now: datetime, guidelines: Optional[str] = None,
                     force: bool = False, log=lambda m: None, runner=subprocess.run,
-                    api=monitor.api_request) -> Optional[dict]:
+                    api=api_client.api_request) -> Optional[dict]:
     """Find one session's current action, run the investigator (with guidelines),
     append + return its decision record. Reuses the cached analysis for the same
     situation unless *force*. None if the session isn't a stuck/actionable thread
@@ -1305,9 +1306,9 @@ def analyze_session(cfg: ManagerConfig, ucfg: UsageLimitConfig, token: str,
     return rec
 
 
-def run_monitor(cfg: ManagerConfig, ucfg: UsageLimitConfig, *, log,
+def run_monitor(cfg: ManagerConfig, ucfg: ApiClientConfig, *, log,
                 consider_all: bool = False, want_repo: Optional[str] = None,
-                get_token=monitor.get_token) -> int:
+                get_token=api_client.get_token) -> int:
     """Loop monitor_tick every ``interval_secs`` until SIGTERM/SIGINT."""
     global _running
     _running = True
@@ -1438,7 +1439,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     cfg = ManagerConfig.from_env()
     log = lambda m: print(m, file=sys.stderr)  # noqa: E731 (API client diagnostics)
-    ucfg = UsageLimitConfig.from_env()
+    ucfg = ApiClientConfig.from_env()
     if opts["dev"] != str(cfg.dev):
         cfg = dataclasses.replace(cfg, dev=Path(opts["dev"]))
 
@@ -1458,11 +1459,11 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # Live when explicitly asked (--go) or when the daemon switch is off.
     live = opts["go"] or not cfg.dry_run
-    token = monitor.get_token(ucfg, log)
+    token = api_client.get_token(ucfg, log)
     if not token:
         log("could not read OAuth token from keychain")
         return 1
-    sessions = monitor.list_sessions(ucfg, token, log)
+    sessions = api_client.list_sessions(ucfg, token, log)
     if sessions is None:
         return 1
 

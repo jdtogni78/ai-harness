@@ -1161,14 +1161,14 @@ class FetchSessionStateTest(unittest.TestCase):
     409s) out of the GET /sessions/{id} body, including under response_shape."""
 
     def _call(self, api_return):
-        from remote_control.usage_limit import monitor
-        from remote_control.config import UsageLimitConfig
+        from remote_control import api_client
+        from remote_control.api_client import ApiClientConfig
         with tempfile.TemporaryDirectory() as d:
             with mock.patch.dict(os.environ, _env(d), clear=False):
-                cfg = UsageLimitConfig.from_env()
-            with mock.patch.object(monitor, "api_request",
+                cfg = ApiClientConfig.from_env()
+            with mock.patch.object(api_client, "api_request",
                                    lambda cfg, m, p, t: api_return):
-                return monitor.fetch_session_state(
+                return api_client.fetch_session_state(
                     cfg, "TOK", "cse_X", lambda m: None)
 
     def test_active_connected_top_level(self):

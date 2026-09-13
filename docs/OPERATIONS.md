@@ -9,7 +9,7 @@ installed LaunchAgents set `PYTHONPATH` for launchd). Everything is **stdlib-onl
 Python on the system `/usr/bin/python3`** — no venv, no pip.
 
 ```
-python3 -m remote_control <supervisor|usage-monitor|manager|manager-ui|perm-gate|install|codex-import|titles|sessions|work|fork>
+python3 -m remote_control <supervisor|manager|manager-ui|perm-gate|install|codex-import|titles|sessions|work|fork>
 ```
 
 ## Layout of runtime files
@@ -18,9 +18,8 @@ python3 -m remote_control <supervisor|usage-monitor|manager|manager-ui|perm-gate
 |---|---|
 | `~/.ai-harness/active-dirs.txt` | Allowlist of dir basenames the supervisor will spawn servers for (per-user, per-host, chmod 600 — names private app dirs, not in the repo). Re-read every tick. The installer seeds an empty template if missing. Override the path via `REMOTE_CONTROL_ACTIVE_FILE`. See [Activation list](#activation-list). |
 | `com.*.claude-remote-control.plist` | LaunchAgent for the claude supervisor → `python3 -m remote_control supervisor` (runs at login, `KeepAlive`). |
-| `com.*.claude-usage-limit-monitor.plist` | LaunchAgent for the usage-limit monitor → `python3 -m remote_control usage-monitor` (runs at login, `KeepAlive`). |
-| `com.*.claude-titles-monitor.plist` | LaunchAgent for the title-prefix watcher → `python3 -m remote_control titles watch` (runs at login, `KeepAlive`). Split out from the usage-limit monitor so the two services have independent cadences and lifecycles. |
-| `logs/` | Runtime logs (gitignored). `manager.log` = claude supervisor; `<host>-*.log` = per-claude-server output (one per allowlisted dir, prefixed with the host nickname); `usage-limit-monitor.log` + `paused-sessions.json` = monitor activity + state. |
+| `com.*.claude-titles-monitor.plist` | LaunchAgent for the title-prefix watcher → `python3 -m remote_control titles watch` (runs at login, `KeepAlive`). Runs as its own LaunchAgent with its own cadence and lifecycle. |
+| `logs/` | Runtime logs (gitignored). `manager.log` = claude supervisor; `<host>-*.log` = per-claude-server output (one per allowlisted dir, prefixed with the host nickname). |
 
 ## Configure your apps
 
@@ -167,56 +166,24 @@ continue prior work:
   on-disk transcript, and continues. This is the only supported way to pick a
   prior chat back up from the app.
 
-### Usage-limit auto-resume monitor
+### Usage-limit auto-resume monitor (removed — #175)
 
-A second LaunchAgent (alongside the supervisor) that auto-resumes sessions
-paused by the cloud usage/session limit. It talks to the **code-sessions API** —
-*not* local JSONL transcripts. See
-[`usage-limit-monitor-v2.md`](usage-limit-monitor-v2.md) for the full design and
-why the earlier JSONL approach was abandoned.
+**Removed.** This was a second LaunchAgent that auto-resumed sessions paused on
+a cloud usage/session limit by POSTing a `continue` turn over the code-sessions
+API, with limit-type-aware backoff. **Claude now auto-resumes those sessions
+natively once tokens are available**, which supersedes the daemon, so it was
+retired in #175 (its `launchctl` job unloaded on both hosts and the
+`com.*.claude-usage-limit-monitor.plist` files removed).
 
-> **Why not JSONL?** The local transcript session id (a uuid) is a *different
-> conversation* from the cloud/bridge session (`cse_…`) the app shows, so
-> `claude --resume <uuid>` never touches the session the user sees. Live
-> bridged pauses also often aren't written to the local JSONL at all. Only the
-> API sees and resumes the real sessions (both `bridge` and `anthropic_cloud`).
-
-- **Auth:** the OAuth token is read from the macOS keychain each cycle
-  (`security find-generic-password -s "Claude Code-credentials" -w` →
-  `.claudeAiOauth.accessToken`, never logged); the always-running `claude`
-  servers keep it refreshed. Calls send `anthropic-version: 2023-06-01` +
-  `anthropic-beta: oauth-2025-04-20`.
-- **Detect (every `USAGE_LIMIT_DETECT_SECS`, default 60s):**
-  `GET /v1/code/sessions`; a session is paused when `status == "active"`,
-  `worker_status == "idle"`, and
-  `external_metadata.post_turn_summary.status_category == "failed"` with a
-  `status_detail` matching *usage limit* or *session limit* (other `failed`
-  details — e.g. path errors — are ignored). A tracked session is dropped as
-  soon as the API stops reporting it paused (it recovered).
-- **Resume (every `USAGE_LIMIT_RESUME_SECS`, default 300s):** picks the oldest
-  due session and `POST`s a user turn to `/v1/code/sessions/{id}/events`.
-  Success is confirmed by re-`GET`ting the session (no longer `failed`).
-  **Session (5h) limits** carry a reset time in `status_detail` ("resets 7:50pm
-  UTC") and the next attempt is scheduled just after it; **monthly** limits back
-  off **5 / 15 / 30 min** until they clear. One resume per tick.
-- **DRY_RUN (default ON):** detects and logs would-be resumes but fires no
-  `POST`. Set `USAGE_LIMIT_DRY_RUN=0` to actually resume.
-- **State file:** `logs/paused-sessions.json` —
-  `{cse_id, env_kind, title, status_detail, first_seen, attempts, last_attempt_at, next_attempt_at}`,
-  keyed by `cse_` id; entries older than 7 days are GC'd. Survives daemon
-  restarts so attempts/backoff aren't reset on a launchd respawn.
-- **Tunables (env):** `USAGE_LIMIT_DETECT_SECS`, `USAGE_LIMIT_RESUME_SECS`,
-  `USAGE_LIMIT_DRY_RUN`, `USAGE_LIMIT_RESUME_MESSAGE` (default `continue`),
-  `USAGE_LIMIT_MAX_ATTEMPTS` (0 = unlimited), `USAGE_LIMIT_HTTP_TIMEOUT_SECS`,
-  `USAGE_LIMIT_SKIP_SIDS`, `REMOTE_CONTROL_LOGDIR`,
-  `REMOTE_CONTROL_KEYCHAIN_SERVICE`.
-- **Single-instance:** lockfile at `logs/usage-limit-monitor.lock`.
-- **Clean shutdown:** SIGTERM handler leaves the state file consistent and
-  removes the lockfile.
-- **Caveat:** resuming injects a `continue` user turn into the conversation;
-  whether the app's "Try again" instead re-runs the failed turn without adding a
-  message is an open question (see the design doc). Detection/backoff/selection
-  logic is covered by `tests/test_usage_detect.py` + `tests/test_usage_backoff.py`.
+Its reusable half — the keychain-OAuth **code-sessions API client** — was
+extracted into `remote_control/api_client.py` (see ARCHITECTURE.md §2) and is
+still the shared plumbing for the titles monitor, `fork-all`, the session
+manager, relaunch/handoff, new-session and inventory. The pause-detection
+signal (`status == active` && `worker_status == idle` && a `post_turn_summary`
+that *failed* on a usage/session-limit detail) also lives there
+(`api_client.limit_pause_detail`), used by the manager and inventory to *flag*
+limit-paused sessions. Recoverable from git history if the daemon is ever needed
+again.
 
 ### Title-prefix watcher
 
@@ -383,7 +350,6 @@ python3 -m remote_control install                  # install or reload all servi
 python3 -m remote_control install <plist-label>    # just one service
 launchctl kickstart -k gui/$(id -u)/<plist-label>  # restart a service now
 tail -f logs/manager.log                           # watch the claude supervisor
-tail -f logs/usage-limit-monitor.log               # watch the usage-limit monitor
 launchctl list | grep claude                       # status
 launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/<plist>.plist  # disable
 ```
@@ -397,19 +363,17 @@ Plists are per-user (`com.<user>.<service>.plist`) and `install` (no args) only
 picks the current user's plists, so a new machine needs both files **and** an
 `AGENTS` entry — otherwise `install` silently skips them.
 
-1. Add `com.<user>.claude-remote-control.plist`,
-   `com.<user>.claude-usage-limit-monitor.plist`, and
+1. Add `com.<user>.claude-remote-control.plist` and
    `com.<user>.claude-titles-monitor.plist` at the repo root (copy from an
-   existing triple and rewrite the user-specific paths in `PYTHONPATH`,
+   existing pair and rewrite the user-specific paths in `PYTHONPATH`,
    `REMOTE_CONTROL_*`, `StandardOutPath`, `StandardErrorPath`).
-2. Append all three filenames to `AGENTS` in `remote_control/installer.py` —
+2. Append both filenames to `AGENTS` in `remote_control/installer.py` —
    `plan_install` iterates that list and ignores anything not in it, even when
    passed explicitly.
 3. `python3 -m remote_control install` on that host.
 
-All three services are required:
+Both services are required:
 - the **supervisor** runs the per-dir `claude remote-control` servers;
-- the **usage-limit-monitor** detects + auto-resumes paused sessions;
 - the **titles-monitor** re-applies the `[NICK.host]` session-title prefix
   every `SESSION_TITLE_APPLY_SECS` (default 600s) — without it, the app's
   auto-titler strips the prefix and sessions stop grouping by repo. Confirm
@@ -417,12 +381,15 @@ All three services are required:
 
 ### Rollback (titles-monitor misbehavior)
 
-Bootout both monitors, then `git revert bca75fb 0483ddb` to restore the
-in-monitor title-pass — the order restores `titles_interval` on
-`UsageLimitConfig` first, then re-introduces the loop branch that reads
-it. Reinstall and bootstrap the usage-limit-monitor. The titles-monitor
-plist can stay installed but unbootstrapped (or remove it from `AGENTS`
-in `installer.py` if you want `install` to skip it on the next run).
+The titles watcher is its own LaunchAgent: to stop it, `launchctl bootout
+gui/$(id -u) ~/Library/LaunchAgents/com.<user>.claude-titles-monitor.plist`
+(or remove it from `AGENTS` in `installer.py` so `install` skips it on the
+next run). Session titles then fall back to the app's own auto-titler
+(losing the `[NICK.host]` repo-grouping prefix).
+
+> The historical in-monitor title-pass rollback that lived here referenced the
+> usage-limit monitor's `UsageLimitConfig`, both removed in #175 — recover it
+> from git history if ever needed.
 
 ## Tests
 

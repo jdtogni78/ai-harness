@@ -1,4 +1,4 @@
-"""``monitor.list_sessions`` must return ALL sessions, not the first page.
+"""``api_client.list_sessions`` must return ALL sessions, not the first page.
 
 The single-page version silently hid ~90% of a 936-session account, and every
 consumer reads "absent from this list" as a hard fact ("session is gone", "safe
@@ -7,8 +7,7 @@ to reap"). These tests pin the walk, the de-dup, and the fail-closed behaviour.
 
 import unittest
 
-from remote_control import config
-from remote_control.usage_limit import monitor
+from remote_control import api_client
 
 
 def sess(i):
@@ -44,16 +43,16 @@ class FakeApi:
 
 class ListSessionsPaginationTest(unittest.TestCase):
     def setUp(self):
-        self.cfg = config.UsageLimitConfig.from_env({"HOME": "/tmp"})
+        self.cfg = api_client.ApiClientConfig.from_env({"HOME": "/tmp"})
         self.logs = []
-        self._orig = monitor.api_request
+        self._orig = api_client.api_request
 
     def tearDown(self):
-        monitor.api_request = self._orig
+        api_client.api_request = self._orig
 
     def run_list(self, api):
-        monitor.api_request = api
-        return monitor.list_sessions(self.cfg, "tok", self.logs.append)
+        api_client.api_request = api
+        return api_client.list_sessions(self.cfg, "tok", self.logs.append)
 
     def test_returns_far_more_than_one_page(self):
         # The actual regression: 936 sessions, 100-item pages.
@@ -89,16 +88,16 @@ class ListSessionsPaginationTest(unittest.TestCase):
             (200, {"data": [dup, sess(3)], "next_cursor": None}),
         ]
         it = iter(pages)
-        monitor.api_request = lambda *a, **k: next(it)
-        got = monitor.list_sessions(self.cfg, "tok", self.logs.append)
+        api_client.api_request = lambda *a, **k: next(it)
+        got = api_client.list_sessions(self.cfg, "tok", self.logs.append)
         self.assertEqual([s["id"] for s in got],
                          [dup["id"], sess(2)["id"], sess(3)["id"]])
 
     def test_non_advancing_cursor_terminates(self):
         # A server that always returns the same page + a cursor must not spin.
-        monitor.api_request = lambda *a, **k: (
+        api_client.api_request = lambda *a, **k: (
             200, {"data": [sess(1)], "next_cursor": "same"})
-        got = monitor.list_sessions(self.cfg, "tok", self.logs.append)
+        got = api_client.list_sessions(self.cfg, "tok", self.logs.append)
         self.assertEqual(len(got), 1)
 
     def test_401_on_first_page_returns_none(self):
@@ -114,8 +113,8 @@ class ListSessionsPaginationTest(unittest.TestCase):
         self.assertTrue(any("page=2" in m for m in self.logs))
 
     def test_non_dict_body_returns_none(self):
-        monitor.api_request = lambda *a, **k: (200, "<html>nope</html>")
-        self.assertIsNone(monitor.list_sessions(self.cfg, "tok", self.logs.append))
+        api_client.api_request = lambda *a, **k: (200, "<html>nope</html>")
+        self.assertIsNone(api_client.list_sessions(self.cfg, "tok", self.logs.append))
 
     def test_cursor_is_url_encoded(self):
         # Real cursors are base64 and can contain '=' and '+'.
@@ -128,14 +127,14 @@ class ListSessionsPaginationTest(unittest.TestCase):
         def api(cfg, method, path, token, body=None):
             seen.append(path)
             return next(it)
-        monitor.api_request = api
-        monitor.list_sessions(self.cfg, "tok", self.logs.append)
+        api_client.api_request = api
+        api_client.list_sessions(self.cfg, "tok", self.logs.append)
         self.assertIn("cursor=MTc4NDMy%2Ba%2Fb%3D%3D", seen[1])
 
     def test_malformed_entries_are_skipped(self):
-        monitor.api_request = lambda *a, **k: (
+        api_client.api_request = lambda *a, **k: (
             200, {"data": [sess(1), "junk", None], "next_cursor": None})
-        got = monitor.list_sessions(self.cfg, "tok", self.logs.append)
+        got = api_client.list_sessions(self.cfg, "tok", self.logs.append)
         self.assertEqual(got, [sess(1)])
 
 

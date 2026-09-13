@@ -22,8 +22,6 @@ operations problem:
 
 - **Servers crash and hang.** The per-directory agent servers die, or wedge
   while idle, and nothing brings them back.
-- **Sessions stall on cloud limits for hours.** A session hits a usage/session
-  limit and just sits there until someone notices and clicks "continue."
 - **Agents block waiting on a question** — and a parallel agent has no idea.
 - **Parallel agents collide** on the same ticket, or one dies mid-task and
   strands it.
@@ -39,7 +37,6 @@ when I'm not watching."
 | System | What it gives you |
 |---|---|
 | **Always-on supervisor** | One `claude remote-control` server per dev dir, supervised by launchd: crashed servers respawn within a tick, idle-hung ones are recycled, and which dirs run is driven by a host-scoped allowlist you edit in git. |
-| **Usage-limit auto-resume** | A monitor that detects sessions paused on a cloud usage/session limit (via the code-sessions API) and resumes them automatically, with limit-type-aware backoff — no more sessions parked for hours. |
 | **Autonomous session manager** | Classifies *every* session into an actionable state (waiting on a question / idle-maybe-done / broken / limit-paused / running) and plans the fix, with a headless investigator that reads structured questions and picks an answer — plus a local dashboard with a human-in-the-loop feedback loop. |
 | **AI permission gate** | A `PreToolUse` hook that auto-decides **allow / deny / ask** for each tool call — static rules for the clear-cut cases plus an AI tier for the ambiguous middle — against the *same* stakes policy the session manager uses. Shadow-first, and fail-safe to a human prompt on any error. |
 | **Cross-engine work orchestration** | One unified view of all work across Claude Code **and** Codex — inventory it, detect what's genuinely stuck (and why), migrate threads between engines, or trigger a fresh run. |
@@ -53,7 +50,6 @@ flowchart LR
     launchd["launchd<br/>login start · KeepAlive"]
     subgraph svc["ai-harness (stdlib-only Python)"]
         sup["supervisor"]
-        mon["usage-limit<br/>monitor"]
         mgr["session manager<br/>+ dashboard"]
         work["work orchestration<br/>inventory · migrate · trigger"]
     end
@@ -62,9 +58,8 @@ flowchart LR
     codex["Codex rollouts"]
     skills["skills + claim convention<br/>→ GitHub Project boards"]
 
-    launchd --> sup & mon
+    launchd --> sup
     sup -->|spawn / recycle| servers
-    mon <--> api
     mgr <--> api
     work <--> api
     work <--> codex
@@ -107,7 +102,8 @@ The parts I'd point a reviewer at:
 ```
 remote_control/        # the service package (stdlib-only)
   supervisor.py          # spawn/recycle one agent server per allowlisted dir
-  usage_limit/           # detect + auto-resume usage-limit pauses (API-based)
+  api_client.py          # code-sessions API client (keychain OAuth) — shared plumbing
+  codex_rollout.py       # Codex rollout parsing (rate-limit / block detection)
   manager.py             # autonomous session classifier + planner
   manager_ui.py          # local review dashboard (http.server) + feedback loop
   perm_gate.py           # PreToolUse hook: allow/deny/ask (static rules + AI tier)
@@ -131,7 +127,7 @@ docs/                  # architecture, operations, and design docs
 CLI entry point for everything:
 
 ```sh
-python3 -m remote_control <supervisor|usage-monitor|manager|manager-ui|perm-gate|install|codex-import|titles|sessions|work|fork>
+python3 -m remote_control <supervisor|manager|manager-ui|perm-gate|install|codex-import|titles|sessions|work|fork>
 ```
 
 ## Configure your apps
@@ -161,7 +157,6 @@ general-purpose CI system. The full runbook is in
 | **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | System design: principles, each subsystem, data flows, the test seam, integration points. |
 | **[docs/OPERATIONS.md](docs/OPERATIONS.md)** | Runbook + full CLI reference: install, manage, every command, tunables, the activation list. |
 | **[DECISIONS.md](DECISIONS.md)** | Cross-repo engineering decisions (`GD-NNNN`) — the conventions that span more than one repo. |
-| **[docs/usage-limit-monitor-v2.md](docs/usage-limit-monitor-v2.md)** | Deep dive on the usage-limit monitor and why the local-transcript (v1) approach was abandoned. |
 | **[docs/session-manager-cases.md](docs/session-manager-cases.md)** | The session-manager case catalog, decision guidelines, and testing strategy. |
 | **[docs/perm-gate.md](docs/perm-gate.md)** | The AI permission gate: the two-tier decision model, shadow-mode rollout, and config. |
 | **[docs/joint-browser.md](docs/joint-browser.md)** | Sharing one real browser with an agent to get past bot-walls/2FA — and why a detached worker can't complete an OAuth flow. |
@@ -170,7 +165,7 @@ general-purpose CI system. The full runbook is in
 
 ## Status
 
-Actively used. The supervisor and usage-limit monitor run live; the autonomous
+Actively used. The supervisor and titles monitor run live; the autonomous
 session manager runs in **review/dry-run mode** while one open question (how to
 submit a structured answer back over the API) is resolved — see
 [docs/session-manager-cases.md](docs/session-manager-cases.md). Everything that

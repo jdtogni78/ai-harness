@@ -12,8 +12,7 @@ side is a local headless run; both engines run on this machine.
 
 Triggering work is outward-facing and hard to undo, so this is **dry-run by
 default**: it prints the exact command + cwd and spawns nothing. Pass ``--go`` to
-actually launch -- a detached child (its own session/log), mirroring the
-usage-limit monitor's Codex resume (:func:`usage_limit.monitor.attempt_resume_codex`).
+actually launch -- a detached child (its own session/log).
 
 This is the **trigger** slice of the cross-engine work-orchestration epic
 (trigger / inventory / stale-detect / migrate). The pure helpers (command

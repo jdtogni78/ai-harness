@@ -119,30 +119,30 @@ exit. The allowlist is re-read every tick, so enabling/disabling a dir takes
 effect within one tick with no restart. Full behavior and the deliberate
 non-goals are in [OPERATIONS.md](OPERATIONS.md#remote-control-supervisor).
 
-### 2. Usage-limit auto-resume monitor
+### 2. Code-sessions API client (shared plumbing)
 
-**Files:** `usage_limit/detect.py` (detection filter, reset-time parsing,
-backoff schedule, target selection — all pure), `usage_limit/monitor.py`
-(keychain auth, API client, state/lock, the detect/resume loop).
+**Files:** `api_client.py` (keychain OAuth + the code-sessions API request
+helpers: list/archive/submit/fetch, plus the session-state parsers
+`limit_pause_detail` / `post_turn_summary` / `resume_event_body`),
+`codex_rollout.py` (Codex rollout rate-limit parsing).
 
-A separate LaunchAgent that notices when a session has stalled on a cloud
-usage/session limit and nudges it back to life. The key architectural decision
-was **talking to the code-sessions API, not local transcripts**: the local JSONL
-session id is a *different conversation* from the cloud/bridge session (`cse_…`)
-the app shows, so resuming the local uuid never touches what the user sees, and
-live bridged pauses often aren't written to local JSONL at all. Only the API
-sees and can resume the real sessions. (The earlier JSONL engine is retired; the
-[v2 design doc](usage-limit-monitor-v2.md) records exactly why.)
+> **Retired (#175):** this repo used to run a **usage-limit auto-resume
+> monitor** — a separate LaunchAgent that detected sessions stalled on a cloud
+> usage/session limit and POSTed a resume, with limit-type-aware backoff.
+> **Claude now auto-resumes such sessions natively once tokens are available**,
+> which supersedes the daemon, so it was removed. Its reusable half — the
+> keychain-OAuth code-sessions API client — was **extracted into
+> `api_client.py`** because the titles monitor, `fork-all`, the session manager,
+> relaunch/handoff, new-session and inventory all depend on it.
 
-It reads the OAuth token from the macOS keychain each cycle (never logged),
-detects a pause via a precise signal conjunction (`status == active` &&
-`worker_status == idle` && a `post_turn_summary` that *failed* on a
-usage/session-limit detail, excluding unrelated failures), and resumes by POSTing
-a user turn — confirming success by re-fetching the session. Backoff is
-limit-type-aware: a 5-hour session limit carries its own reset time and is
-retried just after it; a monthly limit (no reset time) backs off on a capped
-schedule. State is persisted (keyed by `cse_` id) so attempts and backoff survive
-a launchd respawn.
+The client reads the OAuth token from the macOS keychain on demand (never
+logged) and talks to the code-sessions API rather than local transcripts: the
+local JSONL session id is a *different conversation* from the cloud/bridge
+session (`cse_…`) the app shows, so only the API sees and can act on the real
+sessions. The pause-detection signal conjunction it exposes (`status == active`
+&& `worker_status == idle` && a `post_turn_summary` that *failed* on a
+usage/session-limit detail, excluding unrelated failures) is still used by the
+session manager and the inventory view to *flag* limit-paused sessions.
 
 ### 3. Autonomous session manager + dashboard
 
@@ -159,7 +159,7 @@ plans the matching action:
 | **Waiting on a question** | `worker_status == requires_action` | Read the structured question, run a headless `claude -p` **investigator** in the repo's *main* checkout (read-only) to pick the best option, submit the choice. |
 | **Idle, maybe done** | idle past a grace, connected, not limit-paused | Investigator reviews the work → recommend `/close-work` or propose the next step. |
 | **Broken / stale** | `connection_status == disconnected` past a grace | Fork the session → resume on the fork → archive the original. |
-| **Usage-limit paused** | limit `post_turn_summary` | **Defer** — the usage-limit monitor owns it. |
+| **Usage-limit paused** | limit `post_turn_summary` | **Defer** — native Claude auto-resume owns it. |
 | **Running / too-recent** | `running`, or inside its grace | **Skip** — a quiet `running` worker is indistinguishable from a long tool call. |
 
 Every action is guarded by **grace** (the state must persist before acting),

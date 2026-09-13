@@ -123,12 +123,12 @@ class MainDryRunTest(unittest.TestCase):
             {"id": "cse_B", "title": "[AO] hi", "worker_status": "idle",
              "connection_status": "disconnected", "last_event_at": "2026-07-03T00:00:00Z"},
         ]
-        with mock.patch("remote_control.usage_limit.monitor.get_token", return_value="tok"), \
-             mock.patch("remote_control.usage_limit.monitor.list_sessions", return_value=sessions), \
+        with mock.patch("remote_control.api_client.get_token", return_value="tok"), \
+             mock.patch("remote_control.api_client.list_sessions", return_value=sessions), \
              mock.patch.object(takeover, "last_user_turn",
                                side_effect=lambda cse_id, **kw:
                                "please continue the long-running migration work we discussed yesterday in detail" if cse_id == "cse_A" else "hi"), \
-             mock.patch("remote_control.usage_limit.monitor.archive_session") as archive_mock, \
+             mock.patch("remote_control.api_client.archive_session") as archive_mock, \
              mock.patch("remote_control.relaunch.main") as relaunch_mock:
             buf = io.StringIO()
             with redirect_stdout(buf):
@@ -145,8 +145,8 @@ class MainDryRunTest(unittest.TestCase):
     def test_no_candidates_prints_zero(self):
         sessions = [{"id": "cse_A", "title": "x", "worker_status": "running",
                      "connection_status": "connected", "last_event_at": "2026-07-03T00:00:00Z"}]
-        with mock.patch("remote_control.usage_limit.monitor.get_token", return_value="tok"), \
-             mock.patch("remote_control.usage_limit.monitor.list_sessions", return_value=sessions):
+        with mock.patch("remote_control.api_client.get_token", return_value="tok"), \
+             mock.patch("remote_control.api_client.list_sessions", return_value=sessions):
             buf = io.StringIO()
             with redirect_stdout(buf):
                 rc = takeover.main(["--dry-run"])
@@ -160,10 +160,10 @@ class MainLiveArchiveOnlyTest(unittest.TestCase):
             {"id": "cse_B", "title": "[AO] hi", "worker_status": "idle",
              "connection_status": "disconnected", "last_event_at": "2026-07-03T00:00:00Z"},
         ]
-        with mock.patch("remote_control.usage_limit.monitor.get_token", return_value="tok"), \
-             mock.patch("remote_control.usage_limit.monitor.list_sessions", return_value=sessions), \
+        with mock.patch("remote_control.api_client.get_token", return_value="tok"), \
+             mock.patch("remote_control.api_client.list_sessions", return_value=sessions), \
              mock.patch.object(takeover, "last_user_turn", return_value="hi"), \
-             mock.patch("remote_control.usage_limit.monitor.archive_session",
+             mock.patch("remote_control.api_client.archive_session",
                         return_value=(200, {})) as archive_mock:
             buf = io.StringIO()
             with redirect_stdout(buf):
@@ -186,16 +186,16 @@ class MainLiveRelaunchTest(unittest.TestCase):
             print("relaunch: cse_OLD -> cse_NEW (record=/tmp/rec.json)")
             return 0
 
-        with mock.patch("remote_control.usage_limit.monitor.get_token", return_value="tok"), \
-             mock.patch("remote_control.usage_limit.monitor.list_sessions", return_value=sessions), \
+        with mock.patch("remote_control.api_client.get_token", return_value="tok"), \
+             mock.patch("remote_control.api_client.list_sessions", return_value=sessions), \
              mock.patch.object(takeover, "last_user_turn",
                                return_value="please continue the long-running migration work we discussed together again yesterday"), \
              mock.patch("remote_control.relaunch.main", side_effect=fake_relaunch_main), \
-             mock.patch("remote_control.usage_limit.monitor.api_request",
+             mock.patch("remote_control.api_client.api_request",
                         return_value=(200, {"title": "[relaunch-old] auto-spawned"})), \
              mock.patch("remote_control.session_takeover.set_title",
                         return_value=(200, {})) as set_title_mock, \
-             mock.patch("remote_control.usage_limit.monitor.archive_session",
+             mock.patch("remote_control.api_client.archive_session",
                         return_value=(200, {})) as archive_mock:
             buf = io.StringIO()
             with redirect_stdout(buf):
@@ -214,12 +214,12 @@ class MainLiveRelaunchTest(unittest.TestCase):
             {"id": "cse_OLD", "title": "[DEV.m5] real work here", "worker_status": "idle",
              "connection_status": "disconnected", "last_event_at": "2026-07-03T00:00:00Z"},
         ]
-        with mock.patch("remote_control.usage_limit.monitor.get_token", return_value="tok"), \
-             mock.patch("remote_control.usage_limit.monitor.list_sessions", return_value=sessions), \
+        with mock.patch("remote_control.api_client.get_token", return_value="tok"), \
+             mock.patch("remote_control.api_client.list_sessions", return_value=sessions), \
              mock.patch.object(takeover, "last_user_turn",
                                return_value="please continue the long-running migration work we discussed together again yesterday"), \
              mock.patch("remote_control.relaunch.main", return_value=1), \
-             mock.patch("remote_control.usage_limit.monitor.archive_session") as archive_mock:
+             mock.patch("remote_control.api_client.archive_session") as archive_mock:
             buf = io.StringIO()
             with redirect_stdout(buf):
                 rc = takeover.main([])
