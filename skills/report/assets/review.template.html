@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>__TITLE__</title>
+<!--
+  review.template.html — the SHELL for the report-v2 review renderer.
+  Structure only (req 2: un-busy HTML). Data lives in the #report-data JSON blob;
+  behaviour lives in review.js (Alpine component `reportApp`); style in review.css.
+  render_review.py inlines all four into ONE self-contained .html.
+  Sidebar navigates pages; exactly one .page is shown at a time (x-show=route).
+-->
+<style>__REVIEW_CSS__</style>
+</head>
+<body>
+<div class="app" x-data="reportApp()" x-cloak>
+
+  <!-- ==================== SIDEBAR (req 1) ==================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span x-text="model.meta.project"></span>
+      <small x-text="model.meta.window || 'status report'"></small>
+    </div>
+    <div class="sep"></div>
+    <template x-for="p in pages" :key="p.id">
+      <div class="navlink" :class="{on: route===p.id}" @click="go(p.id)">
+        <span class="ico" x-text="p.icon"></span>
+        <span x-text="p.label"></span>
+        <span class="badge" x-text="p.badge ? p.badge() : ''"></span>
+      </div>
+    </template>
+    <div class="sep"></div>
+    <div class="foot">
+      <div>Generated <span x-text="model.meta.generated_at"></span></div>
+      <div>One self-contained file · works offline</div>
+      <div><kbd>[</kbd>/<kbd>]</kbd> pages · <kbd>p</kbd> print</div>
+    </div>
+  </aside>
+
+  <!-- ==================== MAIN ==================== -->
+  <main class="main">
+    <div class="topbar">
+      <div class="meta">
+        <h1 x-text="model.meta.title"></h1>
+        <div class="subtle">
+          <span x-text="model.meta.window"></span>
+          <template x-if="model.meta.window"><span> · </span></template>
+          <span>generated <span x-text="model.meta.generated_at"></span></span>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn" @click="copyJSON()" title="Copy embedded JSON">⧉ Copy JSON</button>
+        <button class="btn" @click="downloadJSON()" title="Download embedded JSON">⭳ JSON</button>
+        <button class="btn primary" @click="window.print()" title="Print / Save as PDF">⎙ Print / PDF</button>
+      </div>
+    </div>
+
+    <!-- Freshness / STALE banner (kept from the deck — never hide age) -->
+    <template x-if="model.meta.freshness">
+      <div class="freshness" :class="model.meta.freshness.level">
+        <span class="tag" x-text="model.meta.freshness.level"></span>
+        <span x-text="model.meta.freshness.note"></span>
+      </div>
+    </template>
+
+    <!-- ---------- PROGRESS ---------- -->
+    <section class="page" x-show="route==='progress'">
+      <h2>Progress</h2>
+      <p class="lede">Task status, worst-first. Rows <b>describe and link</b> — they do not
+        restate figures that live in a source document (a stale number here would mislead
+        before you reach the doc that would correct it).</p>
+      <div class="grid kpis">
+        <template x-for="k in model.kpis" :key="k.label">
+          <div class="tile" :class="{na: k.na}">
+            <div class="n" x-text="k.na ? 'n/a' : k.value"></div>
+            <div class="l" x-text="k.label"></div>
+          </div>
+        </template>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="dense">
+          <thead><tr><th>Status</th><th>Task</th><th>Progress</th><th>Owner</th><th>Links</th></tr></thead>
+          <tbody>
+            <template x-for="t in tasksWorstFirst()" :key="t.id">
+              <tr>
+                <td><span class="pill" :class="t.status" x-text="statusLabel(t.status)"></span></td>
+                <td>
+                  <div style="font-weight:600" x-text="t.title"></div>
+                  <div class="muted" x-text="t.note || ''" x-show="t.note"></div>
+                </td>
+                <td>
+                  <div class="bar" :class="{done:t.status==='done', blocked:t.status==='blocked'}">
+                    <span :style="`width:${Math.round((t.progress||0)*100)}%`"></span>
+                  </div>
+                  <div class="muted" x-text="Math.round((t.progress||0)*100)+'%'"></div>
+                </td>
+                <td class="muted" x-text="t.owner || '—'"></td>
+                <td>
+                  <template x-for="r in (t.resources||[])" :key="r.href||r.label">
+                    <a :href="r.href" target="_blank" style="display:block" x-text="r.label"></a>
+                  </template>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- TO-DOS ---------- -->
+    <section class="page" x-show="route==='todos'">
+      <h2>To-dos</h2>
+      <p class="lede">Remaining scope per task. Struck-through items are done; open items are what's left.</p>
+      <template x-for="t in tasksWithTodos()" :key="t.id">
+        <div class="card">
+          <h3><span class="pill" :class="t.status" x-text="statusLabel(t.status)"></span> <span x-text="t.title"></span></h3>
+          <ul class="checks">
+            <template x-for="(c,i) in t.todos" :key="i">
+              <li :class="{'is-done': c.done}">
+                <span class="box" :class="{done:c.done}" x-text="c.done ? '☑' : '☐'"></span>
+                <span x-text="c.text"></span>
+              </li>
+            </template>
+          </ul>
+        </div>
+      </template>
+      <template x-if="!tasksWithTodos().length">
+        <div class="nodata-panel"><div class="big">No to-do lists recorded</div>
+          <p class="muted">Tasks in this report carry no checklist items. This is stated, not shown as an empty pass.</p></div>
+      </template>
+    </section>
+
+    <!-- ---------- RESOURCES ---------- -->
+    <section class="page" x-show="route==='resources'">
+      <h2>Resources</h2>
+      <p class="lede">Every typed link in this report, grouped by kind. Follow the link to the source of truth.</p>
+      <template x-for="grp in resourceGroups()" :key="grp.kind">
+        <div class="card">
+          <h3 x-text="grp.kind + ' (' + grp.items.length + ')'"></h3>
+          <ul class="checks">
+            <template x-for="(r,i) in grp.items" :key="i">
+              <li>
+                <span class="pill" x-text="r.kind"></span>
+                <template x-if="r.href"><a :href="r.href" target="_blank" x-text="r.label"></a></template>
+                <template x-if="!r.href"><span x-text="r.label"></span></template>
+                <span class="muted" x-show="r.from" x-text="'· '+r.from"></span>
+              </li>
+            </template>
+          </ul>
+        </div>
+      </template>
+    </section>
+
+    <!-- ---------- VALIDATION (centerpiece) ---------- -->
+    <section class="page" x-show="route==='validation'">
+      <h2>Validation — verified vs claimed</h2>
+      <p class="lede">Evidence gallery so this page stands in for the product. Each item is tagged
+        <span class="pill verified">verified</span> (a resolvable pointer someone can open) or
+        <span class="pill claimed">claimed</span> (a bare assertion). A task with zero verified
+        evidence renders a loud UNVERIFIED banner — never a silent pass.</p>
+      <template x-for="t in tasksForValidation()" :key="t.id">
+        <div class="card">
+          <h3><span class="pill" :class="t.status" x-text="statusLabel(t.status)"></span> <span x-text="t.title"></span></h3>
+          <template x-if="!(t.evidence||[]).some(e=>e.verified)">
+            <div class="unverified"><div class="big">⚠︎ UNVERIFIED — no resolvable proof attached</div>
+              <p class="muted" style="margin:.4em 0 0">This task's status rests on claims only. Attach a screenshot, a rendered output, a command result, or a diff before relying on it.</p></div>
+          </template>
+          <div class="evidence" style="margin-top:12px">
+            <template x-for="(e,i) in (t.evidence||[])" :key="i">
+              <div class="ev">
+                <div class="ev-head">
+                  <span class="pill" :class="e.verified ? 'verified' : 'claimed'" x-text="e.verified ? '✓ verified' : '⚠︎ claimed'"></span>
+                  <span class="kind" x-text="e.kind"></span>
+                  <span x-text="e.caption"></span>
+                </div>
+                <div class="ev-body">
+                  <template x-if="e.kind==='image' && e.img"><img :src="e.img" :alt="e.caption"></template>
+                  <template x-if="e.kind==='render' && e.srcdoc"><iframe sandbox :srcdoc="e.srcdoc" loading="lazy"></iframe></template>
+                  <template x-if="e.kind==='command'">
+                    <pre><code><span x-text="'$ '+e.cmd+'\n'"></span><span x-text="e.out"></span><span :class="e.exit===0?'exit-ok':'exit-bad'" x-text="'\n[exit '+e.exit+']'"></span></code></pre>
+                  </template>
+                  <template x-if="e.kind==='diff'"><pre><code x-text="e.patch"></code></pre></template>
+                  <template x-if="e.kind==='metric'">
+                    <div class="tile" style="display:inline-block"><div class="n" x-text="e.value"></div><div class="l" x-text="(e.unit||'')+' — '+e.caption"></div></div>
+                  </template>
+                  <template x-if="e.href"><div style="margin-top:8px"><a :href="e.href" target="_blank" x-text="'↳ '+(e.href_label||'open source')"></a></div></template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </section>
+
+    <!-- ---------- FACTS / MEMORY ---------- -->
+    <section class="page" x-show="route==='facts'">
+      <h2>Facts &amp; Memory</h2>
+      <p class="lede">Durable facts, conventions, and decisions that outlive a single session — the
+        generatable version of a hand-built tracker's yellow "convention" box. This page
+        <b>surfaces</b> memory; it is not a second source of truth. Prefer linking to the one-fact
+        memory files under <code>~/.claude/projects/*/memory/</code>.</p>
+      <div class="callout" x-show="model.facts_guidance">
+        <b>When to record a fact</b> (authoring guidance):
+        <span x-html="model.facts_guidance"></span>
+      </div>
+      <template x-for="(f,i) in (model.facts||[])" :key="i">
+        <div class="fact">
+          <div class="st" x-text="f.statement"></div>
+          <div class="muted" x-show="f.why" style="margin-top:6px" x-text="'Why: '+f.why"></div>
+          <div class="muted" x-show="f.recorded_because" style="margin-top:4px" x-text="'Recorded because: '+f.recorded_because"></div>
+          <div class="meta">
+            <span x-show="f.date" x-text="'📅 '+f.date"></span>
+            <template x-if="f.source && f.source.href"><a :href="f.source.href" target="_blank" x-text="'🔗 '+f.source.label"></a></template>
+            <template x-if="f.source && !f.source.href"><span x-text="'🔗 '+f.source.label"></span></template>
+            <template x-if="f.memory_ref"><span x-text="'🧠 '+f.memory_ref"></span></template>
+          </div>
+        </div>
+      </template>
+      <template x-if="!(model.facts||[]).length">
+        <div class="nodata-panel"><div class="big">No facts recorded yet</div>
+          <p class="muted">Nothing durable has been promoted to this report. Stated explicitly, not shown as zero.</p></div>
+      </template>
+    </section>
+
+    <!-- ---------- TIMELINE ---------- -->
+    <section class="page" x-show="route==='timeline'">
+      <h2>Timeline</h2>
+      <p class="lede">Dispatch, close, and decision events, newest last.</p>
+      <div class="timeline">
+        <template x-for="(ev,i) in (model.timeline||[])" :key="i">
+          <div class="tl">
+            <div class="ts" x-text="ev.ts"></div>
+            <div><span class="ev-t" x-text="ev.event"></span> <span class="muted" x-show="ev.actor" x-text="'· '+ev.actor"></span></div>
+            <div class="muted" x-show="ev.note" x-text="ev.note"></div>
+          </div>
+        </template>
+      </div>
+      <template x-if="!(model.timeline||[]).length">
+        <div class="nodata-panel"><div class="big">No timeline events</div></div>
+      </template>
+    </section>
+
+    <!-- ---------- DATA (raw JSON) ---------- -->
+    <section class="page" x-show="route==='data'">
+      <h2>Data</h2>
+      <p class="lede">The complete embedded data model. Everything on every page derives from this one
+        blob — copy or download it for extraction, or view-source the file.</p>
+      <div class="controls" style="margin-bottom:12px">
+        <button class="btn" @click="copyJSON()">⧉ Copy JSON</button>
+        <button class="btn" @click="downloadJSON()">⭳ Download JSON</button>
+      </div>
+      <pre class="json" x-text="prettyJSON()"></pre>
+    </section>
+
+  </main>
+
+  <div id="toast" x-show="toast" x-transition x-text="toast"
+       style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-size:13px"></div>
+</div>
+
+<!-- ==================== EMBEDDED DATA (req 4) ==================== -->
+<script id="report-data" type="application/json">__REPORT_DATA__</script>
+
+<!-- ==================== BEHAVIOUR ==================== -->
+<!-- review.js MUST load before Alpine: Alpine's cdn build auto-calls start()
+     the moment it loads, so reportApp() has to already be defined. -->
+<script>__REVIEW_JS__</script>
+<script>__ALPINE_JS__</script>
+</body>
+</html>

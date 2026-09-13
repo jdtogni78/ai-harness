@@ -2,12 +2,12 @@
 name: validate
 description: >-
   Manager-invoked, milestone-driven project VALIDATOR — the outcome counterpart
-  to /report (activity). /validate <project> reads that project's MAJOR
+  to /manager-recap (activity). /validate <project> reads that project's MAJOR
   end-to-end GOALS from a per-project, manager-owned milestones file and, for
   EACH goal, tries to PROVE it works with REAL resolvable evidence (a file that
   exists, a pattern found, a command that ran green). It embeds the #110
   validator stance — assume nothing works until proven, demand pasted proof,
-  REVIEW rendered outputs — and reuses the /report skill's verified-vs-claimed
+  REVIEW rendered outputs — and reuses the /manager-recap skill's verified-vs-claimed
   classifier: VERIFIED-WORKING requires a resolvable evidence pointer, never a
   bare claim. Output: milestone-status TABLES (worst-first) + an HTML deck
   (REUSING cos-console/presentation-poc/deck.generate) + a markdown recap. Use
@@ -19,7 +19,7 @@ description: >-
 # /validate — manager-invoked milestone validator
 
 A **validator** the [[manage]]r invokes for **its own project**. Where
-[[report]] recaps *activity* ("what did my workers do?"), `/validate` tracks
+[[manager-recap]] recaps *activity* ("what did my workers do?"), `/validate` tracks
 *outcomes*: **do this project's MAJOR END-TO-END GOALS actually work, and can we
 prove it?** It is **read-only w.r.t. every validated system** — it never mutates
 a project to make a goal pass; its only writes are the deck it renders.
@@ -44,16 +44,16 @@ python3 skills/validate/scripts/validate.py <project> \
 
 ## The stance (why this exists)
 
-Inherited from the #110 validator audit and the [[report]] honesty bar:
+Inherited from the #110 validator audit and the [[manager-recap]] honesty bar:
 
 - **Assume nothing works until proven.** A milestones file's declared status is
   a **label, never an upgrade** — evidence always wins. If the file claims a
   stronger status than the evidence supports, that's surfaced as a
   **discrepancy**, not silently trusted.
 - **VERIFIED-WORKING requires a resolvable evidence pointer** the validator
-  checked itself. This reuses the [[report]] classifier
+  checked itself. This reuses the [[manager-recap]] classifier
   (`report.resolve_pointer`) as the canonical "does this pointer resolve" test —
-  the same green/amber bar `/report` uses for tests.
+  the same green/amber bar `/manager-recap` uses for tests.
 - **Missing proof is a FINDING, never a pass** and never a fabricated green: a
   goal with no resolvable evidence is UNVERIFIED / NOT-YET / PARTIAL / FAILED,
   shown at its honest verdict.
@@ -98,7 +98,7 @@ Paths resolve relative to the ai-harness repo root (also `~` and absolute), so
 from a host where they're live and it resolves, from here it's honestly
 UNVERIFIED.
 
-## Presentation — HTML deck reusing deck.generate (same as /report)
+## Presentation — HTML deck reusing deck.generate (same as /manager-recap)
 
 The deck is rendered by **importing** `cos-console/presentation-poc/deck.generate`
 (`write_generic_deck`) — the renderer is **reused, not duplicated**, through the

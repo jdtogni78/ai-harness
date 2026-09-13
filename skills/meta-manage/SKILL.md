@@ -51,7 +51,7 @@ work.
 | State | `~/.ai-harness/manager/<mgr>.jsonl` (writes) | reads every manager's log |
 
 See also [[new-session]], [[send-to-session]], [[list-sessions]],
-[[relaunch]], [[take-over]], [[takeover]], [[report]], [[validate]].
+[[relaunch]], [[take-over]], [[takeover]], [[manager-recap]], [[validate]].
 
 ## Core operations
 

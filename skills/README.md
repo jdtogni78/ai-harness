@@ -23,7 +23,8 @@ picked up by both tools.
 | `manage`              | Coordinate parallel worker sessions: tracking, handshake, and the worker-roster practice that feeds each worker's "Sibling workers" section. |
 | `meta-manage`         | Be the meta-manager (local dispatcher): coordinate MANY [[manage]] sessions across projects + run system-wide initiatives. Spawns **managers**, runs recap/close sweeps, reconciles the roster, and tracks only the boss's pending-action list — does NO project work itself. |
 | `joint-browser-usage` | Share ONE real browser with the boss: he logs in once (past Turnstile/2FA), the agent then drives the authenticated session — via debug-Chrome + CDP, or the Claude browser extension. See [docs/joint-browser.md](../docs/joint-browser.md). |
-| `report`              | Reporter the manager delegates to: recap a manager's worker activity (changes + testing + tickets + decisions) as an HTML deck (reusing `cos-console` deck.generate) + markdown; incremental `--since-last` by default. |
+| `report`              | The report-v2 **review renderer**: turn a report data model (embedded JSON) into ONE self-contained, offline, PDF-able `.html` with a sidebar and one page at a time (Progress · To-dos · Resources · Validation · Facts/Memory · Timeline · Data). Source keeps template/css/js separate; `render_review.py` inlines them. `to_pdf.sh` prints headless. |
+| `manager-recap`       | Manager activity recap (was `report` until #179): recap a manager's worker activity (changes + testing + tickets + decisions) as an HTML deck (reusing `cos-console` deck.generate) + markdown; incremental `--since-last` by default. |
 
 `session-triage/scripts/session_scan.sh`, `resume-work/scripts/resume_brief.sh`,
 and `start-work/scripts/agent_claims.sh` are the real scripts (no external
