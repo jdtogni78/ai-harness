@@ -167,7 +167,7 @@ MODEL = {
     ],
 
     "resources": [
-        {"kind": "board", "label": "GitHub Project #2 — canonical board for ai-harness (see Facts re: worker token scope)",
+        {"kind": "board", "label": "GitHub Project #2 — canonical board for ai-harness (122 items; Status now accurate)",
          "href": "https://github.com/users/jdtogni78/projects/2"},
         {"kind": "repo", "label": "jdtogni78/ai-harness (public source of truth)",
          "href": "https://github.com/jdtogni78/ai-harness"},
@@ -189,18 +189,23 @@ MODEL = {
             "source": {"label": "memory: repo_split_public_private"},
         },
         {
-            "statement": "GitHub Project #2 IS the canonical board for ai-harness (45 of 60 items on the active repo; 13 are archive-repo leftovers).",
+            "statement": "GitHub Project #2 IS the canonical board for ai-harness (107 of 122 items on the active repo; 13 archive-repo leftovers; 2 blank/draft).",
             "why": ("Worker sessions can't set a ticket's Status→In Progress because their gh "
                     "token lacks the 'project' scope — a token-scope limitation, not a board/repo "
                     "mismatch. Board-status writes belong to a scoped session "
                     "(gh auth refresh -s project --hostname github.com, which a detached worker "
-                    "cannot complete interactively)."),
-            "recorded_because": ("An earlier draft of this report MISDIAGNOSED the board as tracking "
-                                 "the archive repo; independent verification (full 60-item listing) "
-                                 "caught it before it reached a memory file. Verified-vs-claimed "
-                                 "discipline working as intended."),
+                    "cannot complete interactively). Board Status is now accurate — set from a "
+                    "scoped session: #179/#175/#178 In Progress, #177 Done, #174/#176 Todo."),
+            "recorded_because": ("BOTH earlier versions of this fact were wrong for the SAME reason — "
+                                 "a partial view of a paginated source presented as the whole (first "
+                                 "from sampling archive-era items, then from a truncated --limit 60 "
+                                 "page that hid the true 122-item total). A paginated API's default "
+                                 "limit silently produced a confident wrong number twice; the "
+                                 "verify-before-trust loop caught both before they reached memory. "
+                                 "Generalized lesson recorded as a memory file."),
             "date": "2026-09-13",
-            "source": {"label": "gh project item-list 2 --owner jdtogni78 (60 items: 45 active / 13 archive)"},
+            "memory_ref": "paginated-source-partial-view-trap.md",
+            "source": {"label": "gh project item-list 2 --owner jdtogni78 --limit 200 (122 items: 107 active / 13 archive / 2 draft)"},
         },
         {
             "statement": "The intermittent test_procutil RunMarker failure is a timestamp race, not a code regression.",
