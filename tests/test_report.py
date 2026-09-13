@@ -18,7 +18,7 @@ ISO = "%Y-%m-%dT%H:%M:%SZ"
 
 def load_report():
     spec = importlib.util.spec_from_file_location(
-        "report_mod", REPO / "skills" / "report" / "scripts" / "report.py")
+        "report_mod", REPO / "skills" / "manager-recap" / "scripts" / "report.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

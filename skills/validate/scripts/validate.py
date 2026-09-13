@@ -49,7 +49,7 @@ MILESTONES_DIR = AH_ROOT / "milestones"
 # reuse, not copy: the deck renderer and the /report verified-vs-claimed classifier
 sys.path.insert(0, str(DECK_DIR))
 sys.path.insert(0, str(AH_ROOT))
-sys.path.insert(0, str(AH_ROOT / "skills" / "report" / "scripts"))
+sys.path.insert(0, str(AH_ROOT / "skills" / "manager-recap" / "scripts"))
 from deck.generate import write_generic_deck            # noqa: E402  (reuse)
 import report as report_skill                            # noqa: E402  (classifier reuse)
 
