@@ -130,9 +130,11 @@ Validation sort **worst-first** (blocked → in-progress → todo → done).
 - Evidence is tagged **verified** only when a resolvable pointer is attached;
   otherwise **claimed**. A task with **zero verified evidence** renders a loud
   **UNVERIFIED — no resolvable proof attached** banner.
-- If a source was unavailable, say so **on the page** (e.g. as a fact/caveat) —
-  the ai-harness report records the "GitHub Project #2 tracks the archive repo,
-  not the active repo" caveat exactly this way.
+- If a source was unavailable or a limitation was hit, say so **on the page**
+  (e.g. as a fact/caveat) — the ai-harness report records the "worker sessions
+  can't set board Status because their gh token lacks the `project` scope" fact
+  exactly this way, WITH a "please verify" that caught (and corrected) an earlier
+  misdiagnosis before it propagated.
 
 ## Facts / Memory page — and when to record a fact
 

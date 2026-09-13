@@ -53,14 +53,15 @@ MODEL = {
     "tasks": [
         {
             "id": "179", "title": "#179 report-v2 → report (this report)",
-            "status": "in-progress", "progress": 0.7, "owner": "W10 · ai-harness-report",
-            "note": "Sidebar multi-page review renderer; rename old report→manager-recap; Facts page; this ai-harness report is the proving case.",
+            "status": "in-progress", "progress": 0.9, "owner": "W10 · ai-harness-report",
+            "note": "Sidebar multi-page review renderer; rename old report→manager-recap; Facts page; this ai-harness report is the proving case. Committed on feat/report-v2, awaiting boss-gated merge.",
             "todos": [
                 {"text": "Build self-contained sidebar renderer (template/css/js/inliner)", "done": True},
                 {"text": "Vendor Alpine inline (offline, no CDN)", "done": True},
                 {"text": "Facts/Memory page + authoring guidance", "done": True},
-                {"text": "Rename report→manager-recap; fix [[report]] links + README", "done": False},
-                {"text": "Generate ai-harness report; screenshot + print-to-PDF verify", "done": False},
+                {"text": "Rename report→manager-recap; fix [[report]] links + README", "done": True},
+                {"text": "Generate ai-harness report; screenshot + print-to-PDF verify", "done": True},
+                {"text": "Boss review + merge (gated)", "done": False},
             ],
             "resources": [
                 {"kind": "ticket", "label": "#179", "href": "https://github.com/jdtogni78/ai-harness/issues/179"},
@@ -166,7 +167,7 @@ MODEL = {
     ],
 
     "resources": [
-        {"kind": "board", "label": "GitHub Project #2 (see Facts — tracks the ARCHIVE repo, verify before citing)",
+        {"kind": "board", "label": "GitHub Project #2 — canonical board for ai-harness (see Facts re: worker token scope)",
          "href": "https://github.com/users/jdtogni78/projects/2"},
         {"kind": "repo", "label": "jdtogni78/ai-harness (public source of truth)",
          "href": "https://github.com/jdtogni78/ai-harness"},
@@ -188,11 +189,18 @@ MODEL = {
             "source": {"label": "memory: repo_split_public_private"},
         },
         {
-            "statement": "GitHub Project #2 currently tracks jdtogni78/ai-harness-ARCHIVE, not the active repo.",
-            "why": "Its items reference the archive repo (e.g. 'Codex usage-limit auto-resume'), so board status ≠ active-repo status.",
-            "recorded_because": "Discovered while generating this report — the board API was reachable but pointed at the wrong repo; citing it as the ai-harness board would mislead.",
-            "date": "2026-09-13", "memory_ref": "(candidate — worth a memory file)",
-            "source": {"label": "gh project item-list 2 --owner jdtogni78"},
+            "statement": "GitHub Project #2 IS the canonical board for ai-harness (45 of 60 items on the active repo; 13 are archive-repo leftovers).",
+            "why": ("Worker sessions can't set a ticket's Status→In Progress because their gh "
+                    "token lacks the 'project' scope — a token-scope limitation, not a board/repo "
+                    "mismatch. Board-status writes belong to a scoped session "
+                    "(gh auth refresh -s project --hostname github.com, which a detached worker "
+                    "cannot complete interactively)."),
+            "recorded_because": ("An earlier draft of this report MISDIAGNOSED the board as tracking "
+                                 "the archive repo; independent verification (full 60-item listing) "
+                                 "caught it before it reached a memory file. Verified-vs-claimed "
+                                 "discipline working as intended."),
+            "date": "2026-09-13",
+            "source": {"label": "gh project item-list 2 --owner jdtogni78 (60 items: 45 active / 13 archive)"},
         },
         {
             "statement": "The intermittent test_procutil RunMarker failure is a timestamp race, not a code regression.",
